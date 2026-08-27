@@ -1,156 +1,83 @@
-import express from "express";
-import cors from "cors";
+import express from "express"; // Import the Express framework
+import cors from "cors"; // Import CORS to allow cross-origin requests
 import path from "path";
 import { fileURLToPath } from "url";
-import { config } from "dotenv";
-
-import { Mongo } from "./database/mongo.js";
+import { config } from "dotenv"; // Import dotenv to load environment variables
+import { Mongo } from "./database/mongo.js"; // Import custom MongoDB connection module
 import usersRouter from "./modules/users/usersRouter.js";
 import fieldsRouter from "./modules/fields/fieldsRouter.js";
-import menusRouter from "./modules/menus/menusRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
+import menusRouter from "./modules/menus/menusRouter.js";
 
-// ==========================================
-// ES MODULES
-// ==========================================
-
+// Em ES Modules, precisamos recriar as variáveis __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ==========================================
-// .ENV LOCAL
-// ==========================================
+// Dizemos ao dotenv para subir duas pastas e procurar o .env na raiz do projeto
+config({ path: path.resolve(__dirname, '../../.env') });
 
-config({
-  path: path.resolve(__dirname, "../../.env"),
-});
-
-// ==========================================
-// MAIN
-// ==========================================
-
+// Main function to start the server
 async function main() {
-  const port = process.env.PORT || process.env.API_PORT || 3000;
+  // Puxa a porta do .env ou usa a 3000 como segurança (fallback)
+  const port = process.env.API_PORT || 3000;
+  // No Docker, o host deve ser '0.0.0.0' para aceitar conexões externas
   const hostname = "0.0.0.0";
 
-  const app = express();
+  const app = express(); // Create an instance of the Express application
 
-  // ==========================================
-  // CORS
-  // ==========================================
-
-  const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "https://dance-manager-gamma.vercel.app",
-  ];
-
-  const corsOptions = {
-    origin: function (origin, callback) {
-      // Permite requisições sem Origin
-      // (Postman, curl, comunicação interna etc.)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.log("❌ CORS bloqueado:", origin);
-
-      return callback(new Error("Origin não permitida pelo CORS"));
-    },
-
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "DELETE",
-      "PATCH",
-      "OPTIONS",
-    ],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
-
-    optionsSuccessStatus: 204,
-  };
-
-  // Middleware CORS
-  app.use(cors(corsOptions));
-
-  // Responde explicitamente ao preflight OPTIONS
-  app.options("*", cors(corsOptions));
-
-  // ==========================================
-  // MIDDLEWARES
-  // ==========================================
-
-  app.use(express.json());
-
-  // ==========================================
-  // TESTE
-  // ==========================================
-
-  app.get("/", (req, res) => {
-    res.json({
-      success: true,
-      statusCode: 200,
-      body: "Welcome to DanceManager - TESTE",
-    });
-  });
-
-  // ==========================================
-  // MONGODB
-  // ==========================================
-
+  // Connect to MongoDB using custom module
   const mongoConnection = await Mongo.connect({
     mongoConnectionString: process.env.MONGO_CS,
     mongoDbName: process.env.MONGO_DB_NAME,
   });
 
-  console.log("MongoDB:", mongoConnection);
+  // Print the connection result (success message or error)
+  console.log(mongoConnection);
 
-  // ==========================================
-  // ROTAS
-  // ==========================================
+  // Middleware to allow requests from other origins
+  app.use(cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://dance-manager-gamma.vercel.app/"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  }));
 
-  app.use("/users", usersRouter);
-  app.use("/fields", fieldsRouter);
-  app.use("/menus", menusRouter);
-  app.use("/activities", activitiesRouter);
+  // Middleware to parse JSON bodies in requests
+  app.use(express.json());
 
-  // ==========================================
-  // ERRO GLOBAL
-  // ==========================================
-
-  app.use((err, req, res, next) => {
-    console.error("🚨 Erro Global Capturado:", err);
-
-    res.status(500).json({
-      success: false,
-      statusCode: 500,
-      body: "Erro interno no servidor. A operação não pôde ser concluída.",
+  // Root route - responds with a welcome message
+  app.get("/", (req, res) => {
+    res.send({
+      success: true,
+      statusCode: 200,
+      body: "Welcome to Dance Manager - TESTE",
     });
   });
 
-  // ==========================================
-  // SERVER
-  // ==========================================
+  // Routes
+  app.use("/users", usersRouter);
+  app.use("/fields", fieldsRouter);
+  app.use("/activities", activitiesRouter);
+  app.use("/menus", menusRouter);
 
-  app.listen(port, hostname, () => {
-    console.log(`🚀 Server running on ${hostname}:${port}`);
+  app.use((err, req, res, next) => {
+  console.error("🚨 Erro Global Capturado:", err.message);
+
+  res.status(500).json({
+    success: false,
+    statusCode: 500,
+    body: "Erro interno no servidor. A operação não pôde ser concluída."
+  });
+});
+
+  // Start the server and listen on the defined port
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on port: ${port}`);
   });
 }
 
-// ==========================================
-// START
-// ==========================================
-
-main().catch((error) => {
-  console.error("❌ Erro ao iniciar servidor:", error);
-  process.exit(1);
-});
+main(); // Run the main function
