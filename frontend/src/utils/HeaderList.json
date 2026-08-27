@@ -1,0 +1,158 @@
+{
+  "peopleManagementTR": [
+    {
+      "text": "Situação",
+      "type": "select",
+      "optionsKey": "user_situation",
+      "dataKey": "user_situation"
+    },
+    {
+      "text": "Matrícula",
+      "type": "number",
+      "dataKey": "user_mat"
+    },
+    {
+      "text": "Nome",
+      "type": "text",
+      "dataKey": "user_name"
+    },
+    {
+      "text": "Tipo",
+      "type": "select",
+      "optionsKey": "user_type",
+      "dataKey": "user_type"
+    },
+    {
+      "text": "CPF",
+      "type": "text",
+      "dataKey": "user_cpf"
+    },
+    {
+      "text": "RG",
+      "type": "text",
+      "dataKey": "user_rg"
+    },
+    {
+      "text": "Data Admissão",
+      "type": "date",
+      "dataKey": "user_registration_date"
+    },
+    {
+      "text": "Data Nasc.",
+      "type": "date",
+      "dataKey": "user_date_nasc"
+    },
+    {
+      "text": "Bairro",
+      "type": "text",
+      "dataKey": "user_district"
+    },
+    {
+      "text": "Rua",
+      "type": "text",
+      "dataKey": "user_street"
+    },
+    {
+      "text": "Nome da mãe",
+      "type": "text",
+      "dataKey": "user_mother_name"
+    },
+    {
+      "text": "Nome do responsável",
+      "type": "text",
+      "dataKey": "user_minor_name"
+    }
+  ],
+  "activitiesManagementTR": [
+    {
+      "text": "Código",
+      "type": "text",
+      "dataKey": "activity_mat"
+    },
+    {
+      "text": "Nome",
+      "type": "text",
+      "dataKey": "activity_title"
+    },
+    {
+      "text": "Tipo",
+      "type": "select",
+      "dataKey": "activity_type",
+      "optionsKey": "activity_type"
+    },
+    {
+      "text": "Dias",
+      "type": "select",
+      "dataKey": "activity_days",
+      "optionsKey": "activity_days"
+    },
+    {
+      "text": "Horário de inicio",
+      "type": "text",
+      "dataKey": "activity_time_start"
+    },
+    {
+      "text": "Horário de termino",
+      "type": "text",
+      "dataKey": "activity_time_end"
+    },
+    {
+      "text": "Ativo",
+      "type": "select",
+      "dataKey": "activity_active",
+      "optionsKey": "activity_active"
+    }
+  ],
+  "fieldsManagementTR": [
+    {
+      "text": "Titulo",
+      "type": "text",
+      "dataKey": "title"
+    },
+    {
+      "text": "Campo",
+      "type": "text",
+      "dataKey": "field"
+    },
+    {
+      "text": "Tipo",
+      "type": "text",
+      "dataKey": "type"
+    },
+    {
+      "text": "Menu",
+      "type": "number",
+      "dataKey": "folder"
+    },
+    {
+      "text": "Ordenação",
+      "type": "number",
+      "dataKey": "order"
+    },
+    {
+      "text": "Conteudo",
+      "type": "number",
+      "dataKey": "input"
+    },
+    {
+      "text": "Modo",
+      "type": "number",
+      "dataKey": "mode"
+    },
+    {
+      "text": "Obrigatório?",
+      "type": "boolean",
+      "dataKey": "required"
+    },
+    {
+      "text": "Tamanho máximo",
+      "type": "number",
+      "dataKey": "maxLength"
+    },
+    {
+      "text": "Tamanho mínimo",
+      "type": "number",
+      "dataKey": "minLength"
+    }
+  ]
+}
