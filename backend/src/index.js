@@ -10,12 +10,24 @@ import fieldsRouter from "./modules/fields/fieldsRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
 
-// ES Modules
+// ==========================================
+// ES MODULES
+// ==========================================
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// .env local
-config({ path: path.resolve(__dirname, "../../.env") });
+// ==========================================
+// .ENV LOCAL
+// ==========================================
+
+config({
+  path: path.resolve(__dirname, "../../.env"),
+});
+
+// ==========================================
+// MAIN
+// ==========================================
 
 async function main() {
   const port = process.env.PORT || process.env.API_PORT || 3000;
@@ -27,18 +39,51 @@ async function main() {
   // CORS
   // ==========================================
 
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://dance-manager-gamma.vercel.app",
+  ];
+
   const corsOptions = {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://dance-manager-gamma.vercel.app",
+    origin: function (origin, callback) {
+      // Permite requisições sem Origin
+      // (Postman, curl, comunicação interna etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log("❌ CORS bloqueado:", origin);
+
+      return callback(new Error("Origin não permitida pelo CORS"));
+    },
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "OPTIONS",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+    ],
+
+    optionsSuccessStatus: 204,
   };
 
+  // Middleware CORS
   app.use(cors(corsOptions));
+
+  // Responde explicitamente ao preflight OPTIONS
+  app.options("*", cors(corsOptions));
 
   // ==========================================
   // MIDDLEWARES
@@ -100,6 +145,10 @@ async function main() {
     console.log(`🚀 Server running on ${hostname}:${port}`);
   });
 }
+
+// ==========================================
+// START
+// ==========================================
 
 main().catch((error) => {
   console.error("❌ Erro ao iniciar servidor:", error);
