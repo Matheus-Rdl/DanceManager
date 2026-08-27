@@ -1,84 +1,107 @@
-import express from "express"; // Import the Express framework
-import cors from "cors"; // Import CORS to allow cross-origin requests
+import express from "express";
+import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { config } from "dotenv"; // Import dotenv to load environment variables
+import { config } from "dotenv";
+
 import { Mongo } from "./database/mongo.js";
 import usersRouter from "./modules/users/usersRouter.js";
 import fieldsRouter from "./modules/fields/fieldsRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
 
-// Em ES Modules, precisamos recriar as variáveis __dirname
+// ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Dizemos ao dotenv para subir duas pastas e procurar o .env na raiz do projeto
-config({ path: path.resolve(__dirname, '../../.env') });
+// .env local
+config({ path: path.resolve(__dirname, "../../.env") });
 
-
-// Main function to start the server
 async function main() {
-  // Puxa a porta do .env ou usa a 3000 como segurança (fallback)
-  const port = process.env.API_PORT || 3000;
-  // No Docker, o host deve ser '0.0.0.0' para aceitar conexões externas
+  const port = process.env.PORT || process.env.API_PORT || 3000;
   const hostname = "0.0.0.0";
 
-  const app = express(); // Create an instance of the Express application
+  const app = express();
 
-  // Connect to MongoDB using custom module
-  const mongoConnection = await Mongo.connect({
-    mongoConnectionString: process.env.MONGO_CS,
-    mongoDbName: process.env.MONGO_DB_NAME,
-  });
+  // ==========================================
+  // CORS
+  // ==========================================
 
-  // Print the connection result (success message or error)
-  console.log(mongoConnection);
-
-  // Middleware to allow requests from other origins
-  app.use(cors({
+  const corsOptions = {
     origin: [
       "http://localhost:5173",
       "http://localhost:5174",
-      "https://dance-manager-gamma.vercel.app"
+      "https://dance-manager-gamma.vercel.app",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true
-  }));
+    credentials: true,
+  };
 
-  // Middleware to parse JSON bodies in requests
+  app.use(cors(corsOptions));
+
+  // ==========================================
+  // MIDDLEWARES
+  // ==========================================
+
   app.use(express.json());
 
-  // Root route - responds with a welcome message
+  // ==========================================
+  // TESTE
+  // ==========================================
+
   app.get("/", (req, res) => {
-    res.send({
+    res.json({
       success: true,
       statusCode: 200,
       body: "Welcome to DanceManager - TESTE",
     });
   });
 
-  // Routes
+  // ==========================================
+  // MONGODB
+  // ==========================================
+
+  const mongoConnection = await Mongo.connect({
+    mongoConnectionString: process.env.MONGO_CS,
+    mongoDbName: process.env.MONGO_DB_NAME,
+  });
+
+  console.log("MongoDB:", mongoConnection);
+
+  // ==========================================
+  // ROTAS
+  // ==========================================
+
   app.use("/users", usersRouter);
   app.use("/fields", fieldsRouter);
   app.use("/menus", menusRouter);
   app.use("/activities", activitiesRouter);
 
+  // ==========================================
+  // ERRO GLOBAL
+  // ==========================================
+
   app.use((err, req, res, next) => {
-    console.error("🚨 Erro Global Capturado:", err.message);
+    console.error("🚨 Erro Global Capturado:", err);
 
     res.status(500).json({
       success: false,
       statusCode: 500,
-      body: "Erro interno no servidor. A operação não pôde ser concluída."
+      body: "Erro interno no servidor. A operação não pôde ser concluída.",
     });
   });
 
-  // Start the server and listen on the defined port
-  app.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on port: ${port}`);
+  // ==========================================
+  // SERVER
+  // ==========================================
+
+  app.listen(port, hostname, () => {
+    console.log(`🚀 Server running on ${hostname}:${port}`);
   });
 }
 
-main(); // Run the main function
+main().catch((error) => {
+  console.error("❌ Erro ao iniciar servidor:", error);
+  process.exit(1);
+});
