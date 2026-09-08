@@ -36,10 +36,8 @@ export default function DialogAddActivity({ open, onClose, userData, onSaved }) 
   const [listActive, setListActive] = useState(1);
 
   const activity_type = {
-    1: "1 - Inglês",
-    2: "2 - Espanhol",
-    3: "3 - Fotografia",
-    4: "4 - Genérico",
+    1: "1 - Samba",
+    2: "2 - Funkeado",
   };
 
   useEffect(() => {

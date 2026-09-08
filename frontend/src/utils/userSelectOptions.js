@@ -90,7 +90,9 @@ export const selectOptions = {
 
   user_activities_desired: {
     1: "1 - SAMBA",
-    2: "2 - FUNKEADO"
+    2: "2 - FUNKEADO",
+    3: "3 - FORRO",
+    4: "4 - BOLERO",
   },
 
   user_document_missing: {
@@ -111,11 +113,15 @@ export const selectOptions = {
   activity_type: {
     "1": "1 - SAMBA",
     "2": "2 - FUNKEADO",
+    "3": "3 - FORRO",
+    "4": "4 - BOLERO",
   },
 
   user_activity_types: {
     "1": "1 - SAMBA",
     "2": "2 - FUNKEADO",
+    "3": "3 - FORRO",
+    "4": "4 - BOLERO",
   },
 
   activity_active: {

@@ -10,21 +10,22 @@ export default function usersServices() {
 
   const url = `${import.meta.env.VITE_API_URL}/users`;
 
-  const addUser = (userData) => {
-    fetch(`${url}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    })
-      .then((response) => response.json())
-      .then((result) => {
-        console.log(result);
-      })
-      .catch((error) => {
-        console.log(error);
+  const addUser = async (userData) => {
+    try {
+      const response = await fetch(`${url}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
       });
+      const result = await response.json();
+      console.log(result);
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   };
 
   const getUsers = () => {
@@ -157,6 +158,25 @@ export default function usersServices() {
     });
   };
 
+  const deleteUser = async (userId) => {
+    try {
+      const response = await fetch(`${url}/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const result = await response.json();
+      if (!result.success) {
+        console.log(result);
+      }
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  };
+
   return {
     addUser,
     getUsers,
@@ -165,6 +185,7 @@ export default function usersServices() {
     getUsersByType,
     updateUser,
     updateUserActivities,
+    deleteUser,
     usersLoading,
     refetchUsers,
     usersList,

@@ -1,62 +1,239 @@
 import { useLocation } from "react-router-dom";
+
 import ActivityManagementUserActivity from "../../activities/pages/activityManagementUserActivity";
 import activitiesServices from "../../../services/activitiesServices";
-import { useEffect, useState } from "react";
+
+import { useEffect } from "react";
+
 import { useDisclosure } from "@chakra-ui/react";
+
 import CardActivity from "../../../components/cards/cardActivity";
-import HandleBack from "../../../components/handleBack";
-import { Box, Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import HeadingPage from "../../../components/headingPage";
 import DialogAddActivity from "./dialog/dialogAddActivity";
 
-export default function PeopleManagementActivities() {
-  const location = useLocation();
-  const { userData } = location.state || {};
-  const { getActivitiesByMat, userActivitiesList, refetchActivities } =
-    activitiesServices();
+import {
+  Box,
+  Button,
+  HStack,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 
-  // Substitui useState por useDisclosure
-  const { open, onOpen, onClose } = useDisclosure();
+
+export default function PeopleManagementActivities() {
+
+  const location = useLocation();
+
+  const {
+    userData,
+  } = location.state || {};
+
+
+  const {
+    getActivitiesByMat,
+    userActivitiesList,
+    refetchActivities,
+  } = activitiesServices();
+
+
+  // ============================================================
+  // DIALOG
+  // ============================================================
+
+  const {
+    open,
+    onOpen,
+    onClose,
+  } = useDisclosure();
+
+
+  // ============================================================
+  // CARREGA ATIVIDADES
+  // ============================================================
 
   useEffect(() => {
-    if (refetchActivities) {
-      getActivitiesByMat(userData.user_activities);
-    }
-  }, [refetchActivities]);
 
-  const handleSavedActivities = (activitiesMat) => {
-    getActivitiesByMat(activitiesMat);
+    if (
+      refetchActivities &&
+      userData?.user_activities
+    ) {
+
+      getActivitiesByMat(
+        userData.user_activities
+      );
+
+    }
+
+  }, [
+    refetchActivities,
+    userData,
+  ]);
+
+
+  // ============================================================
+  // APÓS SALVAR ATIVIDADE
+  // ============================================================
+
+  const handleSavedActivities = (
+    activitiesMat
+  ) => {
+
+    getActivitiesByMat(
+      activitiesMat
+    );
+
   };
 
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
-    <>
-      <Flex>
-        <Box flex="1" minW={0} display={"flex"} flexDirection={"column"} gap={4}>
 
-          <HeadingPage content={"Atividades do usuário"} />
+    <VStack
+      gap={4}
+      align="stretch"
+    >
 
-          <Button size="xs" variant="surface" onClick={onOpen}>
-            Adicionar Atividade
-          </Button>
+      {/* ======================================================
+          TÍTULO
+          ====================================================== */}
 
-          <VStack gap={2} align="stretch">
-            {userActivitiesList.map((activity) => (
-              <Box
-                key={activity._id}
-                cursor="pointer"
-                transition="0.2s"
-                _hover={{ transform: "scale(1.01)", bg: "blackAlpha.100" }}
-              >
-                <CardActivity key={activity._id} data={activity} />
-              </Box>
-            ))}
+      <HeadingPage
+        content="Atividades do usuário"
+      />
+
+
+      {/* ======================================================
+          INFORMAÇÕES DO ALUNO
+          ====================================================== */}
+
+      <Box>
+
+        <Text
+          fontSize="sm"
+          color="gray.500"
+        >
+          Aluno
+        </Text>
+
+
+        <Text
+          fontSize="lg"
+          fontWeight="bold"
+        >
+
+          {userData?.user_name ||
+            userData?.name ||
+            "Aluno selecionado"}
+
+        </Text>
+
+      </Box>
+
+
+      {/* ======================================================
+          BOTÕES
+          ====================================================== */}
+
+      <HStack
+        gap={2}
+      >
+
+        <Button
+          size="xs"
+          variant="surface"
+          onClick={onOpen}
+        >
+          Adicionar atividade
+        </Button>
+
+      </HStack>
+
+
+      {/* ======================================================
+          LISTA DE ATIVIDADES
+          ====================================================== */}
+
+      <Box
+        mt={2}
+        border="1px solid"
+        borderColor="gray.200"
+        borderRadius="md"
+        overflow="hidden"
+      >
+
+        {userActivitiesList.length === 0 ? (
+
+          // ==================================================
+          // NENHUMA ATIVIDADE
+          // ==================================================
+
+          <Box
+            p={8}
+            textAlign="center"
+          >
+
+            <Text
+              color="gray.500"
+            >
+              Este aluno ainda não possui
+              atividades.
+            </Text>
+
+          </Box>
+
+        ) : (
+
+          // ==================================================
+          // ATIVIDADES
+          // ==================================================
+
+          <VStack
+            align="stretch"
+            gap={0}
+          >
+
+            {userActivitiesList.map(
+              (activity, index) => (
+
+                <Box
+                  key={activity._id}
+                  px={4}
+                  py={3}
+                  borderBottom={
+                    index !==
+                      userActivitiesList.length - 1
+                      ? "1px solid"
+                      : "none"
+                  }
+                  borderColor="gray.200"
+                  transition="0.2s"
+                  _hover={{
+                    bg: "blackAlpha.50",
+                  }}
+                >
+
+                  <CardActivity
+                    data={activity}
+                  />
+
+                </Box>
+
+              )
+            )}
+
           </VStack>
-        </Box>
 
-        <Box w="50%" ml={4} mt="-65px" mr="-1em">
-          <ActivityManagementUserActivity />
-        </Box>
-      </Flex>
+        )}
+
+      </Box>
+
+
+      {/* ======================================================
+          DIALOG — ADICIONAR ATIVIDADE
+          ====================================================== */}
 
       <DialogAddActivity
         open={open}
@@ -64,6 +241,9 @@ export default function PeopleManagementActivities() {
         userData={userData}
         onSaved={handleSavedActivities}
       />
-    </>
+
+    </VStack>
+
   );
+
 }

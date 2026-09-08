@@ -165,6 +165,25 @@ export default function activitiesServices() {
       });
   };
 
+  const deleteActivity = async (activityId) => {
+    try {
+      const response = await fetch(`${url}/${activityId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const result = await response.json();
+      if (!result.success) {
+        console.log(result);
+      }
+      return result;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  };
+
   return {
     addActivity,
     getActivities,
@@ -172,6 +191,7 @@ export default function activitiesServices() {
     getActivitiesByType,
     getActivityNextMat,
     updateActivity,
+    deleteActivity,
     activitiesLoading,
     refetchActivities,
     userActivitiesList,

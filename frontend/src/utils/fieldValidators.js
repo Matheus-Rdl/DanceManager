@@ -7,7 +7,7 @@ const hasMaxLength = (value, max) => String(value).trim().length <= max;
 
 const isAlpha = (value) => /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(value.trim());
 //const isAlphaFree = (value) => /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s()\/\-,.]+$/.test(value.trim());
-const isAlphaFree = (value) => /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s.,\-\/()]+$/.test(value.trim());
+const isAlphaFree = (value) =>/^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s.,+|()\/-]+$/.test(value.trim());
 const isNumeric = (value) => /^\d+$/.test(value);
 const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value.trim()); // formato YYYY-MM-DD
@@ -23,7 +23,7 @@ export function validateField(field, value) {
     return errors; // nem continua se estiver vazio
   }
 
-  console.log(field.type, field.title);
+  //console.log(field.type, field.title);
   // 🔹 Tipo
   switch (field.type) {
     case "text":
@@ -69,21 +69,26 @@ export function validateField(field, value) {
   }
 
   // 🔹 Tamanho mínimo e máximo (se definidos)
+// 🔹 Tamanho mínimo e máximo
+// Só valida tamanho se o campo estiver preenchido
+if (isRequired(value)) {
   if (
     field.minLength &&
     field.maxLength &&
     field.minLength === field.maxLength
   ) {
-    if (String(value).length !== field.minLength) {
+    if (String(value).trim().length !== field.minLength) {
       errors.push(`Deve conter exatamente ${field.minLength} caracteres`);
     }
   } else {
     if (field.minLength && !hasMinLength(value, field.minLength)) {
       errors.push(`Mínimo de ${field.minLength} caracteres`);
     }
+
     if (field.maxLength && !hasMaxLength(value, field.maxLength)) {
       errors.push(`Máximo de ${field.maxLength} caracteres`);
     }
   }
+}
   return errors;
 }

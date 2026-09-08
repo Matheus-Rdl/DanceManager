@@ -4,27 +4,39 @@
     Description:
       Página activityManagement responsável por orquestrar a tela, seus estados locais, integrações e componentes visuais.
     Author: Matheus Rodrigues
-    Last Edit: 01/04/2026
+    Last Edit: 01/09/2026
 */
 
-import { useEffect, useRef, useState } from "react";
-import activitiesServices from "../../../services/activitiesServices";
+
+// internal imports
 import { Link } from "react-router-dom";
-import List from "../../../components/list";
-import { activitiesManagementTR } from "../../../utils/HeaderList.json";
-import HeaderFilter from "../../../components/headerFilter";
+import { Table, Box, Button, Heading, HStack, VStack, Flex, Dialog, Portal } from "@chakra-ui/react";
+import { useEffect, useRef, useState } from "react";
+
+//Hooks
 import useTableFilter from "../../../hooks/useTableFilter";
-import HandleBack from "../../../components/handleBack";
-import { Table, Box, Button, Heading, HStack, VStack, Flex } from "@chakra-ui/react";
-import HeadingPage from "../../../components/headingPage";
+
+//Services
 import fieldsServices from "../../../services/fieldsServices";
+import activitiesServices from "../../../services/activitiesServices";
+
+//Components
 import Loading from "../../../components/loading";
+import HeadingPage from "../../../components/headingPage";
+import HeaderFilter from "../../../components/headerFilter";
+import List from "../../../components/list";
+
+//React Icons
+import { FaThList } from "react-icons/fa";
+import { MdViewWeek } from "react-icons/md";
+import { PiCardsFill } from "react-icons/pi";
 
 export default function ActivityManagement() {
 
   const [activityActive, setActivityActive] = useState(null); // Estado local responsável por controlar "activityActive" durante o ciclo de vida do componente.
-  const { getActivities, refetchActivities, activitiesList, activitiesLoading } = activitiesServices(); // Serviço/hook de integração com a API, centralizando busca, envio e atualização de dados.
+  const { getActivities, refetchActivities, activitiesList, activitiesLoading, deleteActivity } = activitiesServices(); // Serviço/hook de integração com a API, centralizando busca, envio e atualização de dados.
   const [open, setOpen] = useState(false); // Estado local responsável por controlar "open" durante o ciclo de vida do componente.
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const menuRef = useRef(null); // Referência persistente usada para acessar "menuRef" sem provocar nova renderização.
   const [filters, setFilters] = useState({}); // Estado local responsável por controlar "filters" durante o ciclo de vida do componente.
   const selectedActivity = activitiesList?.find((a) => a._id === activityActive);
@@ -109,6 +121,23 @@ export default function ActivityManagement() {
     return <Loading />;
   }
 
+  const handleDeleteActivity = async () => {
+    try {
+      const result = await deleteActivity(activityActive);
+
+      if (result.success) {
+        setDeleteDialogOpen(false);
+        setOpen(false);
+        setActivityActive(null);
+        getActivities();
+      } else {
+        console.log(result);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <VStack gap={4} align="stretch">
 
@@ -183,10 +212,102 @@ export default function ActivityManagement() {
                   Alunos
                 </Box>
               </Link>
+
+              <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}
+                onClick={() => {
+                  setOpen(false);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                Excluir turma
+              </Box>
             </Box>
           )}
         </Box>
       </HStack>
+
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={(e) => setDeleteDialogOpen(e.open)}
+        placement="center"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Excluir turma</Dialog.Title>
+              </Dialog.Header>
+
+              <Dialog.Body>
+                <VStack align="start" gap={2}>
+                  <Box>
+                    Tem certeza que deseja excluir esta turma?
+                  </Box>
+
+                  {selectedActivity && (
+                    <Box fontWeight="bold">
+                      {selectedActivity.activity_name}
+                    </Box>
+                  )}
+
+                  <Box fontSize="sm" color="gray.500">
+                    Essa ação não poderá ser desfeita.
+                  </Box>
+                </VStack>
+              </Dialog.Body>
+
+              <Dialog.Footer>
+                <HStack>
+                  <Dialog.ActionTrigger asChild>
+                    <Button variant="outline">
+                      Cancelar
+                    </Button>
+                  </Dialog.ActionTrigger>
+
+                  <Button
+                    colorPalette="red"
+                    onClick={handleDeleteActivity}
+                  >
+                    Sim, excluir
+                  </Button>
+                </HStack>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+
+      <Flex gap={2} align="center" mt={2} p={2} borderRadius="md">
+
+        <Heading as="h3" size="sm" color="brand.primary">
+          Visualizações:
+        </Heading>
+
+        <Flex align="center" gap={2} backgroundColor="brand.secondary" p={2} borderRadius="md">
+          <FaThList size={20} color="brand.primary" />
+          <Heading as="h3" size="sm" color="brand.primary">
+            Lista
+          </Heading>
+        </Flex>
+
+        <Flex align="center" gap={2} backgroundColor="brand.secondary" p={2} borderRadius="md">
+          <PiCardsFill size={20} color="brand.primary" />
+          <Heading as="h3" size="sm" color="brand.primary">
+            Cards
+          </Heading>
+        </Flex>
+
+        <Flex align="center" gap={2} backgroundColor="brand.secondary" p={2} borderRadius="md">
+          <MdViewWeek size={20} color="brand.primary" />
+          <Heading as="h3" size="sm" color="brand.primary">
+            Semanal
+          </Heading>
+        </Flex>
+
+      </Flex>
 
       <Box
         mt={4}
@@ -197,8 +318,8 @@ export default function ActivityManagement() {
         overflow="hidden"
       >
         <Box
-          maxH="calc(100vh - 220px)"
-          minH="calc(100vh - 220px)"
+          maxH="calc(100vh - 295px)"
+          minH="calc(100vh - 295px)"
           overflow="auto"
         >
           <Table.Root variant="line" size="sm" whiteSpace="nowrap">

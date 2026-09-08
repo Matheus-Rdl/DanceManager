@@ -11,6 +11,7 @@ import Home from "./home/home.jsx";
 
 import PeopleManagement from "./features/register/pages/peopleManagement.jsx";
 import PeopleManagementDetailed from "./features/register/pages/peopleManagementDetailed.jsx";
+import PeopleManagementContracts from "./features/register/pages/peopleManagementContracts.jsx";
 
 import ActivityManagement from './features/activities/pages/activityManagement.jsx'
 import ActivityManagementDetailed from './features/activities/pages/activityManagementDetailed.jsx'
@@ -35,6 +36,7 @@ const pages = createHashRouter([
       { path: "/PeopleManagement/view", element: <PeopleManagementDetailed /> },
       { path: "/PeopleManagement/alter", element: <PeopleManagementDetailed /> },
       { path: "/PeopleManagementActivities", element: <PeopleManagementActivities /> },
+      { path: "/PeopleManagement/contracts", element: <PeopleManagementContracts /> },
 
       { path: "/ActivityManagement", element: <ActivityManagement /> },
       { path: "/ActivityManagement/add", element: <ActivityManagementDetailed /> },

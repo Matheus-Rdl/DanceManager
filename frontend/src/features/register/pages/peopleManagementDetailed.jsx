@@ -1,363 +1,790 @@
+
 import { useLocation, useNavigate } from "react-router-dom";
-import CardList from "../../../components/cards/cardList";
 import { useEffect, useState } from "react";
-import usersServices from "../../../services/usersServices";
-import FormTextArea from "../../../components/formTextArea";
+import { Box, Button, HStack, VStack, Flex, Text } from "@chakra-ui/react";
+
+//Utils
 import { getCurrentDate } from "../../../utils/dateFunctions";
-import fieldsServices from "../../../services/fieldsServices";
 import { validateField } from "../../../utils/fieldValidators";
-import HandleBack from "../../../components/handleBack";
+
+//Services
 import menusServices from "../../../services/menusServices";
-import activitiesServices from "../../../services/activitiesServices";
-import { Box, Button, Heading, HStack, SimpleGrid, VStack, createToaster, Flex } from "@chakra-ui/react";
+import fieldsServices from "../../../services/fieldsServices";
+import usersServices from "../../../services/usersServices";
+
+//Components
 import { toaster } from "../../../components/ui/toaster";
 import HeadingPage from "../../../components/headingPage";
+import FormTextArea from "../../../components/formTextArea";
+
 
 export default function PeopleManagementDetailed() {
 
+  // ============================================================
+  // ESTADOS
+  // ============================================================
+
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
+
   const navigate = useNavigate();
   const location = useLocation();
-  const { userId, userData, currentMode } = location.state || {};
 
-  // Lista de menus
-  const [listActive, setListActive] = useState(1 /*"Cadastrais"*/);
+  const {
+    userId,
+    userData,
+    currentMode
+  } = location.state || {};
 
-  // Utils
+
+  // ============================================================
+  // UTILS
+  // ============================================================
+
   const formattedDate = getCurrentDate();
 
-  // Service que pega os dados das coleções -> "menus", "fields", "users"
-  const { addUser, getUserNextMat, updateUser, refetchUsers, userNextMat } =
-    usersServices();
-  const { getFieldsByTitle, fieldsList } = fieldsServices();
-  const { getMenus, refetchMenus, menusList } = menusServices();
+
+  // ============================================================
+  // SERVICES
+  // ============================================================
+
+  const {
+    addUser,
+    getUserNextMat,
+    updateUser,
+    refetchUsers,
+    userNextMat
+  } = usersServices();
+
+  const {
+    getFieldsByTitle,
+    fieldsList
+  } = fieldsServices();
+
+  const {
+    getMenus,
+    refetchMenus,
+    menusList
+  } = menusServices();
+
+
+  // ============================================================
+  // MODOS
+  // ============================================================
 
   const isViewMode = currentMode === "V";
   const isEditMode = currentMode === "E";
   const isAddMode = currentMode === "A";
 
+
+  // ============================================================
+  // INICIALIZA FORMULÁRIO
+  // ============================================================
+
   const initializeFormData = () => {
+
     const initialData = {};
 
     fieldsList.forEach((field) => {
+
       switch (field.field) {
+
         case "user_mat":
-          initialData[field.field] = userNextMat || "";
+
+          initialData[field.field] =
+            userNextMat || "";
+
           break;
-        //case "user_registration_date":
-        //initialData[field.field] = formattedDate || "";
-        //break;
+
         default:
-          // Inicializa com string vazia para garantir que o campo exista
+
           initialData[field.field] = "";
+
       }
+
     });
 
     return initialData;
   };
 
-  // No useEffect
-  useEffect(() => {
-    if (!isAddMode && userData) {
-      setFormData({ ...userData });
-    } else if (isAddMode) {
-      setFormData(initializeFormData());
-    }
-  }, [isAddMode, userData, userNextMat, formattedDate, fieldsList]);
 
-  //useEffect para menus
+  // ============================================================
+  // CARREGA DADOS DO USUÁRIO
+  // ============================================================
+
   useEffect(() => {
+
+    if (!isAddMode && userData) {
+
+      setFormData({
+        ...userData
+      });
+
+    } else if (isAddMode) {
+
+      setFormData(
+        initializeFormData()
+      );
+
+    }
+
+  }, [
+    isAddMode,
+    userData,
+    userNextMat,
+    fieldsList
+  ]);
+
+
+  // ============================================================
+  // CARREGA MENUS
+  // ============================================================
+
+  useEffect(() => {
+
     if (refetchMenus) {
       getMenus();
     }
+
   }, [refetchMenus]);
 
-  // Leva uma mensagem para o services, a função getUserNextMat caso seja para adicionar usuário
-  if (isAddMode) {
-    useEffect(() => {
-      if (refetchUsers) {
-        getUserNextMat();
-      }
-    }, [refetchUsers]);
-  }
+
+  // ============================================================
+  // CARREGA PRÓXIMA MATRÍCULA
+  // ============================================================
 
   useEffect(() => {
+
+    if (!isAddMode) return;
+
+    if (refetchUsers) {
+      getUserNextMat();
+    }
+
+  }, [
+    isAddMode,
+    refetchUsers
+  ]);
+
+
+  // ============================================================
+  // CARREGA CAMPOS
+  // ============================================================
+
+  useEffect(() => {
+
     getFieldsByTitle("users");
+
   }, []);
 
-  useEffect(() => {
-    // valor que representa "SIM"
-    const YES_VALUE = "1"; // ajuste se for "S", true, etc.
 
-    if (formData.user_physically_disabled !== YES_VALUE) {
+  // ============================================================
+  // REGRA DE DEPENDÊNCIA
+  // ============================================================
+
+  useEffect(() => {
+
+    // Valor que representa "SIM"
+    const YES_VALUE = "1";
+
+    if (
+      formData.user_physically_disabled !== YES_VALUE
+    ) {
+
       setFormData((prev) => {
-        // se já estiver vazio, não faz nada
-        if (!prev.user_type_physically_disabled) return prev;
+
+        if (!prev.user_type_physically_disabled) {
+          return prev;
+        }
 
         return {
           ...prev,
-          user_type_physically_disabled: "",
+          user_type_physically_disabled: ""
         };
+
       });
+
     }
-  }, [formData.user_physically_disabled]);
+
+  }, [
+    formData.user_physically_disabled
+  ]);
 
 
-  //FUNÇõES
-  /* COLOCA PARA MAIUSCULO, É MELHOR COLOCAR EM MAIUSCULO NA HORA QUE ENVIAR O FORMULÁRIO
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: typeof value === "string" ? value.toUpperCase() : value,
-    }));
-  };
-  */
+  // ============================================================
+  // VALIDAÇÃO DOS CAMPOS
+  // ============================================================
 
-  //Valida os campos
-  const validateFields = (fieldsList, formData) => {
+  const validateFields = (
+    fieldsList,
+    formData
+  ) => {
+
     const newErrors = {};
 
     fieldsList.forEach((field) => {
 
+      // ----------------------------------------
+      // VERIFICA DEPENDÊNCIA
+      // ----------------------------------------
+
       if (field.dependsOn) {
-        const { field: dependsField, value } = field.dependsOn;
 
-        if (formData[dependsField] !== value) {
-          return; // 🔥 não valida este campo
+        const {
+          field: dependsField,
+          value
+        } = field.dependsOn;
+
+        if (
+          formData[dependsField] !== value
+        ) {
+          return;
         }
+
       }
 
-      const value = formData[field.field];
-      const errors = validateField(field, value);
 
-      if (errors.length > 0) {
-        newErrors[field.field] = errors.join(", ");
+      // ----------------------------------------
+      // VALIDA CAMPO
+      // ----------------------------------------
+
+      const value =
+        formData[field.field];
+
+      const fieldErrors =
+        validateField(
+          field,
+          value
+        );
+
+      if (fieldErrors.length > 0) {
+
+        newErrors[field.field] =
+          fieldErrors.join(", ");
+
       }
+
     });
 
     return newErrors;
   };
 
-  //Aparece o toast
-  const showSnackbar = (message, type = "error") => {
+
+  // ============================================================
+  // TOAST
+  // ============================================================
+
+  const showSnackbar = (
+    message,
+    type = "error"
+  ) => {
+
     toaster.create({
+
       title: message,
+
       type: type,
-      duration: 4000,
+
+      duration: 4000
+
     });
+
   };
 
-  // Verifica a mudança dos inputs
+
+  // ============================================================
+  // ALTERAÇÃO DOS CAMPOS
+  // ============================================================
+
   const handleChange = async (e) => {
-    const { name, value } = e.target;
+
+    const {
+      name,
+      value
+    } = e.target;
+
+
+    // ----------------------------------------
+    // ATUALIZA FORM DATA
+    // ----------------------------------------
 
     setFormData((prev) => ({
+
       ...prev,
-      [name]: value,
+
+      [name]: value
+
     }));
 
-    if (name === "user_cep" && value.length === 8) {
+
+    // ----------------------------------------
+    // BUSCA CEP
+    // ----------------------------------------
+
+    if (
+      name === "user_cep" &&
+      value.length === 8
+    ) {
+
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${value}/json/`);
-        const dataCep = await res.json();
+
+        const response =
+          await fetch(
+            `https://viacep.com.br/ws/${value}/json/`
+          );
+
+        const dataCep =
+          await response.json();
+
 
         if (!dataCep.erro) {
+
           setFormData((prev) => ({
+
             ...prev,
-            user_street: dataCep.logradouro || "",
-            user_district: dataCep.bairro || "",
-            user_country: dataCep.localidade || "",
-            user_state: dataCep.uf || "",
+
+            user_street:
+              dataCep.logradouro || "",
+
+            user_district:
+              dataCep.bairro || "",
+
+            user_country:
+              dataCep.localidade || "",
+
+            user_state:
+              dataCep.uf || ""
+
           }));
-        } else {
-          //console.warn("CEP inválido!");
+
         }
-      } catch (err) {
-        //console.warn("Erro ao consultar CEP: ", err);
+
+      } catch (error) {
+
+        // Não interrompe o preenchimento
+        // caso o ViaCEP esteja indisponível.
+
       }
+
     }
+
   };
 
-  /*
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-  */
 
-  /*
-    const [mat, setMat] = useState("");
-  
-    useEffect(() => {
-      if (!isAddMode && userData) {
-        setMat(userData.mat|| "");
-      }
-    }, [isAddMode, userData]);
-  */
+  // ============================================================
+  // VOLTAR
+  // ============================================================
 
-  //Função para voltar a tela
   const handleBack = (e) => {
+
     e.preventDefault();
+
     navigate(-1);
+
   };
 
-  //CRUD
-  //Função finalizando o formulário, inserir
+
+  // ============================================================
+  // SALVAR FORMULÁRIO
+  // ============================================================
+
   const handleSubmitForm = (e) => {
+
     e.preventDefault();
 
-    const validationErrors = validateFields(fieldsList, formData);
 
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    // ----------------------------------------
+    // VALIDA CAMPOS
+    // ----------------------------------------
 
-      const fields = Object.keys(validationErrors)
-        .map((key) => fieldsList.find((f) => f.field === key)?.title)
-        .join(", ");
+    const validationErrors =
+      validateFields(
+        fieldsList,
+        formData
+      );
+
+
+    if (
+      Object.keys(validationErrors).length > 0
+    ) {
+
+      setErrors(
+        validationErrors
+      );
+
+
+      const fields =
+        Object.keys(validationErrors)
+          .map(
+            (key) =>
+              fieldsList.find(
+                (field) =>
+                  field.field === key
+              )?.title
+          )
+          .join(", ");
+
 
       if (fields.length <= 50) {
+
         showSnackbar(
-          `Preencha todos os campos corretamente : ${fields}`,
+          `Preencha todos os campos corretamente: ${fields}`,
           "error"
         );
+
       } else {
-        showSnackbar(`Preencha todos os campos corretamente!`, "error");
+
+        showSnackbar(
+          "Preencha todos os campos corretamente!",
+          "error"
+        );
+
       }
+
       return;
+
     }
 
-    // Garante que todos os campos estejam presentes antes de enviar
-    const completeFormData = { ...formData };
 
-    // Verifica se algum campo da fieldsList está faltando e adiciona com valor vazio
+    // ----------------------------------------
+    // GARANTE TODOS OS CAMPOS
+    // ----------------------------------------
+
+    const completeFormData = {
+      ...formData
+    };
+
+
     fieldsList.forEach((field) => {
-      if (!(field.field in completeFormData)) {
+
+      if (
+        !(field.field in completeFormData)
+      ) {
+
         completeFormData[field.field] = "";
+
       }
+
     });
 
-    // Verifica se vai atualizar ou adicionar
+
+    // ----------------------------------------
+    // INSERIR
+    // ----------------------------------------
+
     if (currentMode === "A") {
-      setErrors({});
-      addUser(completeFormData);
-      showSnackbar("Usuário adicionado com sucesso!", "success");
-      setTimeout(() => navigate(-1), 1500);
-    } else {
-      setErrors({});
-      let updateData = {};
-      for (const key in formData) {
-        if (!(formData[key] === userData[key])) {
-          updateData[key] = formData[key];
-        }
-      }
 
-      //Verifica o tamanho do Objeto de atualização
-      if (!updateData || Object.keys(updateData).length === 0) {
-        showSnackbar("Nenhum dado foi atualizado", "error");
-      } else {
-        updateUser(formData._id, updateData);
-        showSnackbar("Usuário atualizado com sucesso!", "success");
-        setTimeout(() => navigate(-1), 1500);
-      }
+      setErrors({});
 
-      /* OPÇÃO MAIS MODERNA ESTUDAR!!!!
-        const updateData = Object.entries(formData).reduce((acc, [key, value]) => {
-          if (value !== userData[key]) {
-            acc[key] = value; // adiciona a propriedade que mudou
-          }
-          return acc;
-        }, {});
-      */
+      addUser(
+        completeFormData
+      );
+
+      showSnackbar(
+        "Usuário adicionado com sucesso!",
+        "success"
+      );
+
+
+      setTimeout(
+        () => navigate(-1),
+        1500
+      );
+
+      return;
+
     }
+
+
+    // ----------------------------------------
+    // ALTERAR
+    // ----------------------------------------
+
+    setErrors({});
+
+
+    const updateData = {};
+
+
+    for (
+      const key in formData
+    ) {
+
+      if (
+        formData[key] !== userData[key]
+      ) {
+
+        updateData[key] =
+          formData[key];
+
+      }
+
+    }
+
+
+    // ----------------------------------------
+    // NENHUMA ALTERAÇÃO
+    // ----------------------------------------
+
+    if (
+      Object.keys(updateData).length === 0
+    ) {
+
+      showSnackbar(
+        "Nenhum dado foi atualizado",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    // ----------------------------------------
+    // ATUALIZA
+    // ----------------------------------------
+
+    updateUser(
+      formData._id,
+      updateData
+    );
+
+
+    showSnackbar(
+      "Usuário atualizado com sucesso!",
+      "success"
+    );
+
+
+    setTimeout(
+      () => navigate(-1),
+      1500
+    );
+
   };
 
+
+  // ============================================================
+  // MENUS DA PÁGINA
+  // ============================================================
+
+  const pageMenus = menusList
+    .filter(
+      (menu) =>
+        menu.pageId === "peopleManagement"
+    )
+    .sort((a, b) => {
+
+      if (a.order === 0) return 1;
+
+      if (b.order === 0) return -1;
+
+      return a.order - b.order;
+
+    });
+
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
-    <VStack gap={4} align="stretch">
 
-      {isViewMode && <HeadingPage content={"Gestão de pessoas - Visualizar"} />}
-      {isAddMode && <HeadingPage content={"Gestão de pessoas - Inserir"} />}
-      {isEditMode && <HeadingPage content={"Gestão de pessoas - Alterar"} />}
+    <VStack
+      gap={4}
+      align="stretch"
+    >
 
-      {/* MONTA a distribuição de menus recebido pelo banco e somente da página "people Management"*/}
-      <HStack gap={2} overflowX="auto" overflowY="hidden">
-        {menusList
-          .filter(menu => menu.pageId === "peopleManagement")
-          .sort((a, b) => {
-            if (a.order === 0) return 1;
-            if (b.order === 0) return -1;
-            return a.order - b.order;
-          })
-          .map((menu) => (
-            <CardList
-              key={menu._id}
-              text={menu.name}
-              active={listActive === Number(menu.order)}
-              onClick={() => setListActive(Number(menu.order))}
-            />
-          ))}
-      </HStack>
+      {/* ======================================================
+          TÍTULO DA PÁGINA
+          ====================================================== */}
+
+      {isViewMode && (
+        <HeadingPage
+          content="Gestão de pessoas - Visualizar"
+        />
+      )}
+
+      {isAddMode && (
+        <HeadingPage
+          content="Gestão de pessoas - Inserir"
+        />
+      )}
+
+      {isEditMode && (
+        <HeadingPage
+          content="Gestão de pessoas - Alterar"
+        />
+      )}
+
+
+      {/* ======================================================
+          FORMULÁRIO
+          ====================================================== */}
 
       <Box>
-        <Box as="form" onSubmit={handleSubmitForm} autoComplete="off" mt={6}>
 
-          {/* DUMMY FIELDS PARA BLOQUEAR AUTOFILL */}
+        <Box
+          as="form"
+          onSubmit={handleSubmitForm}
+          autoComplete="off"
+          mt={6}
+        >
+
+
+          {/* ==================================================
+              BLOQUEIA AUTOFILL
+              ================================================== */}
+
           <input
             type="text"
             name="fakeusernameremembered"
-            style={{ display: "none" }}
+            style={{
+              display: "none"
+            }}
             autoComplete="username"
           />
+
           <input
             type="password"
             name="fakepasswordremembered"
-            style={{ display: "none" }}
+            style={{
+              display: "none"
+            }}
             autoComplete="new-password"
           />
 
-          <Flex gap={4} flexWrap="wrap">
-            {fieldsList.map((field) => {
 
-              // ✅ REGRA DE DEPENDÊNCIA (GENÉRICA)
-              if (field.dependsOn) {
-                const { field: dependsField, value } = field.dependsOn;
+          {/* ==================================================
+              SEÇÕES DOS CAMPOS
+              ================================================== */}
 
-                if (formData[dependsField] !== value) {
-                  return null; // 🔥 não renderiza o campo
-                }
-              }
+          {pageMenus.map((menu) => {
 
-              return (
-                <Box
-                  key={field._id}
-                  display={field.folder === listActive ? "block" : "none"}
-                >
-                  <FormTextArea
-                    field={field}
-                    addMode={isAddMode}
-                    viewMode={isViewMode}
-                    handleChange={handleChange}
-                    data={formData}
-                    currentMode={currentMode}
-                    nextMat={userNextMat}
-                    errors={errors}
-                    dateRegister={formattedDate}
-                  />
-                </Box>
+            // ----------------------------------------------
+            // CAMPOS PERTENCENTES AO MENU
+            // ----------------------------------------------
+
+            const menuFields =
+              fieldsList.filter(
+                (field) =>
+                  Number(field.folder) ===
+                  Number(menu.order)
               );
-            })}
-          </Flex>
 
-          <HStack position="fixed" top="72px" right="12px" gap={2}>
-            <Button size="xs" variant="surface" type="button" onClick={handleBack}>Cancelar</Button>
-            {!isViewMode && <Button size="xs" variant="surface" type="submit">Salvar</Button>}
+
+            // ----------------------------------------------
+            // NÃO MOSTRA MENU SEM CAMPOS
+            // ----------------------------------------------
+
+            if (menuFields.length === 0) {
+              return null;
+            }
+
+
+            return (
+
+              <Box
+                key={menu._id}
+                mb={10}
+              >
+
+                {/* ========================================
+                    TÍTULO DA SEÇÃO
+                    ======================================== */}
+
+                <HStack
+                  gap={3}
+                  mb={5}
+                  align="center"
+                >
+
+                  <Text
+                    fontSize="lg"
+                    fontWeight="bold"
+                    whiteSpace="nowrap"
+                  >
+                    {menu.name}
+                  </Text>
+
+                  <Box
+                    flex="1"
+                    height="1px"
+                    bg="gray.300"
+                  />
+
+                </HStack>
+
+                {/* ========================================
+                    CAMPOS DA SEÇÃO
+                    ======================================== */}
+                <Flex gap={5} rowGap={5} flexWrap="wrap">
+                  {menuFields.map((field) => {
+                    // ======================================
+                    // REGRA DE DEPENDÊNCIA
+                    // ======================================
+                    if (field.dependsOn) {
+                      const {
+                        field: dependsField,
+                        value
+                      } = field.dependsOn;
+                      if (formData[dependsField] !== value) {
+                        return null;
+                      }
+                    }
+
+                    return (
+                      <Box key={field._id}>
+                        <FormTextArea
+                          field={field}
+                          addMode={isAddMode}
+                          viewMode={isViewMode}
+                          handleChange={handleChange}
+                          data={formData}
+                          currentMode={currentMode}
+                          nextMat={userNextMat}
+                          errors={errors}
+                          dateRegister={formattedDate}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Flex>
+              </Box>
+            );
+          })}
+
+          {/* ==================================================
+              BOTÕES
+              ================================================== */}
+          <HStack
+            position="fixed"
+            top="72px"
+            right="12px"
+            gap={2}
+          >
+            <Button
+              size="xs"
+              variant="surface"
+              type="button"
+              onClick={handleBack}
+            >
+              Cancelar
+            </Button>
+
+            {!isViewMode && (
+              <Button
+                size="xs"
+                variant="surface"
+                type="submit"
+              >
+                Salvar
+              </Button>
+            )}
           </HStack>
         </Box>
       </Box>
     </VStack>
+
   );
 }

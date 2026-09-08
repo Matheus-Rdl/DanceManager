@@ -7,7 +7,7 @@
     Last Edit: 25/08/2026
 */
 
-import { Table, Box, Button, Heading, HStack, VStack, Flex } from "@chakra-ui/react";
+import { Table, Box, Button, Heading, HStack, VStack, Flex, Dialog, Portal } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -27,7 +27,7 @@ import List from "../../../components/list";
 export default function PeopleManagement() {
 
   //Services
-  const { getUsers, refetchUsers, usersList, usersLoading } = usersServices();
+  const { getUsers, refetchUsers, usersList, usersLoading, deleteUser } = usersServices();
 
   useEffect(() => {
     getUsers();
@@ -53,6 +53,7 @@ export default function PeopleManagement() {
 
   //Variables
   const [open, setOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const menuRef = useRef(null);
   const selectedUser = usersList?.find((u) => u._id === userActive);
   const toggleMenu = () => setOpen((prev) => !prev);
@@ -79,7 +80,7 @@ export default function PeopleManagement() {
     }));
   };
 
-    // Ordena os campos recebidos do banco de dados
+  // Ordena os campos recebidos do banco de dados
   const sortedDataFields = [...fieldsListByCollectionAndPage].sort((a, b) => {
     const folderA = a.folder === 0 ? 999 : a.folder;
     const folderB = b.folder === 0 ? 999 : b.folder;
@@ -117,6 +118,23 @@ export default function PeopleManagement() {
 
   console.log(usersList)
 
+  const handleDeleteUser = async () => {
+    try {
+      const result = await deleteUser(userActive);
+
+      if (result.success) {
+        setDeleteDialogOpen(false);
+        setOpen(false);
+        setuserActive(null);
+        getUsers();
+      } else {
+        console.log(result);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   return (
     <VStack gap={4} align="stretch">
 
@@ -134,6 +152,7 @@ export default function PeopleManagement() {
           <Button size="xs" variant="surface">Inserir</Button>
         </Link>
 
+        {/*
         <Link
           to={"/PeopleManagement/view"}
           state={{
@@ -146,7 +165,7 @@ export default function PeopleManagement() {
             Visualizar
           </Button>
         </Link>
-
+*/}
         <Link
           to={"/PeopleManagement/alter"}
           state={{
@@ -155,8 +174,26 @@ export default function PeopleManagement() {
             currentMode: "E",
           }}
         >
-          <Button size="xs" variant="surface" disabled={userActive === null}>Alterar</Button>
+          <Button size="xs" variant="surface" disabled={userActive === null}>Dados Pessoais</Button>
         </Link>
+
+        <Link
+          to={"/PeopleManagement/contracts"}
+          state={{
+            userId: userActive,
+            userData: selectedUser
+          }}
+        >
+          <Button size="xs" variant="surface" disabled={userActive === null}>Contratos</Button>
+        </Link>
+
+        <Link
+          to={"/PeopleManagementActivities"}
+          state={{ userData: selectedUser }}
+        >
+          <Button size="xs" variant="surface" disabled={userActive === null}>Turmas</Button>
+        </Link>
+
 
         <Box ref={menuRef} position="relative">
           <Button size="xs" variant="surface" disabled={userActive === null} onClick={toggleMenu}>
@@ -183,18 +220,71 @@ export default function PeopleManagement() {
               color="black"
               whiteSpace="nowrap"
             >
-              <Link
-                to={"/PeopleManagementActivities"}
-                state={{ userData: selectedUser }}
+              <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}
+                onClick={() => {
+                  setOpen(false);
+                  setDeleteDialogOpen(true);
+                }}
               >
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}>
-                  Atividades
-                </Box>
-              </Link>
+                Excluir usuário
+              </Box>
             </Box>
           )}
         </Box>
       </HStack>
+
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={(e) => setDeleteDialogOpen(e.open)}
+        placement="center"
+      >
+        <Portal>
+          <Dialog.Backdrop />
+
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Excluir usuário</Dialog.Title>
+              </Dialog.Header>
+
+              <Dialog.Body>
+                <VStack align="start" gap={2}>
+                  <Box>
+                    Tem certeza que deseja excluir este usuário?
+                  </Box>
+
+                  {selectedUser && (
+                    <Box fontWeight="bold">
+                      {selectedUser.user_name}
+                    </Box>
+                  )}
+
+                  <Box fontSize="sm" color="gray.500">
+                    Essa ação não poderá ser desfeita.
+                  </Box>
+                </VStack>
+              </Dialog.Body>
+
+              <Dialog.Footer>
+                <HStack>
+                  <Dialog.ActionTrigger asChild>
+                    <Button variant="outline">
+                      Cancelar
+                    </Button>
+                  </Dialog.ActionTrigger>
+
+                  <Button
+                    colorPalette="red"
+                    onClick={handleDeleteUser}
+                  >
+                    Sim, excluir
+                  </Button>
+                </HStack>
+              </Dialog.Footer>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
       <Box
         mt={4}
