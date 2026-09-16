@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 
 //Services
 import usersServices from "../../../services/usersServices";
+import activitiesServices from "../../../services/activitiesServices";
 import fieldsServices from "../../../services/fieldsServices";
 
 //Components
@@ -28,10 +29,15 @@ export default function PeopleManagement() {
 
   //Services
   const { getUsers, refetchUsers, usersList, usersLoading, deleteUser } = usersServices();
+  const { getActivities, refetchActivities, activitiesList, activitiesLoading, deleteActivity } = activitiesServices();
 
   useEffect(() => {
     getUsers();
   }, [refetchUsers]);
+
+  useEffect(() => {
+    getActivities();
+  }, [refetchActivities]);
 
   //Inicializa a busca de campos do banco de dados
   const {
@@ -305,6 +311,7 @@ export default function PeopleManagement() {
               fields={sortedFields}
               filters={filters}
               onFilterChange={handleFilterChange}
+              activities={activitiesList}
             />
 
             {/* Corpo da tabela: percorre os dados já filtrados e instancia uma linha por item. */}

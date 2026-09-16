@@ -24,6 +24,8 @@ export default function List({ data, fields, ativo, onClick }) {
     }
   }, [refetchActivities, data?.user_activities]);
 
+  console.log(userActivitiesList)
+
   const removeCode = (value) => {
     if (typeof value !== "string") return value;
     return value.replace(/^\d+\s*-\s*/, "");
@@ -33,6 +35,23 @@ export default function List({ data, fields, ativo, onClick }) {
   const getFormattedValue = (field, value) => {
     if (value === undefined || value === null || value === "") {
       return "";
+    }
+
+    // Tratamento específico para atividades do usuário
+    if (field.dataKey === "user_activities") {
+      if (!Array.isArray(value)) {
+        return "";
+      }
+
+      return value
+        .map((activityMat) => {
+          const activity = userActivitiesList?.find(
+            (item) => item.activity_mat === activityMat
+          );
+
+          return activity?.activity_title ?? activityMat;
+        })
+        .join(" | ");
     }
 
     if (field.optionsKey) {

@@ -7,6 +7,7 @@ Date: 18/02/2026
 
 import { useEffect, useRef, useState } from "react";
 import { LuSearch, LuSearchX, LuChevronDown } from "react-icons/lu";
+
 import {
   Table,
   Input,
@@ -21,6 +22,7 @@ export default function HeaderFilter({
   fields,
   filters,
   onFilterChange,
+  activities = [],
 }) {
   const [openFilters, setOpenFilters] = useState({});
   const [openMultiselect, setOpenMultiselect] = useState(null);
@@ -28,8 +30,11 @@ export default function HeaderFilter({
   const multiSelectRef = useRef(null);
 
   /*
-    Fecha o dropdown do multiselect quando clicar fora
+  ============================================================
+  FECHA O DROPDOWN DO MULTISELECT AO CLICAR FORA
+  ============================================================
   */
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -43,13 +48,19 @@ export default function HeaderFilter({
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     };
   }, []);
 
   /*
-    Abre/fecha o filtro da coluna
+  ============================================================
+  ABRE / FECHA O FILTRO DA COLUNA
+  ============================================================
   */
+
   const toggleFilter = (field) => {
     setOpenFilters((prev) => ({
       ...prev,
@@ -57,8 +68,8 @@ export default function HeaderFilter({
     }));
 
     /*
-      Se o filtro estava aberto e será fechado,
-      limpa o valor correspondente.
+    Se o filtro estava aberto e será fechado,
+    limpa o valor correspondente.
     */
     if (openFilters[field]) {
       onFilterChange(field, "");
@@ -67,13 +78,19 @@ export default function HeaderFilter({
   };
 
   /*
-    Remove o código das opções.
+  ============================================================
+  REMOVE O CÓDIGO DAS OPÇÕES
+  ============================================================
 
-    Exemplo:
-    "01 - ADMINISTRADOR"
-    ↓
-    "ADMINISTRADOR"
+  Exemplo:
+
+  "01 - ADMINISTRADOR"
+
+  vira:
+
+  "ADMINISTRADOR"
   */
+
   const removeCode = (value) => {
     if (typeof value !== "string") return value;
 
@@ -81,12 +98,17 @@ export default function HeaderFilter({
   };
 
   /*
-    Formata o campo de data
+  ============================================================
+  FORMATA O CAMPO DE DATA
+  ============================================================
   */
+
   const formatYearDateInput = (value) => {
     const numbers = value.replace(/\D/g, "");
 
-    if (numbers.length <= 4) return numbers;
+    if (numbers.length <= 4) {
+      return numbers;
+    }
 
     if (numbers.length <= 6) {
       return `${numbers.slice(0, 4)}/${numbers.slice(4)}`;
@@ -99,8 +121,11 @@ export default function HeaderFilter({
   };
 
   /*
-    Abre/fecha o dropdown do multiselect
+  ============================================================
+  ABRE / FECHA O DROPDOWN DO MULTISELECT
+  ============================================================
   */
+
   const toggleMultiselect = (dataKey) => {
     setOpenMultiselect((prev) =>
       prev === dataKey ? null : dataKey
@@ -108,8 +133,11 @@ export default function HeaderFilter({
   };
 
   /*
-    Seleciona ou remove uma opção do multiselect
+  ============================================================
+  SELECIONA OU REMOVE UMA OPÇÃO DO MULTISELECT
+  ============================================================
   */
+
   const handleMultiselectChange = (dataKey, key) => {
     const currentValues = Array.isArray(filters[dataKey])
       ? filters[dataKey]
@@ -121,14 +149,14 @@ export default function HeaderFilter({
 
     if (exists) {
       /*
-        Remove a opção
+      Remove a opção
       */
       newValues = currentValues.filter(
         (value) => value !== key
       );
     } else {
       /*
-        Adiciona a opção
+      Adiciona a opção
       */
       newValues = [...currentValues, key];
     }
@@ -137,40 +165,127 @@ export default function HeaderFilter({
   };
 
   /*
-    Texto que aparece no campo do multiselect
+  ============================================================
+  OBTÉM AS OPÇÕES DO CAMPO
+  ============================================================
+
+  Campos normais:
+  --------------------------------
+  userSelectOptions
+
+  user_activities:
+  --------------------------------
+  coleção activities
+
+  Exemplo:
+
+  activities = [
+    {
+      activity_mat: "000001",
+      activity_title: "MULHERES NA GAFIEIRA"
+    },
+    {
+      activity_mat: "000006",
+      activity_title: "CORPO DE SAMBA"
+    }
+  ]
+
+  Será transformado em:
+
+  {
+    "000001": "MULHERES NA GAFIEIRA",
+    "000006": "CORPO DE SAMBA"
+  }
   */
+
+  const getFieldOptions = (col) => {
+    /*
+    ==========================================
+    ATIVIDADES
+    ==========================================
+    */
+
+    if (col.dataKey === "user_activities") {
+      return (activities || []).reduce(
+        (acc, activity) => {
+          if (
+            activity?.activity_mat &&
+            activity?.activity_title
+          ) {
+            acc[activity.activity_mat] =
+              activity.activity_title;
+          }
+
+          return acc;
+        },
+        {}
+      );
+    }
+
+    /*
+    ==========================================
+    OPÇÕES NORMAIS
+    ==========================================
+    */
+
+    return UserSelectOptions[col.optionsKey] || {};
+  };
+
+  /*
+  ============================================================
+  TEXTO QUE APARECE NO CAMPO DO MULTISELECT
+  ============================================================
+  */
+
   const getMultiselectLabel = (col) => {
-    const selectedValues = Array.isArray(filters[col.dataKey])
+    const selectedValues = Array.isArray(
+      filters[col.dataKey]
+    )
       ? filters[col.dataKey]
       : [];
 
+    /*
+    Nenhuma opção selecionada
+    */
     if (selectedValues.length === 0) {
       return "Selecione as opções";
     }
 
-    const options =
-      UserSelectOptions[col.optionsKey] || {};
+    /*
+    Pega as opções corretas.
+    Para user_activities:
+    vem da coleção activities.
+
+    Para os outros:
+    vem do userSelectOptions.
+    */
+    const options = getFieldOptions(col);
 
     const labels = selectedValues
-      .map((key) => removeCode(options[key]))
-      .filter(Boolean);
+      .map((key) => options[key])
+      .filter(Boolean)
+      .map(removeCode);
 
     /*
-      Mostra até duas opções.
-      Exemplo:
-      "ADMINISTRADOR, FUNCIONÁRIO"
+    Até duas opções
     */
     if (labels.length <= 2) {
       return labels.join(", ");
     }
 
     /*
-      Caso tenha mais de duas:
-      "ADMINISTRADOR, FUNCIONÁRIO +2"
+    Mais de duas opções
     */
-    return `${labels.slice(0, 2).join(", ")} +${labels.length - 2
-      }`;
+    return `${labels.slice(0, 2).join(", ")} +${
+      labels.length - 2
+    }`;
   };
+
+  /*
+  ============================================================
+  RENDER
+  ============================================================
+  */
 
   return (
     <Table.Header
@@ -184,7 +299,7 @@ export default function HeaderFilter({
             key={col.dataKey}
             minW={col.minWidth}
             maxW={col.maxWidth}
-            border="1px solid" 
+            border="1px solid"
             borderColor="gray.200"
             pl={4}
           >
@@ -194,7 +309,10 @@ export default function HeaderFilter({
               gap={2}
               position="relative"
             >
-              {/* Texto da coluna */}
+              {/* ====================================== */}
+              {/* TEXTO DA COLUNA */}
+              {/* ====================================== */}
+
               <Box
                 as="p"
                 flex="1"
@@ -203,15 +321,15 @@ export default function HeaderFilter({
                 {col.text}
               </Box>
 
-              {/* ========================= */}
+              {/* ====================================== */}
               {/* FILTRO DA COLUNA */}
-              {/* ========================= */}
+              {/* ====================================== */}
 
               {openFilters[col.dataKey] && (
                 <>
-                  {/* ========================= */}
+                  {/* ====================================== */}
                   {/* MULTISELECT */}
-                  {/* ========================= */}
+                  {/* ====================================== */}
 
                   {col.input === 3 ? (
                     <Box
@@ -224,7 +342,10 @@ export default function HeaderFilter({
                       ml={-2}
                       width="calc(100% - 32px)"
                     >
-                      {/* Campo que imita o select */}
+                      {/* ====================================== */}
+                      {/* CAMPO QUE IMITA O SELECT */}
+                      {/* ====================================== */}
+
                       <Box
                         height="40px"
                         px={3}
@@ -238,7 +359,9 @@ export default function HeaderFilter({
                         cursor="pointer"
                         fontSize="sm"
                         onClick={() =>
-                          toggleMultiselect(col.dataKey)
+                          toggleMultiselect(
+                            col.dataKey
+                          )
                         }
                       >
                         <Box
@@ -253,8 +376,12 @@ export default function HeaderFilter({
                         <LuChevronDown />
                       </Box>
 
-                      {/* Dropdown */}
-                      {openMultiselect === col.dataKey && (
+                      {/* ====================================== */}
+                      {/* DROPDOWN */}
+                      {/* ====================================== */}
+
+                      {openMultiselect ===
+                        col.dataKey && (
                         <Box
                           position="absolute"
                           top="36px"
@@ -270,68 +397,78 @@ export default function HeaderFilter({
                           zIndex={200}
                         >
                           {Object.entries(
-                            UserSelectOptions[
-                            col.optionsKey
-                            ] || {}
-                          ).map(([key, value]) => {
-                            const selectedValues =
-                              Array.isArray(
-                                filters[col.dataKey]
-                              )
-                                ? filters[col.dataKey]
-                                : [];
+                            getFieldOptions(col)
+                          ).map(
+                            ([key, value]) => {
+                              const selectedValues =
+                                Array.isArray(
+                                  filters[
+                                    col.dataKey
+                                  ]
+                                )
+                                  ? filters[
+                                      col.dataKey
+                                    ]
+                                  : [];
 
-                            const checked =
-                              selectedValues.includes(key);
+                              const checked =
+                                selectedValues.includes(
+                                  key
+                                );
 
-                            return (
-                              <Box
-                                key={key}
-                                display="flex"
-                                alignItems="center"
-                                gap={2}
-                                px={3}
-                                py={2}
-                                cursor="pointer"
-                                fontSize="sm"
-                                _hover={{
-                                  backgroundColor:
-                                    "gray.100",
-                                }}
-                                onClick={() =>
-                                  handleMultiselectChange(
-                                    col.dataKey,
-                                    key
-                                  )
-                                }
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() =>
+                              return (
+                                <Box
+                                  key={key}
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={2}
+                                  px={3}
+                                  py={2}
+                                  cursor="pointer"
+                                  fontSize="sm"
+                                  _hover={{
+                                    backgroundColor:
+                                      "gray.100",
+                                  }}
+                                  onClick={() =>
                                     handleMultiselectChange(
                                       col.dataKey,
                                       key
                                     )
                                   }
-                                  onClick={(e) =>
-                                    e.stopPropagation()
-                                  }
-                                />
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      checked
+                                    }
+                                    onChange={() =>
+                                      handleMultiselectChange(
+                                        col.dataKey,
+                                        key
+                                      )
+                                    }
+                                    onClick={(e) =>
+                                      e.stopPropagation()
+                                    }
+                                  />
 
-                                <Box>
-                                  {removeCode(value)}
+                                  <Box>
+                                    {removeCode(
+                                      value
+                                    )}
+                                  </Box>
                                 </Box>
-                              </Box>
-                            );
-                          })}
+                              );
+                            }
+                          )}
                         </Box>
                       )}
                     </Box>
                   ) : col.input === 2 ? (
-                    /* ========================= */
+                    /* ====================================== */
                     /* SELECT NORMAL */
-                    /* ========================= */
+                    /* ====================================== */
 
                     <NativeSelect.Root
                       position="absolute"
@@ -345,7 +482,8 @@ export default function HeaderFilter({
                       <NativeSelect.Field
                         autoFocus
                         value={
-                          filters[col.dataKey] || ""
+                          filters[col.dataKey] ||
+                          ""
                         }
                         onChange={(e) =>
                           onFilterChange(
@@ -360,23 +498,23 @@ export default function HeaderFilter({
                         </option>
 
                         {Object.entries(
-                          UserSelectOptions[
-                          col.optionsKey
-                          ] || {}
-                        ).map(([key, value]) => (
-                          <option
-                            key={key}
-                            value={key}
-                          >
-                            {removeCode(value)}
-                          </option>
-                        ))}
+                          getFieldOptions(col)
+                        ).map(
+                          ([key, value]) => (
+                            <option
+                              key={key}
+                              value={key}
+                            >
+                              {removeCode(value)}
+                            </option>
+                          )
+                        )}
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   ) : (
-                    /* ========================= */
+                    /* ====================================== */
                     /* INPUT NORMAL */
-                    /* ========================= */
+                    /* ====================================== */
 
                     <Input
                       position="absolute"
@@ -398,7 +536,9 @@ export default function HeaderFilter({
                         filters[col.dataKey] || ""
                       }
                       onChange={(e) => {
-                        if (col.type === "date") {
+                        if (
+                          col.type === "date"
+                        ) {
                           const formatted =
                             formatYearDateInput(
                               e.target.value
@@ -420,9 +560,9 @@ export default function HeaderFilter({
                 </>
               )}
 
-              {/* ========================= */}
+              {/* ====================================== */}
               {/* ÍCONE DO FILTRO */}
-              {/* ========================= */}
+              {/* ====================================== */}
 
               <IconButton
                 aria-label={
@@ -433,7 +573,9 @@ export default function HeaderFilter({
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  toggleFilter(col.dataKey)
+                  toggleFilter(
+                    col.dataKey
+                  )
                 }
               >
                 {openFilters[col.dataKey] ? (
