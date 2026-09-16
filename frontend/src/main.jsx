@@ -1,6 +1,6 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ChakraProvider, Box, Flex, Spinner, Text } from "@chakra-ui/react";
+import { ChakraProvider } from "@chakra-ui/react";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 
 import "./index.css";
@@ -33,9 +33,18 @@ const pages = createHashRouter([
       { path: "/", element: <Home /> },
 
       { path: "/PeopleManagement", element: <PeopleManagement /> },
-      { path: "/PeopleManagement/add", element: <PeopleManagementDetailed /> },
-      { path: "/PeopleManagement/view", element: <PeopleManagementDetailed /> },
-      { path: "/PeopleManagement/alter", element: <PeopleManagementDetailed /> },
+      {
+        path: "/PeopleManagement/add",
+        element: <PeopleManagementDetailed />,
+      },
+      {
+        path: "/PeopleManagement/view",
+        element: <PeopleManagementDetailed />,
+      },
+      {
+        path: "/PeopleManagement/alter",
+        element: <PeopleManagementDetailed />,
+      },
 
       {
         path: "/PeopleManagementActivities",
@@ -81,139 +90,11 @@ const pages = createHashRouter([
   },
 ]);
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-function ServerLoading() {
-  return (
-    <Flex
-      minH="100vh"
-      w="100vw"
-      align="center"
-      justify="center"
-      direction="column"
-      gap={4}
-      bg="gray.50"
-    >
-      <Text
-        fontSize="2xl"
-        fontWeight="bold"
-        color="#013E34"
-      >
-        Dance Manager
-      </Text>
-
-      <Spinner
-        size="xl"
-        color="#013E34"
-      />
-
-      <Text color="gray.600">
-        Conectando ao servidor...
-      </Text>
-
-      <Text
-        fontSize="sm"
-        color="gray.500"
-      >
-        Isso pode levar alguns segundos.
-      </Text>
-    </Flex>
-  );
-}
-
-function ServerError() {
-  return (
-    <Flex
-      minH="100vh"
-      w="100vw"
-      align="center"
-      justify="center"
-      direction="column"
-      gap={4}
-      bg="gray.50"
-      px={6}
-      textAlign="center"
-    >
-      <Text
-        fontSize="2xl"
-        fontWeight="bold"
-        color="#013E34"
-      >
-        Dance Manager
-      </Text>
-
-      <Text
-        fontSize="lg"
-        fontWeight="semibold"
-      >
-        Não foi possível conectar ao servidor.
-      </Text>
-
-      <Text color="gray.600">
-        Verifique sua conexão com a internet e tente novamente.
-      </Text>
-    </Flex>
-  );
-}
-
-function Root() {
-  const [serverReady, setServerReady] = useState(false);
-  const [serverError, setServerError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkServer = async () => {
-      while (!cancelled) {
-        try {
-          const response = await fetch(`${API_URL}/health`, {
-            method: "GET",
-          });
-
-          if (response.ok) {
-            if (!cancelled) {
-              setServerReady(true);
-            }
-
-            return;
-          }
-        } catch (error) {
-          console.log("Servidor ainda iniciando...");
-        }
-
-        await new Promise((resolve) => {
-          setTimeout(resolve, 2000);
-        });
-      }
-    };
-
-    checkServer();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (serverError) {
-    return <ServerError />;
-  }
-
-  if (!serverReady) {
-    return <ServerLoading />;
-  }
-
-  return (
-    <>
-      <RouterProvider router={pages} />
-      <Toaster />
-    </>
-  );
-}
-
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ChakraProvider value={system}>
-      <Root />
+      <RouterProvider router={pages} />
+      <Toaster />
     </ChakraProvider>
   </StrictMode>
 );
