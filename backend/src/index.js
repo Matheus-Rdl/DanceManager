@@ -58,6 +58,13 @@ async function main() {
     });
   });
 
+  app.get("/health", (req, res) => {
+    res.status(200).json({
+      success: true,
+      status: "ok",
+    });
+  });
+
   // Routes
   app.use("/users", usersRouter);
   app.use("/fields", fieldsRouter);
@@ -65,14 +72,14 @@ async function main() {
   app.use("/menus", menusRouter);
 
   app.use((err, req, res, next) => {
-  console.error("🚨 Erro Global Capturado:", err.message);
+    console.error("🚨 Erro Global Capturado:", err.message);
 
-  res.status(500).json({
-    success: false,
-    statusCode: 500,
-    body: "Erro interno no servidor. A operação não pôde ser concluída."
+    res.status(500).json({
+      success: false,
+      statusCode: 500,
+      body: "Erro interno no servidor. A operação não pôde ser concluída."
+    });
   });
-});
 
   // Start the server and listen on the defined port
   app.listen(port, "0.0.0.0", () => {
