@@ -7,6 +7,7 @@ import { Mongo } from "./database/mongo.js"; // Import custom MongoDB connection
 import usersRouter from "./modules/users/usersRouter.js";
 import fieldsRouter from "./modules/fields/fieldsRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
+import contractsRouter from "./modules/contracts/contractsRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
 
 // Em ES Modules, precisamos recriar as variáveis __dirname
@@ -41,7 +42,7 @@ async function main() {
       "http://localhost:5174",
       "https://dance-manager-gamma.vercel.app"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   }));
@@ -70,6 +71,7 @@ async function main() {
   app.use("/fields", fieldsRouter);
   app.use("/activities", activitiesRouter);
   app.use("/menus", menusRouter);
+  app.use("/contracts", contractsRouter);
 
   app.use((err, req, res, next) => {
     console.error("🚨 Erro Global Capturado:", err.message);

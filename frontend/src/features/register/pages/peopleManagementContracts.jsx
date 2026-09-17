@@ -22,6 +22,8 @@ import {
 
 import HeadingPage from "../../../components/headingPage";
 
+import contractsServices from "../../../services/contractsServices";
+
 
 // ============================================================
 // PLANOS
@@ -78,29 +80,47 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // ESTADOS
+  // SERVICE DE CONTRATOS
   // ============================================================
 
-  const [contracts, setContracts] =
-    useState([]);
+  const {
+    getContractsByUser,
+    addContract,
+    updateContract,
+    closeContract,
+    contractsList,
+    contractsLoading,
+  } = contractsServices();
 
 
-  // Dialog principal
+  // ============================================================
+  // DIALOG PRINCIPAL
+  // ============================================================
 
-  const [isDialogOpen, setIsDialogOpen] =
-    useState(false);
-
-
-  // Modo do dialog
-
-  const [dialogMode, setDialogMode] =
-    useState("new");
+  const [
+    isDialogOpen,
+    setIsDialogOpen,
+  ] = useState(false);
 
 
-  // Contrato selecionado
+  // ============================================================
+  // MODO DO DIALOG
+  // ============================================================
 
-  const [selectedContract, setSelectedContract] =
-    useState(null);
+  const [
+    dialogMode,
+    setDialogMode,
+  ] = useState("new");
+
+
+  // ============================================================
+  // CONTRATO SELECIONADO
+  // ============================================================
+
+  const [
+    selectedContract,
+    setSelectedContract,
+  ] = useState(null);
 
 
   // ============================================================
@@ -123,61 +143,44 @@ export default function PeopleManagementContracts() {
   // FORMULÁRIO
   // ============================================================
 
-  const [formData, setFormData] =
-    useState({
+  const [
+    formData,
+    setFormData,
+  ] = useState({
 
-      plan: "",
+    plan: "",
 
-      periodicity: "",
+    periodicity: "",
 
-      baseValue: "",
+    baseValue: "",
 
-      contractedValue: "",
+    contractedValue: "",
 
-      startDate: "",
+    startDate: "",
 
-      endDate: "",
+    endDate: "",
 
-      specialConditionType: "",
+    specialConditionType: "",
 
-      customValue: "",
+    customValue: "",
 
-      scholarshipPercentage: "",
+    scholarshipPercentage: "",
 
-    });
+  });
 
 
   // ============================================================
-  // CARREGAR CONTRATOS
+  // BUSCAR CONTRATOS DO ALUNO
   // ============================================================
 
   useEffect(() => {
 
     if (!userId) {
-
-      setContracts([]);
-
       return;
-
     }
 
 
-    const storedContracts =
-      JSON.parse(
-        localStorage.getItem(
-          "danceManagerContracts"
-        ) || "[]"
-      );
-
-
-    const userContracts =
-      storedContracts.filter(
-        (contract) =>
-          contract.userId === userId
-      );
-
-
-    setContracts(userContracts);
+    getContractsByUser(userId);
 
   }, [userId]);
 
@@ -190,14 +193,6 @@ export default function PeopleManagementContracts() {
     contract
   ) => {
 
-    /*
-      O campo "active" passa a ser a fonte
-      principal da informação.
-
-      true  = contrato ativo
-      false = contrato encerrado
-    */
-
     return contract?.active === true;
 
   };
@@ -208,7 +203,7 @@ export default function PeopleManagementContracts() {
   // ============================================================
 
   const activeContract =
-    contracts.find(
+    contractsList.find(
       (contract) =>
         isContractActive(contract)
     );
@@ -244,9 +239,7 @@ export default function PeopleManagementContracts() {
   ) => {
 
     if (!date) {
-
       return "-";
-
     }
 
 
@@ -379,7 +372,9 @@ export default function PeopleManagementContracts() {
       );
 
 
-    // Sem condição
+    // ----------------------------------------------------------
+    // SEM CONDIÇÃO
+    // ----------------------------------------------------------
 
     if (!conditionType) {
 
@@ -388,7 +383,9 @@ export default function PeopleManagementContracts() {
     }
 
 
-    // Valor personalizado
+    // ----------------------------------------------------------
+    // VALOR PERSONALIZADO
+    // ----------------------------------------------------------
 
     if (
       conditionType ===
@@ -402,10 +399,13 @@ export default function PeopleManagementContracts() {
     }
 
 
-    // Bolsa
+    // ----------------------------------------------------------
+    // BOLSA
+    // ----------------------------------------------------------
 
     if (
-      conditionType === "Bolsa"
+      conditionType ===
+      "Bolsa"
     ) {
 
       const percentage =
@@ -437,7 +437,9 @@ export default function PeopleManagementContracts() {
     value
   ) => {
 
-    // Não permite alteração em modo visualização
+    // ----------------------------------------------------------
+    // NÃO PERMITE ALTERAÇÃO EM VISUALIZAÇÃO
+    // ----------------------------------------------------------
 
     if (
       dialogMode === "view"
@@ -589,7 +591,9 @@ export default function PeopleManagementContracts() {
         "specialConditionType"
       ) {
 
-        // Nenhuma
+        // ------------------------------------------------------
+        // NENHUMA
+        // ------------------------------------------------------
 
         if (!value) {
 
@@ -607,7 +611,9 @@ export default function PeopleManagementContracts() {
         }
 
 
-        // Valor personalizado
+        // ------------------------------------------------------
+        // VALOR PERSONALIZADO
+        // ------------------------------------------------------
 
         if (
           value ===
@@ -625,7 +631,9 @@ export default function PeopleManagementContracts() {
         }
 
 
-        // Bolsa
+        // ------------------------------------------------------
+        // BOLSA
+        // ------------------------------------------------------
 
         if (
           value === "Bolsa"
@@ -738,20 +746,14 @@ export default function PeopleManagementContracts() {
     */
 
     if (activeContract) {
-
       return;
-
     }
 
 
-    setSelectedContract(
-      null
-    );
+    setSelectedContract(null);
 
 
-    setDialogMode(
-      "new"
-    );
+    setDialogMode("new");
 
 
     setFormData({
@@ -777,9 +779,7 @@ export default function PeopleManagementContracts() {
     });
 
 
-    setIsDialogOpen(
-      true
-    );
+    setIsDialogOpen(true);
 
   };
 
@@ -838,9 +838,7 @@ export default function PeopleManagementContracts() {
     });
 
 
-    setIsDialogOpen(
-      true
-    );
+    setIsDialogOpen(true);
 
   };
 
@@ -961,140 +959,73 @@ export default function PeopleManagementContracts() {
   // CONFIRMAR ENCERRAMENTO
   // ============================================================
 
-  const handleConfirmEndContract = () => {
+  const handleConfirmEndContract =
+    async () => {
 
-    if (!contractToEnd) {
-
-      return;
-
-    }
-
-
-    /*
-      Segurança adicional:
-
-      mesmo que o usuário consiga chegar
-      aqui de alguma outra forma,
-      verificamos novamente se o contrato
-      ainda está ativo.
-    */
-
-    if (
-      !isContractActive(
-        contractToEnd
-      )
-    ) {
-
-      handleCancelEndContract();
-
-      return;
-
-    }
+      if (!contractToEnd) {
+        return;
+      }
 
 
-    const today =
-      new Date()
-        .toISOString()
-        .split("T")[0];
+      /*
+        Segurança adicional:
+        verificamos novamente se
+        o contrato ainda está ativo.
+      */
+
+      if (
+        !isContractActive(
+          contractToEnd
+        )
+      ) {
+
+        handleCancelEndContract();
+
+        return;
+
+      }
 
 
-    // ==========================================================
-    // BUSCAR CONTRATOS
-    // ==========================================================
+      try {
 
-    const storedContracts =
-      JSON.parse(
-        localStorage.getItem(
-          "danceManagerContracts"
-        ) || "[]"
-      );
-
-
-    // ==========================================================
-    // ENCERRAR CONTRATO
-    // ==========================================================
-
-    const updatedContracts =
-      storedContracts.map(
-        (contract) => {
-
-          if (
-            contract.id ===
+        const result =
+          await closeContract(
             contractToEnd.id
-          ) {
-
-            return {
-
-              ...contract,
-
-              /*
-                CONTRATO AGORA ESTÁ ENCERRADO
-              */
-
-              active: false,
-
-              /*
-                Mantemos a data original
-                e registramos a data em que
-                o contrato foi encerrado.
-              */
-
-              endDate:
-                contract.endDate,
-
-              closedAt:
-                today,
-
-            };
-
-          }
+          );
 
 
-          return contract;
+        /*
+          O service retorna o resultado
+          da API.
 
+          Se o backend retornar erro,
+          não fechamos o dialog.
+        */
+
+        if (!result?.ok) {
+          return;
         }
-      );
 
 
-    // ==========================================================
-    // SALVAR
-    // ==========================================================
-
-    localStorage.setItem(
-      "danceManagerContracts",
-      JSON.stringify(
-        updatedContracts
-      )
-    );
+        setIsEndContractDialogOpen(
+          false
+        );
 
 
-    // ==========================================================
-    // ATUALIZAR TELA
-    // ==========================================================
+        setContractToEnd(
+          null
+        );
 
-    setContracts(
-      updatedContracts.filter(
-        (item) =>
-          item.userId ===
-          userId
-      )
-    );
+      } catch (error) {
 
+        console.log(
+          "Erro ao encerrar contrato:",
+          error
+        );
 
-    // ==========================================================
-    // FECHAR CONFIRMAÇÃO
-    // ==========================================================
+      }
 
-    setIsEndContractDialogOpen(
-      false
-    );
-
-
-    setContractToEnd(
-      null
-    );
-
-  };
+    };
 
 
   // ============================================================
@@ -1119,293 +1050,235 @@ export default function PeopleManagementContracts() {
   // SALVAR CONTRATO
   // ============================================================
 
-  const handleSaveContract = () => {
+  const handleSaveContract =
+    async () => {
 
-    // ==========================================================
-    // VISUALIZAÇÃO
-    // ==========================================================
+      // ========================================================
+      // VISUALIZAÇÃO
+      // ========================================================
 
-    if (
-      dialogMode === "view"
-    ) {
-
-      return;
-
-    }
-
-
-    // ==========================================================
-    // EDIÇÃO
-    // ==========================================================
-
-    /*
-      Não permite salvar alterações
-      se o contrato tiver sido encerrado.
-    */
-
-    if (
-      dialogMode === "edit" &&
-      selectedContract &&
-      !isContractActive(
-        selectedContract
-      )
-    ) {
-
-      return;
-
-    }
-
-
-    // ==========================================================
-    // VALIDAÇÃO
-    // ==========================================================
-
-    if (
-      !formData.plan ||
-      !formData.periodicity ||
-      !formData.contractedValue ||
-      !formData.startDate
-    ) {
-
-      return;
-
-    }
-
-
-    // ==========================================================
-    // NOVO CONTRATO
-    // ==========================================================
-
-    if (
-      dialogMode === "new"
-    ) {
-
-      /*
-        Segurança adicional:
-
-        nunca permite criar um novo contrato
-        caso já exista outro ativo.
-      */
-
-      if (activeContract) {
+      if (
+        dialogMode === "view"
+      ) {
 
         return;
 
       }
 
-    }
+
+      // ========================================================
+      // EDIÇÃO
+      // ========================================================
+
+      /*
+        Não permite salvar alterações
+        se o contrato tiver sido encerrado.
+      */
+
+      if (
+        dialogMode === "edit" &&
+        selectedContract &&
+        !isContractActive(
+          selectedContract
+        )
+      ) {
+
+        return;
+
+      }
 
 
-    // ==========================================================
-    // DADOS DO CONTRATO
-    // ==========================================================
+      // ========================================================
+      // VALIDAÇÃO
+      // ========================================================
 
-    const contractData = {
+      if (
+        !formData.plan ||
+        !formData.periodicity ||
+        !formData.contractedValue ||
+        !formData.startDate
+      ) {
 
-      plan:
-        formData.plan,
+        return;
 
-      periodicity:
-        formData.periodicity,
-
-      baseValue:
-        Number(
-          formData.baseValue || 0
-        ),
-
-      contractedValue:
-        Number(
-          formData.contractedValue || 0
-        ),
-
-      startDate:
-        formData.startDate,
-
-      endDate:
-        formData.endDate,
-
-      specialCondition:
-        formData.specialConditionType
-          ? {
-
-              type:
-                formData.specialConditionType,
-
-              customValue:
-                formData.customValue
-                  ? Number(
-                      formData.customValue
-                    )
-                  : null,
-
-              scholarshipPercentage:
-                formData.scholarshipPercentage
-                  ? Number(
-                      formData.scholarshipPercentage
-                    )
-                  : null,
-
-            }
-          : null,
-
-    };
+      }
 
 
-    // ==========================================================
-    // CRIAR
-    // ==========================================================
+      // ========================================================
+      // NOVO CONTRATO
+      // ========================================================
 
-    if (
-      dialogMode === "new"
-    ) {
+      if (
+        dialogMode === "new"
+      ) {
 
-      const newContract = {
+        /*
+          Segurança adicional:
 
-        id:
-          crypto.randomUUID(),
+          nunca permite criar um novo contrato
+          caso já exista outro ativo.
+        */
+
+        if (activeContract) {
+          return;
+        }
+
+      }
+
+
+      // ========================================================
+      // DADOS DO CONTRATO
+      // ========================================================
+
+      const contractData = {
 
         userId,
 
-        ...contractData,
+        plan:
+          formData.plan,
 
-        /*
-          NOVO CONTRATO SEMPRE COMEÇA ATIVO
-        */
+        periodicity:
+          formData.periodicity,
 
-        active: true,
+        baseValue:
+          Number(
+            formData.baseValue || 0
+          ),
 
-        /*
-          Data em que foi criado
-        */
+        contractedValue:
+          Number(
+            formData.contractedValue || 0
+          ),
 
-        createdAt:
-          new Date()
-            .toISOString()
-            .split("T")[0],
+        startDate:
+          formData.startDate,
+
+        endDate:
+          formData.endDate,
+
+        specialCondition:
+          formData.specialConditionType
+            ? {
+
+                type:
+                  formData.specialConditionType,
+
+                customValue:
+                  formData.customValue
+                    ? Number(
+                        formData.customValue
+                      )
+                    : null,
+
+                scholarshipPercentage:
+                  formData.scholarshipPercentage
+                    ? Number(
+                        formData.scholarshipPercentage
+                      )
+                    : null,
+
+              }
+            : null,
 
       };
 
 
-      const storedContracts =
-        JSON.parse(
-          localStorage.getItem(
-            "danceManagerContracts"
-          ) || "[]"
-        );
+      // ========================================================
+      // CRIAR
+      // ========================================================
+
+      if (
+        dialogMode === "new"
+      ) {
+
+        try {
+
+          const result =
+            await addContract(
+              contractData
+            );
 
 
-      const updatedContracts = [
+          /*
+            Se o backend retornar erro,
+            não fechamos o dialog.
+          */
 
-        ...storedContracts,
-
-        newContract,
-
-      ];
-
-
-      localStorage.setItem(
-        "danceManagerContracts",
-        JSON.stringify(
-          updatedContracts
-        )
-      );
-
-
-      setContracts(
-        updatedContracts.filter(
-          (item) =>
-            item.userId ===
-            userId
-        )
-      );
-
-    }
-
-
-    // ==========================================================
-    // EDITAR
-    // ==========================================================
-
-    if (
-      dialogMode === "edit" &&
-      selectedContract
-    ) {
-
-      const storedContracts =
-        JSON.parse(
-          localStorage.getItem(
-            "danceManagerContracts"
-          ) || "[]"
-        );
-
-
-      const updatedContracts =
-        storedContracts.map(
-          (contract) => {
-
-            if (
-              contract.id ===
-              selectedContract.id
-            ) {
-
-              return {
-
-                ...contract,
-
-                ...contractData,
-
-                /*
-                  Continua ativo porque
-                  só permitimos edição de
-                  contrato ativo.
-                */
-
-                active: true,
-
-              };
-
-            }
-
-
-            return contract;
-
+          if (!result?.ok) {
+            return;
           }
-        );
 
 
-      localStorage.setItem(
-        "danceManagerContracts",
-        JSON.stringify(
-          updatedContracts
-        )
+        } catch (error) {
+
+          console.log(
+            "Erro ao criar contrato:",
+            error
+          );
+
+          return;
+
+        }
+
+      }
+
+
+      // ========================================================
+      // EDITAR
+      // ========================================================
+
+      if (
+        dialogMode === "edit" &&
+        selectedContract
+      ) {
+
+        try {
+
+          const result =
+            await updateContract(
+              selectedContract.id,
+              contractData
+            );
+
+
+          /*
+            Se o backend retornar erro,
+            não fechamos o dialog.
+          */
+
+          if (!result?.ok) {
+            return;
+          }
+
+
+        } catch (error) {
+
+          console.log(
+            "Erro ao editar contrato:",
+            error
+          );
+
+          return;
+
+        }
+
+      }
+
+
+      // ========================================================
+      // FECHAR
+      // ========================================================
+
+      setIsDialogOpen(
+        false
       );
 
 
-      setContracts(
-        updatedContracts.filter(
-          (item) =>
-            item.userId ===
-            userId
-        )
+      setSelectedContract(
+        null
       );
 
-    }
-
-
-    // ==========================================================
-    // FECHAR
-    // ==========================================================
-
-    setIsDialogOpen(
-      false
-    );
-
-
-    setSelectedContract(
-      null
-    );
-
-  };
+    };
 
 
   // ============================================================
@@ -1543,7 +1416,8 @@ export default function PeopleManagementContracts() {
             handleNewContract
           }
           disabled={
-            !!activeContract
+            !!activeContract ||
+            contractsLoading
           }
         >
           Novo contrato
@@ -1595,7 +1469,22 @@ export default function PeopleManagementContracts() {
         overflow="hidden"
       >
 
-        {contracts.length === 0 ? (
+        {contractsLoading ? (
+
+          <Box
+            p={8}
+            textAlign="center"
+          >
+
+            <Text
+              color="gray.500"
+            >
+              Carregando contratos...
+            </Text>
+
+          </Box>
+
+        ) : contractsList.length === 0 ? (
 
           <Box
             p={8}
@@ -1678,7 +1567,7 @@ export default function PeopleManagementContracts() {
 
               <Table.Body>
 
-                {contracts.map(
+                {contractsList.map(
                   (contract) => (
 
                     <Table.Row
@@ -1801,8 +1690,7 @@ export default function PeopleManagementContracts() {
                           gap={1}
                         >
 
-                          {/* VISUALIZAR
-                              Sempre permitido */}
+                          {/* VISUALIZAR */}
 
                           <Button
                             size="xs"
@@ -1817,8 +1705,7 @@ export default function PeopleManagementContracts() {
                           </Button>
 
 
-                          {/* EDITAR
-                              SOMENTE ATIVO */}
+                          {/* EDITAR */}
 
                           {isContractActive(
                             contract
@@ -1839,8 +1726,7 @@ export default function PeopleManagementContracts() {
                           )}
 
 
-                          {/* ENCERRAR
-                              SOMENTE ATIVO */}
+                          {/* ENCERRAR */}
 
                           {isContractActive(
                             contract
