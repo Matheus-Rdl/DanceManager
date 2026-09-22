@@ -130,13 +130,13 @@ export const selectOptions = {
   },
 
   activity_days: {
-    1: "1 - DOMINGO",
-    2: "2 - SEGUNDA",
-    3: "3 - TERÇA",
-    4: "4 - QUARTA",
-    5: "5 - QUINTA",
-    6: "6 - SEXTA",
-    7: "7 - SÁBADO",
+    1: "1 - SEGUNDA",
+    2: "2 - TERÇA",
+    3: "3 - QUARTA",
+    4: "4 - QUINTA",
+    5: "5 - SEXTA",
+    6: "6 - SÁBADO",
+    7: "7 - DOMINGO",
   },
 
   type: {

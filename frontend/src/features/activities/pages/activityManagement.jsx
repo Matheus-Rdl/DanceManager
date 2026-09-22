@@ -180,6 +180,17 @@ export default function ActivityManagement() {
           <Button size="xs" variant="surface" disabled={activityActive === null}>Alterar</Button>
         </Link>
 
+        <Link
+          to={"/ActivityAttendance"}
+          state={{
+            activityData: selectedActivity,
+          }}
+        >
+          <Button size="xs" variant="surface" disabled={activityActive === null}>
+            Presenças
+          </Button>
+        </Link>
+
         <Box ref={menuRef} position="relative">
           <Button size="xs" variant="surface" disabled={activityActive === null} onClick={toggleMenu}>
             Outras opções ▼
