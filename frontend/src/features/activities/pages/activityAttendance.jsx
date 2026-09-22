@@ -5,7 +5,7 @@
       Tela responsável pelo controle de presenças das turmas.
       Exibe a semana atual e destaca a aula do dia ou a próxima aula.
       Os alunos são carregados através da atividade.
-      As presenças são salvas automaticamente no LocalStorage.
+      As presenças são salvas no backend através do service.
 */
 
 import {
@@ -22,10 +22,16 @@ import {
   Grid,
 } from "@chakra-ui/react";
 
-import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import {
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
-// React Icons
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import {
   FaChevronLeft,
   FaChevronRight,
@@ -36,7 +42,9 @@ import {
 } from "react-icons/fa";
 
 import HeadingPage from "../../../components/headingPage";
+
 import usersServices from "../../../services/usersServices";
+import attendancesServices from "../../../services/attendancesServices";
 
 
 export default function ActivityAttendance() {
@@ -53,12 +61,8 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    SERVICE DE USUÁRIOS
+    SERVICES
     -------------------------------------------------------
-
-    Os alunos são buscados através da atividade.
-
-    A presença NÃO é buscada do banco.
   */
 
   const {
@@ -66,6 +70,14 @@ export default function ActivityAttendance() {
     userListActivies,
     refetchUsers,
   } = usersServices();
+
+
+  const {
+    getAttendance,
+    saveAttendance,
+    attendanceList,
+    attendanceLoading,
+  } = attendancesServices();
 
 
   /*
@@ -76,37 +88,6 @@ export default function ActivityAttendance() {
 
   const activityData =
     location.state?.activityData;
-
-
-  /*
-    -------------------------------------------------------
-    BUSCAR ALUNOS DA ATIVIDADE
-    -------------------------------------------------------
-
-    Utiliza o mesmo método usado na tela
-    ActivityManagementUsers.
-
-    Neste momento estamos buscando somente
-    os alunos vinculados à atividade.
-  */
-
-  useEffect(() => {
-
-    if (
-      refetchUsers &&
-      activityData?.activity_mat
-    ) {
-
-      getUsersByActivity(
-        activityData.activity_mat
-      );
-
-    }
-
-  }, [
-    refetchUsers,
-    activityData,
-  ]);
 
 
   /*
@@ -159,7 +140,7 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    DADOS REAIS DA ATIVIDADE
+    DADOS DA ATIVIDADE
     -------------------------------------------------------
   */
 
@@ -168,13 +149,16 @@ export default function ActivityAttendance() {
       activityData?.activity_days
     );
 
+
   const activityWeekDayName =
     weekDayNames[
-      activityWeekDay
+    activityWeekDay
     ];
+
 
   const activityTimeStart =
     activityData?.activity_time_start;
+
 
   const activityTimeEnd =
     activityData?.activity_time_end;
@@ -184,31 +168,43 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
     ALUNOS
     -------------------------------------------------------
-
-    Os alunos vêm do backend através de:
-
-      userListActivies
-
-    A presença continua sendo controlada
-    somente pelo estado local + LocalStorage.
   */
 
-  const [students, setStudents] =
-    useState([]);
+  const [
+    students,
+    setStudents
+  ] = useState([]);
 
 
   /*
     -------------------------------------------------------
-    TRANSFORMAR USUÁRIOS EM ALUNOS DA CHAMADA
+    BUSCAR ALUNOS DA ATIVIDADE
     -------------------------------------------------------
+  */
 
-    userListActivies possui os usuários vindos
-    do backend.
+  useEffect(() => {
 
-    Aqui transformamos os dados para o formato
-    utilizado pela tela de presença.
+    if (
+      refetchUsers &&
+      activityData?.activity_mat
+    ) {
 
-    Não fazemos nenhuma alteração no banco.
+      getUsersByActivity(
+        activityData.activity_mat
+      );
+
+    }
+
+  }, [
+    refetchUsers,
+    activityData,
+  ]);
+
+
+  /*
+    -------------------------------------------------------
+    TRANSFORMAR USUÁRIOS EM ALUNOS
+    -------------------------------------------------------
   */
 
   useEffect(() => {
@@ -217,12 +213,17 @@ export default function ActivityAttendance() {
       return;
     }
 
+
     setStudents(
       userListActivies.map(
         (user) => ({
+
           id: user._id,
+
           name: user.user_name,
+
           status: "undefined",
+
         })
       )
     );
@@ -234,7 +235,7 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    FUNÇÃO: INÍCIO DA SEMANA
+    INÍCIO DA SEMANA
     -------------------------------------------------------
   */
 
@@ -266,12 +267,13 @@ export default function ActivityAttendance() {
     );
 
     return result;
+
   };
 
 
   /*
     -------------------------------------------------------
-    FUNÇÃO: FINAL DA SEMANA
+    FINAL DA SEMANA
     -------------------------------------------------------
   */
 
@@ -288,6 +290,7 @@ export default function ActivityAttendance() {
     );
 
     return result;
+
   };
 
 
@@ -316,6 +319,7 @@ export default function ActivityAttendance() {
     setYearDialogOpen
   ] = useState(false);
 
+
   const [
     monthDialogOpen,
     setMonthDialogOpen
@@ -324,7 +328,7 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    CONTROLE DE EDIÇÃO DE AULA ANTIGA
+    CONTROLE DE EDIÇÃO
     -------------------------------------------------------
   */
 
@@ -336,7 +340,7 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    FUNÇÃO: DATA DA AULA NA SEMANA
+    DATA DA AULA
     -------------------------------------------------------
   */
 
@@ -347,25 +351,23 @@ export default function ActivityAttendance() {
     const result =
       new Date(weekStart);
 
+
     const dayOffset =
       activityWeekDay === 0
         ? 6
         : activityWeekDay - 1;
+
 
     result.setDate(
       result.getDate() +
       dayOffset
     );
 
+
     return result;
+
   };
 
-
-  /*
-    -------------------------------------------------------
-    DATA DA AULA
-    -------------------------------------------------------
-  */
 
   const activityDate =
     getActivityDate(
@@ -407,6 +409,7 @@ export default function ActivityAttendance() {
   const currentWeekStart =
     getStartOfWeek(today);
 
+
   const isCurrentWeek =
     isSameDate(
       selectedWeek,
@@ -426,9 +429,11 @@ export default function ActivityAttendance() {
       today
     );
 
+
   const classAlreadyHappened =
     activityDate < today &&
     !isToday;
+
 
   const isFutureClass =
     activityDate > today &&
@@ -446,10 +451,12 @@ export default function ActivityAttendance() {
     const currentWeekStart =
       getStartOfWeek(today);
 
+
     const currentActivityDate =
       getActivityDate(
         currentWeekStart
       );
+
 
     if (
       currentActivityDate >=
@@ -460,15 +467,18 @@ export default function ActivityAttendance() {
 
     }
 
+
     const nextWeek =
       new Date(
         currentWeekStart
       );
 
+
     nextWeek.setDate(
       nextWeek.getDate() +
       7
     );
+
 
     return getActivityDate(
       nextWeek
@@ -483,33 +493,41 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    CHAVE DA CHAMADA
+    FORMATAR DATA PARA API
     -------------------------------------------------------
+
+    Resultado:
+
+    2026-09-22
   */
 
-  const getAttendanceKey = () => {
-
-    if (!activityData) {
-      return null;
-    }
+  const formatApiDate = (
+    date
+  ) => {
 
     const year =
-      activityDate.getFullYear();
+      date.getFullYear();
+
 
     const month =
       String(
-        activityDate.getMonth() +
-        1
-      ).padStart(2, "0");
+        date.getMonth() + 1
+      ).padStart(
+        2,
+        "0"
+      );
+
 
     const day =
       String(
-        activityDate.getDate()
-      ).padStart(2, "0");
+        date.getDate()
+      ).padStart(
+        2,
+        "0"
+      );
+
 
     return (
-      `activityAttendance_` +
-      `${activityData.activity_mat}_` +
       `${year}-${month}-${day}`
     );
 
@@ -518,233 +536,205 @@ export default function ActivityAttendance() {
 
   /*
     -------------------------------------------------------
-    CARREGAR PRESENÇAS
+    BUSCAR CHAMADA
     -------------------------------------------------------
 
-    Somente a presença é carregada do LocalStorage.
-
-    Os alunos continuam vindo do backend.
+    Quando a semana muda, buscamos a chamada
+    correspondente àquela aula.
   */
 
   useEffect(() => {
 
-    if (!activityData) {
+    if (
+      !activityData?.activity_mat
+    ) {
       return;
     }
 
-    const key =
-      getAttendanceKey();
 
-    if (!key) {
-      return;
-    }
-
-    const savedAttendance =
-      localStorage.getItem(key);
-
-    if (!savedAttendance) {
-
-      setStudents(
-        prev =>
-          prev.map(
-            student => ({
-              ...student,
-              status: "undefined",
-            })
-          )
+    const date =
+      formatApiDate(
+        activityDate
       );
 
-      return;
 
-    }
-
-    try {
-
-      const parsed =
-        JSON.parse(
-          savedAttendance
-        );
-
-      /*
-        Aqui mantemos os dados salvos
-        de presença.
-
-        Como a lista de alunos agora vem
-        do backend, usamos os alunos atuais
-        como base e aplicamos os status
-        salvos anteriormente.
-      */
-
-      setStudents(
-        prev =>
-          prev.map(
-            student => {
-
-              const savedStudent =
-                parsed.find(
-                  saved =>
-                    saved.id ===
-                    student.id
-                );
-
-              return {
-                ...student,
-                status:
-                  savedStudent?.status ||
-                  "undefined",
-              };
-
-            }
-          )
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Erro ao carregar presença:",
-        error
-      );
-
-      setStudents(
-        prev =>
-          prev.map(
-            student => ({
-              ...student,
-              status: "undefined",
-            })
-          )
-      );
-
-    }
+    getAttendance(
+      activityData.activity_mat,
+      date
+    );
 
   }, [
     activityDate.getTime(),
     activityData?.activity_mat,
-    userListActivies,
   ]);
 
 
   /*
     -------------------------------------------------------
-    SALVAR AUTOMATICAMENTE
+    APLICAR CHAMADA DO BACKEND
     -------------------------------------------------------
   */
 
-  const saveAttendance = (
-    updatedStudents
-  ) => {
+  useEffect(() => {
 
-    const key =
-      getAttendanceKey();
+    console.log(
+      "APLICANDO CHAMADA PARA:",
+      formatApiDate(activityDate)
+    );
 
-    if (!key) {
+    console.log(
+      "ATTENDANCE:",
+      attendanceList
+    );
+
+
+    if (!attendanceList) {
+
+      setStudents(
+        prev =>
+          prev.map(
+            student => ({
+              ...student,
+              status: "undefined",
+            })
+          )
+      );
+
       return;
+
     }
 
-    localStorage.setItem(
-      key,
-      JSON.stringify(
-        updatedStudents
-      )
+
+    setStudents(
+      prev =>
+        prev.map(
+          student => {
+
+            const savedStudent =
+              attendanceList.students?.find(
+                saved =>
+                  String(saved.userId) ===
+                  String(student.id)
+              );
+
+
+            return {
+
+              ...student,
+
+              status:
+                savedStudent?.status ||
+                "undefined",
+
+            };
+
+          }
+        )
     );
+
+  }, [
+    attendanceList,
+    activityDate.getTime(),
+  ]);
+
+
+  /*
+    -------------------------------------------------------
+    CRIAR ID
+    -------------------------------------------------------
+  */
+
+  const generateId = () => {
+
+    return crypto.randomUUID();
 
   };
 
 
   /*
     -------------------------------------------------------
-    STATUS EXIBIDO
+    SALVAR CHAMADA
     -------------------------------------------------------
   */
 
-  let displayedActivityDate =
-    activityDate;
+  const saveCurrentAttendance = async (
+    updatedStudents
+  ) => {
 
-  let displayedStatus =
-    "AULA";
-
-
-  if (isCurrentWeek) {
-
-    if (isToday) {
-
-      displayedStatus =
-        "HOJE";
-
-    } else if (isFutureClass) {
-
-      displayedStatus =
-        "PRÓXIMA AULA";
-
-    } else if (
-      classAlreadyHappened
+    if (
+      !activityData?.activity_mat
     ) {
+      return;
+    }
 
-      displayedStatus =
-        "REALIZADA";
+
+    const date =
+      formatApiDate(
+        activityDate
+      );
+
+
+    /*
+      Formato exigido pelo AttendanceSchema.
+    */
+
+    const attendanceData = {
+
+      id:
+        attendanceList?.id ||
+        generateId(),
+
+      activityMat:
+        String(
+          activityData.activity_mat
+        ),
+
+      date:
+
+        date,
+
+      students:
+
+        updatedStudents.map(
+          student => ({
+
+            userId:
+              String(
+                student.id
+              ),
+
+            status:
+              student.status,
+
+          })
+        ),
+
+      createdAt:
+        attendanceList?.createdAt ||
+        new Date().toISOString(),
+
+      updatedAt:
+        new Date().toISOString(),
+
+    };
+
+
+    try {
+
+      await saveAttendance(
+        attendanceData
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Erro ao salvar chamada:",
+        error
+      );
 
     }
 
-  }
-
-
-  /*
-    -------------------------------------------------------
-    PRESENÇAS
-    -------------------------------------------------------
-  */
-
-  const presentCount =
-    students.filter(
-      student =>
-        student.status ===
-        "present"
-    ).length;
-
-
-  /*
-    -------------------------------------------------------
-    AUSÊNCIAS
-    -------------------------------------------------------
-  */
-
-  const absentCount =
-    students.filter(
-      student =>
-        student.status ===
-        "absent"
-    ).length;
-
-
-  /*
-    -------------------------------------------------------
-    A DEFINIR
-    -------------------------------------------------------
-  */
-
-  const undefinedCount =
-    students.filter(
-      student =>
-        student.status ===
-        "undefined"
-    ).length;
-
-
-  /*
-    -------------------------------------------------------
-    PERCENTUAL
-    -------------------------------------------------------
-  */
-
-  const attendancePercentage =
-    students.length > 0
-      ? Math.round(
-        (
-          presentCount /
-          students.length
-        ) * 100
-      )
-      : 0;
+  };
 
 
   /*
@@ -753,13 +743,14 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const toggleAttendance = (
+  const toggleAttendance = async (
     id
   ) => {
 
     if (isFutureClass) {
       return;
     }
+
 
     if (
       classAlreadyHappened &&
@@ -768,6 +759,7 @@ export default function ActivityAttendance() {
       return;
     }
 
+
     const updatedStudents =
       students.map(
         student => {
@@ -775,10 +767,14 @@ export default function ActivityAttendance() {
           if (
             student.id !== id
           ) {
+
             return student;
+
           }
 
+
           let newStatus;
+
 
           if (
             student.status ===
@@ -803,19 +799,26 @@ export default function ActivityAttendance() {
 
           }
 
+
           return {
+
             ...student,
-            status: newStatus,
+
+            status:
+              newStatus,
+
           };
 
         }
       );
 
+
     setStudents(
       updatedStudents
     );
 
-    saveAttendance(
+
+    await saveCurrentAttendance(
       updatedStudents
     );
 
@@ -828,11 +831,12 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const markAllPresent = () => {
+  const markAllPresent = async () => {
 
     if (isFutureClass) {
       return;
     }
+
 
     if (
       classAlreadyHappened &&
@@ -841,19 +845,26 @@ export default function ActivityAttendance() {
       return;
     }
 
+
     const updatedStudents =
       students.map(
         student => ({
+
           ...student,
-          status: "present",
+
+          status:
+            "present",
+
         })
       );
+
 
     setStudents(
       updatedStudents
     );
 
-    saveAttendance(
+
+    await saveCurrentAttendance(
       updatedStudents
     );
 
@@ -866,11 +877,12 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const markAllAbsent = () => {
+  const markAllAbsent = async () => {
 
     if (isFutureClass) {
       return;
     }
+
 
     if (
       classAlreadyHappened &&
@@ -879,19 +891,26 @@ export default function ActivityAttendance() {
       return;
     }
 
+
     const updatedStudents =
       students.map(
         student => ({
+
           ...student,
-          status: "absent",
+
+          status:
+            "absent",
+
         })
       );
+
 
     setStudents(
       updatedStudents
     );
 
-    saveAttendance(
+
+    await saveCurrentAttendance(
       updatedStudents
     );
 
@@ -913,14 +932,17 @@ export default function ActivityAttendance() {
         selectedWeek
       );
 
+
     newWeek.setDate(
       newWeek.getDate() +
       amount * 7
     );
 
+
     setSelectedWeek(
       newWeek
     );
+
 
     setCanEditPastClass(
       false
@@ -946,15 +968,18 @@ export default function ActivityAttendance() {
         1
       );
 
+
     setSelectedWeek(
       getStartOfWeek(
         newDate
       )
     );
 
+
     setCanEditPastClass(
       false
     );
+
 
     setYearDialogOpen(
       false
@@ -980,15 +1005,18 @@ export default function ActivityAttendance() {
         1
       );
 
+
     setSelectedWeek(
       getStartOfWeek(
         newDate
       )
     );
 
+
     setCanEditPastClass(
       false
     );
+
 
     setMonthDialogOpen(
       false
@@ -1077,10 +1105,12 @@ export default function ActivityAttendance() {
             selectedWeek
           );
 
+
         date.setDate(
           selectedWeek.getDate() +
           index
         );
+
 
         return date;
 
@@ -1120,6 +1150,7 @@ export default function ActivityAttendance() {
           content="Presenças"
         />
 
+
         <Box
           p={6}
           border="1px solid"
@@ -1131,6 +1162,7 @@ export default function ActivityAttendance() {
           <Text>
             Nenhuma atividade foi selecionada.
           </Text>
+
 
           <Button
             mt={4}
@@ -1146,6 +1178,83 @@ export default function ActivityAttendance() {
     );
 
   }
+
+
+  /*
+    -------------------------------------------------------
+    STATUS DA AULA
+    -------------------------------------------------------
+  */
+
+  let displayedActivityDate =
+    activityDate;
+
+
+  let displayedStatus =
+    "AULA";
+
+
+  if (isCurrentWeek) {
+
+    if (isToday) {
+
+      displayedStatus =
+        "HOJE";
+
+    } else if (isFutureClass) {
+
+      displayedStatus =
+        "PRÓXIMA AULA";
+
+    } else if (classAlreadyHappened) {
+
+      displayedStatus =
+        "REALIZADA";
+
+    }
+
+  }
+
+
+  /*
+    -------------------------------------------------------
+    RESUMOS
+    -------------------------------------------------------
+  */
+
+  const presentCount =
+    students.filter(
+      student =>
+        student.status ===
+        "present"
+    ).length;
+
+
+  const absentCount =
+    students.filter(
+      student =>
+        student.status ===
+        "absent"
+    ).length;
+
+
+  const undefinedCount =
+    students.filter(
+      student =>
+        student.status ===
+        "undefined"
+    ).length;
+
+
+  const attendancePercentage =
+    students.length > 0
+      ? Math.round(
+        (
+          presentCount /
+          students.length
+        ) * 100
+      )
+      : 0;
 
 
   /*
@@ -1168,6 +1277,7 @@ export default function ActivityAttendance() {
 
     }
 
+
     if (
       status === "absent"
     ) {
@@ -1177,6 +1287,7 @@ export default function ActivityAttendance() {
       };
 
     }
+
 
     return {
       bg: "gray.100",
@@ -1197,10 +1308,6 @@ export default function ActivityAttendance() {
       gap={4}
       align="stretch"
     >
-
-      {/* ================================================= */}
-      {/* CABEÇALHO */}
-      {/* ================================================= */}
 
       <HStack gap={3}>
 
@@ -1241,13 +1348,15 @@ export default function ActivityAttendance() {
 
             </Heading>
 
+
             <Text
               fontSize="sm"
               color="gray.500"
               mt={1}
             >
 
-              Código:{" "}
+              Código:
+              {" "}
               {activityData.activity_mat}
 
             </Text>
@@ -1294,7 +1403,7 @@ export default function ActivityAttendance() {
 
 
       {/* ================================================= */}
-      {/* NAVEGAÇÃO DO ANO / MÊS / SEMANA */}
+      {/* NAVEGAÇÃO */}
       {/* ================================================= */}
 
       <Box>
@@ -1366,14 +1475,12 @@ export default function ActivityAttendance() {
                 color="brand.primary"
               >
 
-                Semana{" "}
-
+                Semana
+                {" "}
                 {formatDate(
                   selectedWeek
                 )}
-
                 {" — "}
-
                 {formatDate(
                   getEndOfWeek(
                     selectedWeek
@@ -1417,7 +1524,7 @@ export default function ActivityAttendance() {
 
 
       {/* ================================================= */}
-      {/* DIAS DA SEMANA */}
+      {/* DIAS */}
       {/* ================================================= */}
 
       <Flex
@@ -1432,11 +1539,13 @@ export default function ActivityAttendance() {
               date.getDay() ===
               activityWeekDay;
 
+
             const dayIsToday =
               isSameDate(
                 date,
                 today
               );
+
 
             return (
 
@@ -1502,16 +1611,15 @@ export default function ActivityAttendance() {
                   mt={2}
                   fontWeight={
                     dayIsToday ||
-                    isActivityDay
+                      isActivityDay
                       ? "bold"
                       : "normal"
                   }
                   color={
-                    dayIsToday
+                    dayIsToday ||
+                      isActivityDay
                       ? "brand.primary"
-                      : isActivityDay
-                        ? "brand.primary"
-                        : "gray.500"
+                      : "gray.500"
                   }
                 >
 
@@ -1549,8 +1657,6 @@ export default function ActivityAttendance() {
         bg="white"
       >
 
-        {/* CABEÇALHO */}
-
         <Box
           p={4}
           bg={
@@ -1576,9 +1682,7 @@ export default function ActivityAttendance() {
               >
 
                 {activityWeekDayName}
-
                 {" • "}
-
                 {formatFullDate(
                   displayedActivityDate
                 )}
@@ -1656,8 +1760,6 @@ export default function ActivityAttendance() {
 
         <Box p={4}>
 
-          {/* AULA DE HOJE */}
-
           {isToday && (
 
             <Box
@@ -1677,6 +1779,7 @@ export default function ActivityAttendance() {
 
               </Text>
 
+
               <Text
                 fontSize="sm"
                 color="gray.600"
@@ -1691,8 +1794,6 @@ export default function ActivityAttendance() {
 
           )}
 
-
-          {/* PRÓXIMA AULA */}
 
           {isFutureClass &&
             isCurrentWeek && (
@@ -1714,6 +1815,7 @@ export default function ActivityAttendance() {
 
                 </Text>
 
+
                 <Text
                   fontSize="sm"
                   color="gray.600"
@@ -1723,9 +1825,7 @@ export default function ActivityAttendance() {
                   {formatFullDate(
                     activityDate
                   )}
-
                   {" • "}
-
                   {activityTimeStart}
 
                 </Text>
@@ -1734,8 +1834,6 @@ export default function ActivityAttendance() {
 
             )}
 
-
-          {/* AULA JÁ REALIZADA */}
 
           {classAlreadyHappened && (
 
@@ -1756,20 +1854,19 @@ export default function ActivityAttendance() {
 
               </Text>
 
+
               <Text
                 fontSize="sm"
                 color="gray.600"
                 mt={1}
               >
 
-                A próxima aula será em{" "}
-
+                A próxima aula será em
+                {" "}
                 {formatFullDate(
                   nextActivityDate
                 )}
-
                 {" • "}
-
                 {activityTimeStart}
 
               </Text>
@@ -1778,8 +1875,6 @@ export default function ActivityAttendance() {
 
           )}
 
-
-          {/* AVISO PARA AULA PASSADA */}
 
           {classAlreadyHappened &&
             !canEditPastClass && (
@@ -1810,6 +1905,7 @@ export default function ActivityAttendance() {
                       Lista de presença antiga
 
                     </Text>
+
 
                     <Text
                       fontSize="sm"
@@ -1847,8 +1943,6 @@ export default function ActivityAttendance() {
             )}
 
 
-          {/* MODO DE EDIÇÃO DE AULA PASSADA */}
-
           {classAlreadyHappened &&
             canEditPastClass && (
 
@@ -1870,6 +1964,7 @@ export default function ActivityAttendance() {
                   Editando chamada antiga
 
                 </Text>
+
 
                 <Text
                   fontSize="sm"
@@ -1912,7 +2007,8 @@ export default function ActivityAttendance() {
                   (
                     classAlreadyHappened &&
                     !canEditPastClass
-                  )
+                  ) ||
+                  attendanceLoading
                 }
                 onClick={
                   markAllPresent
@@ -1934,7 +2030,8 @@ export default function ActivityAttendance() {
                   (
                     classAlreadyHappened &&
                     !canEditPastClass
-                  )
+                  ) ||
+                  attendanceLoading
                 }
                 onClick={
                   markAllAbsent
@@ -1966,6 +2063,7 @@ export default function ActivityAttendance() {
                   Presentes
                 </Text>
 
+
                 <Text
                   fontSize="lg"
                   fontWeight="bold"
@@ -1987,6 +2085,7 @@ export default function ActivityAttendance() {
                 >
                   Ausentes
                 </Text>
+
 
                 <Text
                   fontSize="lg"
@@ -2010,6 +2109,7 @@ export default function ActivityAttendance() {
                   A definir
                 </Text>
 
+
                 <Text
                   fontSize="lg"
                   fontWeight="bold"
@@ -2032,6 +2132,7 @@ export default function ActivityAttendance() {
                   Frequência
                 </Text>
 
+
                 <Text
                   fontSize="lg"
                   fontWeight="bold"
@@ -2050,7 +2151,7 @@ export default function ActivityAttendance() {
 
 
           {/* ================================================= */}
-          {/* TABELA DE ALUNOS */}
+          {/* TABELA */}
           {/* ================================================= */}
 
           <Box
@@ -2072,6 +2173,7 @@ export default function ActivityAttendance() {
                   <Table.ColumnHeader>
                     Aluno
                   </Table.ColumnHeader>
+
 
                   <Table.ColumnHeader>
                     Presença
@@ -2117,7 +2219,7 @@ export default function ActivityAttendance() {
                             : {
                               bg:
                                 student.status ===
-                                "present"
+                                  "present"
                                   ? "green.200"
                                   : student.status ===
                                     "absent"
@@ -2154,7 +2256,7 @@ export default function ActivityAttendance() {
                               borderRadius="full"
                               bg={
                                 student.status ===
-                                "present"
+                                  "present"
                                   ? "green.500"
                                   : student.status ===
                                     "absent"
@@ -2169,7 +2271,7 @@ export default function ActivityAttendance() {
                               fontWeight="medium"
                               color={
                                 student.status ===
-                                "present"
+                                  "present"
                                   ? "green.700"
                                   : student.status ===
                                     "absent"
@@ -2180,7 +2282,7 @@ export default function ActivityAttendance() {
 
                               {
                                 student.status ===
-                                "present"
+                                  "present"
                                   ? "Presente"
                                   : student.status ===
                                     "absent"
@@ -2208,10 +2310,6 @@ export default function ActivityAttendance() {
           </Box>
 
 
-          {/* ================================================= */}
-          {/* INFORMAÇÃO DE SALVAMENTO */}
-          {/* ================================================= */}
-
           <Text
             fontSize="xs"
             color="gray.400"
@@ -2229,7 +2327,7 @@ export default function ActivityAttendance() {
 
 
       {/* ================================================= */}
-      {/* DIALOG — SELECIONAR ANO */}
+      {/* DIALOG ANO */}
       {/* ================================================= */}
 
       <Dialog.Root
@@ -2274,9 +2372,11 @@ export default function ActivityAttendance() {
                         4 +
                         index;
 
+
                       const isSelected =
                         selectedWeek.getFullYear() ===
                         year;
+
 
                       return (
 
@@ -2344,7 +2444,7 @@ export default function ActivityAttendance() {
 
 
       {/* ================================================= */}
-      {/* DIALOG — SELECIONAR MÊS */}
+      {/* DIALOG MÊS */}
       {/* ================================================= */}
 
       <Dialog.Root
@@ -2389,6 +2489,7 @@ export default function ActivityAttendance() {
                       const isSelected =
                         selectedWeek.getMonth() ===
                         index;
+
 
                       return (
 

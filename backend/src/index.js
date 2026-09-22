@@ -9,6 +9,7 @@ import fieldsRouter from "./modules/fields/fieldsRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
 import contractsRouter from "./modules/contracts/contractsRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
+import attendancesRouter from "./modules/attendances/attendancesRouter.js";
 
 // Em ES Modules, precisamos recriar as variáveis __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +73,7 @@ async function main() {
   app.use("/activities", activitiesRouter);
   app.use("/menus", menusRouter);
   app.use("/contracts", contractsRouter);
+  app.use("/attendances", attendancesRouter);
 
   app.use((err, req, res, next) => {
     console.error("🚨 Erro Global Capturado:", err.message);
