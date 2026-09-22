@@ -1412,6 +1412,12 @@ export default function ActivityAttendance() {
           align="center"
           justify="space-between"
           gap={3}
+          flexWrap="wrap"
+          css={{
+            "@media (max-width: 720px)": {
+              justifyContent: "center",
+            },
+          }}
         >
 
           <Button
