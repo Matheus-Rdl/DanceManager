@@ -340,7 +340,7 @@ export default function HeaderFilter({
                       zIndex={100}
                       backgroundColor="brand.secondary"
                       ml={-2}
-                      width="calc(100% - 32px)"
+                      width="calc(100%)"
                     >
                       {/* ====================================== */}
                       {/* CAMPO QUE IMITA O SELECT */}

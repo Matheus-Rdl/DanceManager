@@ -1993,7 +1993,7 @@ export default function ActivityAttendance() {
           {/* ================================================= */}
 
           <Flex
-            justify="space-between"
+            justify={"space-between"}
             align="center"
             mb={4}
             wrap="wrap"
@@ -2252,7 +2252,7 @@ export default function ActivityAttendance() {
                         </Table.Cell>
 
 
-                        <Table.Cell>
+                        <Table.Cell width={"90px"}>
 
                           <HStack gap={2}>
 
@@ -2275,6 +2275,7 @@ export default function ActivityAttendance() {
                             <Text
                               fontSize="sm"
                               fontWeight="medium"
+                              textAlign="center"
                               color={
                                 student.status ===
                                   "present"

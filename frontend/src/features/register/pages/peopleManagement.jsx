@@ -105,7 +105,7 @@ export default function PeopleManagement() {
       input: field.input,
       dataKey: field.field,
       optionsKey: field.optionsKey,
-      minWidth: field.minWidth || "300px",
+      minWidth: field.minWidth || "120px",
       maxWidth: field.maxWidth || "400px",
     }));
 

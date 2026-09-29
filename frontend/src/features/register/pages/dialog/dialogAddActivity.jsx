@@ -38,6 +38,8 @@ export default function DialogAddActivity({ open, onClose, userData, onSaved }) 
   const activity_type = {
     1: "1 - Samba",
     2: "2 - Funkeado",
+    3: "3 - Forro",
+    4: "4 - Bolero",
   };
 
   useEffect(() => {
