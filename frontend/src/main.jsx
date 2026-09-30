@@ -19,6 +19,7 @@ import ActivityManagementDetailed from "./features/activities/pages/activityMana
 import ActivityManagementUsers from "./features/activities/pages/activityManagementUsers.jsx";
 
 import MonthlyFees from "./features/financial/monthlyFees/monthlyFees.jsx";
+import MonthlyFeesDetailed from "./features/financial/monthlyFees/monthlyFeesDetailed.jsx";
 
 import UnderConstruction from "./components/underConstruction.jsx";
 import PeopleManagementActivities from "./features/register/pages/peopleManagementActivities.jsx";
@@ -72,6 +73,11 @@ const pages = createHashRouter([
       {
         path: "/mensalidade",
         element: <MonthlyFees />,
+      },
+
+      {
+        path: "/mensalidade/aluno",
+        element: <MonthlyFeesDetailed />,
       },
 
       {
