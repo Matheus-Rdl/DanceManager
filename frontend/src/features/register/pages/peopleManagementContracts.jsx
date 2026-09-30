@@ -80,7 +80,7 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // SERVICE DE CONTRATOS
+  // SERVICE
   // ============================================================
 
   const {
@@ -124,7 +124,7 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // DIALOG DE CONFIRMAÇÃO
+  // DIALOG ENCERRAMENTO
   // ============================================================
 
   const [
@@ -148,6 +148,8 @@ export default function PeopleManagementContracts() {
     setFormData,
   ] = useState({
 
+    contractType: "Plano",
+
     plan: "",
 
     periodicity: "",
@@ -158,19 +160,17 @@ export default function PeopleManagementContracts() {
 
     startDate: "",
 
-    endDate: "",
+    plannedEndDate: "",
 
-    specialConditionType: "",
+    indefinite: false,
 
     customValue: "",
-
-    scholarshipPercentage: "",
 
   });
 
 
   // ============================================================
-  // BUSCAR CONTRATOS DO ALUNO
+  // BUSCAR CONTRATOS
   // ============================================================
 
   useEffect(() => {
@@ -179,14 +179,13 @@ export default function PeopleManagementContracts() {
       return;
     }
 
-
     getContractsByUser(userId);
 
   }, [userId]);
 
 
   // ============================================================
-  // VERIFICAR SE CONTRATO ESTÁ ATIVO
+  // CONTRATO ATIVO
   // ============================================================
 
   const isContractActive = (
@@ -198,10 +197,6 @@ export default function PeopleManagementContracts() {
   };
 
 
-  // ============================================================
-  // CONTRATO ATIVO
-  // ============================================================
-
   const activeContract =
     contractsList.find(
       (contract) =>
@@ -210,7 +205,60 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // FORMATAR VALOR
+  // IDENTIFICAR TIPO DO CONTRATO
+  //
+  // Isso é importante para contratos antigos.
+  //
+  // Se contractType não existir:
+  //
+  // specialCondition.type === "Valor personalizado"
+  //     -> Personalizado
+  //
+  // specialCondition.type === "Bolsa"
+  //     -> Bolsista
+  //
+  // caso contrário
+  //     -> Plano
+  // ============================================================
+
+  const getContractType = (
+    contract
+  ) => {
+
+    if (contract?.contractType) {
+
+      return contract.contractType;
+
+    }
+
+
+    if (
+      contract?.specialCondition?.type ===
+      "Valor personalizado"
+    ) {
+
+      return "Personalizado";
+
+    }
+
+
+    if (
+      contract?.specialCondition?.type ===
+      "Bolsa"
+    ) {
+
+      return "Bolsista";
+
+    }
+
+
+    return "Plano";
+
+  };
+
+
+  // ============================================================
+  // FORMATAR DINHEIRO
   // ============================================================
 
   const formatMoney = (
@@ -243,20 +291,96 @@ export default function PeopleManagementContracts() {
     }
 
 
-    const [
-      year,
-      month,
-      day,
-    ] = date.split("-");
+    if (
+      typeof date === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ) {
+
+      const [
+        year,
+        month,
+        day,
+      ] = date.split("-");
 
 
-    return `${day}/${month}/${year}`;
+      return `${day}/${month}/${year}`;
+
+    }
+
+
+    const parsedDate =
+      new Date(date);
+
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+
+      return "-";
+
+    }
+
+
+    return parsedDate.toLocaleDateString(
+      "pt-BR"
+    );
 
   };
 
 
   // ============================================================
-  // CALCULAR DATA DE FIM
+  // FORMATAR DATA E HORA
+  // ============================================================
+
+  const formatDateTime = (
+    date
+  ) => {
+
+    if (!date) {
+      return "-";
+    }
+
+
+    if (
+      typeof date === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ) {
+
+      return formatDate(date);
+
+    }
+
+
+    const parsedDate =
+      new Date(date);
+
+
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
+
+      return "-";
+
+    }
+
+
+    return parsedDate.toLocaleString(
+      "pt-BR",
+      {
+        dateStyle: "short",
+        timeStyle: "short",
+      }
+    );
+
+  };
+
+
+  // ============================================================
+  // CALCULAR FIM DO PLANO
   // ============================================================
 
   const calculateEndDate = (
@@ -356,74 +480,32 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // CALCULAR VALOR CONTRATADO
+  // VALOR DO PLANO
   // ============================================================
 
-  const calculateContractedValue = ({
-    baseValue,
-    conditionType,
-    customValue,
-    scholarshipPercentage,
-  }) => {
-
-    const base =
-      Number(
-        baseValue || 0
-      );
-
-
-    // ----------------------------------------------------------
-    // SEM CONDIÇÃO
-    // ----------------------------------------------------------
-
-    if (!conditionType) {
-
-      return base;
-
-    }
-
-
-    // ----------------------------------------------------------
-    // VALOR PERSONALIZADO
-    // ----------------------------------------------------------
+  const getPlanValue = (
+    plan,
+    periodicity
+  ) => {
 
     if (
-      conditionType ===
-      "Valor personalizado"
+      !plan ||
+      !periodicity
     ) {
 
-      return Number(
-        customValue || 0
-      );
+      return 0;
 
     }
 
 
-    // ----------------------------------------------------------
-    // BOLSA
-    // ----------------------------------------------------------
-
-    if (
-      conditionType ===
-      "Bolsa"
-    ) {
-
-      const percentage =
-        Number(
-          scholarshipPercentage || 0
-        );
+    const key =
+      periodicity.toLowerCase();
 
 
-      return (
-        base -
-        (base * percentage) /
-          100
-      );
-
-    }
-
-
-    return base;
+    return (
+      PLANS?.[plan]?.[key] ||
+      0
+    );
 
   };
 
@@ -436,10 +518,6 @@ export default function PeopleManagementContracts() {
     field,
     value
   ) => {
-
-    // ----------------------------------------------------------
-    // NÃO PERMITE ALTERAÇÃO EM VISUALIZAÇÃO
-    // ----------------------------------------------------------
 
     if (
       dialogMode === "view"
@@ -459,6 +537,92 @@ export default function PeopleManagementContracts() {
 
 
       // ========================================================
+      // TIPO DE CONTRATO
+      // ========================================================
+
+      if (
+        field === "contractType"
+      ) {
+
+        // ------------------------------------------------------
+        // PLANO
+        // ------------------------------------------------------
+
+        if (
+          value === "Plano"
+        ) {
+
+          updated.plan = "";
+
+          updated.periodicity = "";
+
+          updated.baseValue = "";
+
+          updated.contractedValue = "";
+
+          updated.plannedEndDate = "";
+
+          updated.indefinite = false;
+
+          updated.customValue = "";
+
+        }
+
+
+        // ------------------------------------------------------
+        // PERSONALIZADO
+        // ------------------------------------------------------
+
+        if (
+          value === "Personalizado"
+        ) {
+
+          updated.plan = "";
+
+          updated.periodicity = "";
+
+          updated.baseValue = 0;
+
+          updated.contractedValue =
+            Number(
+              prev.customValue || 0
+            );
+
+          updated.plannedEndDate = "";
+
+          updated.indefinite = false;
+
+        }
+
+
+        // ------------------------------------------------------
+        // BOLSISTA
+        // ------------------------------------------------------
+
+        if (
+          value === "Bolsista"
+        ) {
+
+          updated.plan = "";
+
+          updated.periodicity = "";
+
+          updated.baseValue = 0;
+
+          updated.contractedValue = 0;
+
+          updated.plannedEndDate = "";
+
+          updated.indefinite = false;
+
+          updated.customValue = "";
+
+        }
+
+      }
+
+
+      // ========================================================
       // PLANO
       // ========================================================
 
@@ -466,41 +630,31 @@ export default function PeopleManagementContracts() {
         field === "plan"
       ) {
 
+        const planValue =
+          getPlanValue(
+            value,
+            prev.periodicity
+          );
+
+
+        updated.baseValue =
+          planValue;
+
+
+        updated.contractedValue =
+          planValue;
+
+
         if (
-          value &&
+          prev.startDate &&
           prev.periodicity
         ) {
 
-          const periodicityKey =
-            prev.periodicity.toLowerCase();
-
-
-          const planValue =
-            PLANS[value]?.[
-              periodicityKey
-            ] || 0;
-
-
-          updated.baseValue =
-            planValue;
-
-
-          updated.contractedValue =
-            calculateContractedValue({
-
-              baseValue:
-                planValue,
-
-              conditionType:
-                prev.specialConditionType,
-
-              customValue:
-                prev.customValue,
-
-              scholarshipPercentage:
-                prev.scholarshipPercentage,
-
-            });
+          updated.plannedEndDate =
+            calculateEndDate(
+              prev.startDate,
+              prev.periodicity
+            );
 
         }
 
@@ -515,52 +669,32 @@ export default function PeopleManagementContracts() {
         field === "periodicity"
       ) {
 
-        if (
-          prev.plan &&
-          value
-        ) {
-
-          const periodicityKey =
-            value.toLowerCase();
-
-
-          const planValue =
-            PLANS[
-              prev.plan
-            ]?.[
-              periodicityKey
-            ] || 0;
-
-
-          updated.baseValue =
-            planValue;
-
-
-          updated.contractedValue =
-            calculateContractedValue({
-
-              baseValue:
-                planValue,
-
-              conditionType:
-                prev.specialConditionType,
-
-              customValue:
-                prev.customValue,
-
-              scholarshipPercentage:
-                prev.scholarshipPercentage,
-
-            });
-
-        }
-
-
-        updated.endDate =
-          calculateEndDate(
-            prev.startDate,
+        const planValue =
+          getPlanValue(
+            prev.plan,
             value
           );
+
+
+        updated.baseValue =
+          planValue;
+
+
+        updated.contractedValue =
+          planValue;
+
+
+        if (
+          prev.startDate
+        ) {
+
+          updated.plannedEndDate =
+            calculateEndDate(
+              prev.startDate,
+              value
+            );
+
+        }
 
       }
 
@@ -573,91 +707,16 @@ export default function PeopleManagementContracts() {
         field === "startDate"
       ) {
 
-        updated.endDate =
-          calculateEndDate(
-            value,
-            prev.periodicity
-          );
-
-      }
-
-
-      // ========================================================
-      // CONDIÇÃO ESPECIAL
-      // ========================================================
-
-      if (
-        field ===
-        "specialConditionType"
-      ) {
-
-        // ------------------------------------------------------
-        // NENHUMA
-        // ------------------------------------------------------
-
-        if (!value) {
-
-          updated.customValue =
-            "";
-
-          updated.scholarshipPercentage =
-            "";
-
-          updated.contractedValue =
-            Number(
-              prev.baseValue || 0
-            );
-
-        }
-
-
-        // ------------------------------------------------------
-        // VALOR PERSONALIZADO
-        // ------------------------------------------------------
-
         if (
-          value ===
-          "Valor personalizado"
+          prev.contractType ===
+          "Plano"
         ) {
 
-          updated.scholarshipPercentage =
-            "";
-
-          updated.contractedValue =
-            Number(
-              prev.customValue || 0
+          updated.plannedEndDate =
+            calculateEndDate(
+              value,
+              prev.periodicity
             );
-
-        }
-
-
-        // ------------------------------------------------------
-        // BOLSA
-        // ------------------------------------------------------
-
-        if (
-          value === "Bolsa"
-        ) {
-
-          updated.customValue =
-            "";
-
-          updated.contractedValue =
-            calculateContractedValue({
-
-              baseValue:
-                prev.baseValue,
-
-              conditionType:
-                "Bolsa",
-
-              customValue:
-                "",
-
-              scholarshipPercentage:
-                prev.scholarshipPercentage,
-
-            });
 
         }
 
@@ -669,13 +728,12 @@ export default function PeopleManagementContracts() {
       // ========================================================
 
       if (
-        field ===
-        "customValue"
+        field === "customValue"
       ) {
 
         if (
-          prev.specialConditionType ===
-          "Valor personalizado"
+          prev.contractType ===
+          "Personalizado"
         ) {
 
           updated.contractedValue =
@@ -689,35 +747,16 @@ export default function PeopleManagementContracts() {
 
 
       // ========================================================
-      // BOLSA
+      // PRAZO INDETERMINADO
       // ========================================================
 
       if (
-        field ===
-        "scholarshipPercentage"
+        field === "indefinite"
       ) {
 
-        if (
-          prev.specialConditionType ===
-          "Bolsa"
-        ) {
+        if (value) {
 
-          updated.contractedValue =
-            calculateContractedValue({
-
-              baseValue:
-                prev.baseValue,
-
-              conditionType:
-                "Bolsa",
-
-              customValue:
-                "",
-
-              scholarshipPercentage:
-                value,
-
-            });
+          updated.plannedEndDate = "";
 
         }
 
@@ -737,14 +776,6 @@ export default function PeopleManagementContracts() {
 
   const handleNewContract = () => {
 
-    /*
-      Só bloqueia se existir contrato
-      realmente ativo.
-
-      Contratos encerrados não impedem
-      a criação de um novo.
-    */
-
     if (activeContract) {
       return;
     }
@@ -752,11 +783,12 @@ export default function PeopleManagementContracts() {
 
     setSelectedContract(null);
 
-
     setDialogMode("new");
 
 
     setFormData({
+
+      contractType: "Plano",
 
       plan: "",
 
@@ -768,18 +800,76 @@ export default function PeopleManagementContracts() {
 
       startDate: "",
 
-      endDate: "",
+      plannedEndDate: "",
 
-      specialConditionType: "",
+      indefinite: false,
 
       customValue: "",
-
-      scholarshipPercentage: "",
 
     });
 
 
     setIsDialogOpen(true);
+
+  };
+
+
+  // ============================================================
+  // PREPARAR FORMULÁRIO DE CONTRATO
+  // ============================================================
+
+  const buildFormFromContract = (
+    contract
+  ) => {
+
+    const contractType =
+      getContractType(
+        contract
+      );
+
+
+    return {
+
+      contractType,
+
+      plan:
+        contract.plan ||
+        "",
+
+      periodicity:
+        contract.periodicity ||
+        "",
+
+      baseValue:
+        contract.baseValue ??
+        "",
+
+      contractedValue:
+        contract.contractedValue ??
+        "",
+
+      startDate:
+        contract.startDate ||
+        "",
+
+      plannedEndDate:
+        contract.plannedEndDate ||
+        "",
+
+      indefinite:
+        contract.indefinite === true,
+
+      customValue:
+        contract.specialCondition
+          ?.customValue ??
+        (
+          contractType ===
+          "Personalizado"
+            ? contract.contractedValue
+            : ""
+        ),
+
+    };
 
   };
 
@@ -802,43 +892,16 @@ export default function PeopleManagementContracts() {
     );
 
 
-    setFormData({
-
-      plan:
-        contract.plan,
-
-      periodicity:
-        contract.periodicity,
-
-      baseValue:
-        contract.baseValue,
-
-      contractedValue:
-        contract.contractedValue,
-
-      startDate:
-        contract.startDate,
-
-      endDate:
-        contract.endDate,
-
-      specialConditionType:
-        contract.specialCondition?.type ||
-        "",
-
-      customValue:
-        contract.specialCondition?.customValue ||
-        "",
-
-      scholarshipPercentage:
-        contract.specialCondition
-          ?.scholarshipPercentage ||
-        "",
-
-    });
+    setFormData(
+      buildFormFromContract(
+        contract
+      )
+    );
 
 
-    setIsDialogOpen(true);
+    setIsDialogOpen(
+      true
+    );
 
   };
 
@@ -850,10 +913,6 @@ export default function PeopleManagementContracts() {
   const handleEditContract = (
     contract
   ) => {
-
-    /*
-      CONTRATO ENCERRADO NÃO PODE SER EDITADO.
-    */
 
     if (
       !isContractActive(
@@ -876,40 +935,11 @@ export default function PeopleManagementContracts() {
     );
 
 
-    setFormData({
-
-      plan:
-        contract.plan,
-
-      periodicity:
-        contract.periodicity,
-
-      baseValue:
-        contract.baseValue,
-
-      contractedValue:
-        contract.contractedValue,
-
-      startDate:
-        contract.startDate,
-
-      endDate:
-        contract.endDate,
-
-      specialConditionType:
-        contract.specialCondition?.type ||
-        "",
-
-      customValue:
-        contract.specialCondition?.customValue ||
-        "",
-
-      scholarshipPercentage:
-        contract.specialCondition
-          ?.scholarshipPercentage ||
-        "",
-
-    });
+    setFormData(
+      buildFormFromContract(
+        contract
+      )
+    );
 
 
     setIsDialogOpen(
@@ -920,17 +950,12 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
-  // ABRIR CONFIRMAÇÃO DE ENCERRAMENTO
+  // ABRIR ENCERRAMENTO
   // ============================================================
 
   const handleEndContract = (
     contract
   ) => {
-
-    /*
-      Só pode encerrar contrato
-      que esteja ativo.
-    */
 
     if (
       !isContractActive(
@@ -967,12 +992,6 @@ export default function PeopleManagementContracts() {
       }
 
 
-      /*
-        Segurança adicional:
-        verificamos novamente se
-        o contrato ainda está ativo.
-      */
-
       if (
         !isContractActive(
           contractToEnd
@@ -993,14 +1012,6 @@ export default function PeopleManagementContracts() {
             contractToEnd.id
           );
 
-
-        /*
-          O service retorna o resultado
-          da API.
-
-          Se o backend retornar erro,
-          não fechamos o dialog.
-        */
 
         if (!result?.ok) {
           return;
@@ -1047,15 +1058,131 @@ export default function PeopleManagementContracts() {
 
 
   // ============================================================
+  // VALIDAR FORMULÁRIO
+  // ============================================================
+
+  const isFormValid = () => {
+
+    // ----------------------------------------------------------
+    // DATA DE INÍCIO
+    // ----------------------------------------------------------
+
+    if (
+      !formData.startDate
+    ) {
+
+      return false;
+
+    }
+
+
+    // ----------------------------------------------------------
+    // PLANO
+    // ----------------------------------------------------------
+
+    if (
+      formData.contractType ===
+      "Plano"
+    ) {
+
+      if (
+        !formData.plan ||
+        !formData.periodicity
+      ) {
+
+        return false;
+
+      }
+
+
+      if (
+        !formData.contractedValue ||
+        Number(
+          formData.contractedValue
+        ) <= 0
+      ) {
+
+        return false;
+
+      }
+
+
+      if (
+        !formData.plannedEndDate
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+
+    // ----------------------------------------------------------
+    // PERSONALIZADO
+    // ----------------------------------------------------------
+
+    if (
+      formData.contractType ===
+      "Personalizado"
+    ) {
+
+      if (
+        !formData.customValue ||
+        Number(
+          formData.customValue
+        ) <= 0
+      ) {
+
+        return false;
+
+      }
+
+
+      if (
+        !formData.indefinite &&
+        !formData.plannedEndDate
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+
+    // ----------------------------------------------------------
+    // BOLSISTA
+    // ----------------------------------------------------------
+
+    if (
+      formData.contractType ===
+      "Bolsista"
+    ) {
+
+      if (
+        !formData.indefinite &&
+        !formData.plannedEndDate
+      ) {
+
+        return false;
+
+      }
+
+    }
+
+
+    return true;
+
+  };
+
+
+  // ============================================================
   // SALVAR CONTRATO
   // ============================================================
 
   const handleSaveContract =
     async () => {
-
-      // ========================================================
-      // VISUALIZAÇÃO
-      // ========================================================
 
       if (
         dialogMode === "view"
@@ -1065,15 +1192,6 @@ export default function PeopleManagementContracts() {
 
       }
 
-
-      // ========================================================
-      // EDIÇÃO
-      // ========================================================
-
-      /*
-        Não permite salvar alterações
-        se o contrato tiver sido encerrado.
-      */
 
       if (
         dialogMode === "edit" &&
@@ -1088,15 +1206,18 @@ export default function PeopleManagementContracts() {
       }
 
 
-      // ========================================================
-      // VALIDAÇÃO
-      // ========================================================
+      if (
+        !isFormValid()
+      ) {
+
+        return;
+
+      }
+
 
       if (
-        !formData.plan ||
-        !formData.periodicity ||
-        !formData.contractedValue ||
-        !formData.startDate
+        dialogMode === "new" &&
+        activeContract
       ) {
 
         return;
@@ -1105,23 +1226,93 @@ export default function PeopleManagementContracts() {
 
 
       // ========================================================
-      // NOVO CONTRATO
+      // DEFINIR VALORES
+      // ========================================================
+
+      let baseValue = 0;
+
+      let contractedValue = 0;
+
+      let plan = null;
+
+      let periodicity = null;
+
+      let plannedEndDate =
+        formData.indefinite
+          ? null
+          : (
+            formData.plannedEndDate ||
+            null
+          );
+
+
+      // ========================================================
+      // PLANO
       // ========================================================
 
       if (
-        dialogMode === "new"
+        formData.contractType ===
+        "Plano"
       ) {
 
-        /*
-          Segurança adicional:
+        plan =
+          formData.plan;
 
-          nunca permite criar um novo contrato
-          caso já exista outro ativo.
-        */
+        periodicity =
+          formData.periodicity;
 
-        if (activeContract) {
-          return;
-        }
+        baseValue =
+          Number(
+            formData.baseValue || 0
+          );
+
+        contractedValue =
+          Number(
+            formData.contractedValue || 0
+          );
+
+      }
+
+
+      // ========================================================
+      // PERSONALIZADO
+      // ========================================================
+
+      if (
+        formData.contractType ===
+        "Personalizado"
+      ) {
+
+        baseValue = 0;
+
+        contractedValue =
+          Number(
+            formData.customValue || 0
+          );
+
+        plan = null;
+
+        periodicity = null;
+
+      }
+
+
+      // ========================================================
+      // BOLSISTA
+      // ========================================================
+
+      if (
+        formData.contractType ===
+        "Bolsista"
+      ) {
+
+        baseValue = 0;
+
+        contractedValue = 0;
+
+        plan = null;
+
+        periodicity = null;
 
       }
 
@@ -1134,51 +1325,61 @@ export default function PeopleManagementContracts() {
 
         userId,
 
-        plan:
-          formData.plan,
+        contractType:
+          formData.contractType,
 
-        periodicity:
-          formData.periodicity,
+        plan,
 
-        baseValue:
-          Number(
-            formData.baseValue || 0
-          ),
+        periodicity,
 
-        contractedValue:
-          Number(
-            formData.contractedValue || 0
-          ),
+        baseValue,
+
+        contractedValue,
 
         startDate:
           formData.startDate,
 
-        endDate:
-          formData.endDate,
+        plannedEndDate,
+
+        indefinite:
+          formData.indefinite === true,
 
         specialCondition:
-          formData.specialConditionType
+          formData.contractType ===
+          "Personalizado"
+
             ? {
 
+              type:
+                "Valor personalizado",
+
+              customValue:
+                Number(
+                  formData.customValue || 0
+                ),
+
+              scholarshipPercentage:
+                null,
+
+            }
+
+            : formData.contractType ===
+              "Bolsista"
+
+              ? {
+
                 type:
-                  formData.specialConditionType,
+                  "Bolsa",
 
                 customValue:
-                  formData.customValue
-                    ? Number(
-                        formData.customValue
-                      )
-                    : null,
+                  null,
 
                 scholarshipPercentage:
-                  formData.scholarshipPercentage
-                    ? Number(
-                        formData.scholarshipPercentage
-                      )
-                    : null,
+                  100,
 
               }
-            : null,
+
+              : null,
 
       };
 
@@ -1198,11 +1399,6 @@ export default function PeopleManagementContracts() {
               contractData
             );
 
-
-          /*
-            Se o backend retornar erro,
-            não fechamos o dialog.
-          */
 
           if (!result?.ok) {
             return;
@@ -1241,11 +1437,6 @@ export default function PeopleManagementContracts() {
             );
 
 
-          /*
-            Se o backend retornar erro,
-            não fechamos o dialog.
-          */
-
           if (!result?.ok) {
             return;
           }
@@ -1273,7 +1464,6 @@ export default function PeopleManagementContracts() {
         false
       );
 
-
       setSelectedContract(
         null
       );
@@ -1291,11 +1481,9 @@ export default function PeopleManagementContracts() {
       false
     );
 
-
     setSelectedContract(
       null
     );
-
 
     setDialogMode(
       "new"
@@ -1407,6 +1595,7 @@ export default function PeopleManagementContracts() {
 
       <HStack
         gap={2}
+        flexWrap="wrap"
       >
 
         <Button
@@ -1431,13 +1620,21 @@ export default function PeopleManagementContracts() {
             color="gray.500"
           >
 
-            Contrato vigente até{" "}
+            Contrato vigente
 
-            <strong>
-              {formatDate(
-                activeContract.endDate
-              )}
-            </strong>
+            {activeContract.plannedEndDate
+              ? (
+                <>
+                  {" "}até{" "}
+
+                  <strong>
+                    {formatDate(
+                      activeContract.plannedEndDate
+                    )}
+                  </strong>
+                </>
+              )
+              : " por prazo indeterminado"}
 
           </Text>
 
@@ -1521,6 +1718,10 @@ export default function PeopleManagementContracts() {
                 <Table.Row>
 
                   <Table.ColumnHeader>
+                    Tipo
+                  </Table.ColumnHeader>
+
+                  <Table.ColumnHeader>
                     Plano
                   </Table.ColumnHeader>
 
@@ -1529,11 +1730,7 @@ export default function PeopleManagementContracts() {
                   </Table.ColumnHeader>
 
                   <Table.ColumnHeader>
-                    Valor do plano
-                  </Table.ColumnHeader>
-
-                  <Table.ColumnHeader>
-                    Valor contratado
+                    Valor mensal
                   </Table.ColumnHeader>
 
                   <Table.ColumnHeader>
@@ -1541,11 +1738,11 @@ export default function PeopleManagementContracts() {
                   </Table.ColumnHeader>
 
                   <Table.ColumnHeader>
-                    Fim
+                    Fim previsto
                   </Table.ColumnHeader>
 
                   <Table.ColumnHeader>
-                    Condição
+                    Fim definitivo
                   </Table.ColumnHeader>
 
                   <Table.ColumnHeader>
@@ -1568,192 +1765,204 @@ export default function PeopleManagementContracts() {
               <Table.Body>
 
                 {contractsList.map(
-                  (contract) => (
+                  (contract) => {
 
-                    <Table.Row
-                      key={
-                        contract.id
-                      }
-                    >
+                    const contractType =
+                      getContractType(
+                        contract
+                      );
 
-                      <Table.Cell>
-                        {
-                          contract.plan
+
+                    return (
+
+                      <Table.Row
+                        key={
+                          contract.id
                         }
-                      </Table.Cell>
+                      >
 
+                        {/* TIPO */}
 
-                      <Table.Cell>
-                        {
-                          contract.periodicity
-                        }
-                      </Table.Cell>
-
-
-                      <Table.Cell>
-                        {formatMoney(
-                          contract.baseValue
-                        )}
-                      </Table.Cell>
-
-
-                      <Table.Cell>
-
-                        <Text
-                          fontWeight="bold"
-                        >
-
-                          {formatMoney(
-                            contract.contractedValue
-                          )}
-
-                        </Text>
-
-                      </Table.Cell>
-
-
-                      <Table.Cell>
-                        {formatDate(
-                          contract.startDate
-                        )}
-                      </Table.Cell>
-
-
-                      <Table.Cell>
-                        {formatDate(
-                          contract.endDate
-                        )}
-                      </Table.Cell>
-
-
-                      <Table.Cell>
-
-                        {contract.specialCondition ? (
+                        <Table.Cell>
 
                           <Badge>
 
                             {
-                              contract
-                                .specialCondition
-                                .type
+                              contractType
                             }
 
                           </Badge>
 
-                        ) : (
+                        </Table.Cell>
+
+
+                        {/* PLANO */}
+
+                        <Table.Cell>
+
+                          {contract.plan ||
+                            "-"}
+
+                        </Table.Cell>
+
+
+                        {/* PERIODICIDADE */}
+
+                        <Table.Cell>
+
+                          {contract.periodicity ||
+                            "-"}
+
+                        </Table.Cell>
+
+
+                        {/* VALOR */}
+
+                        <Table.Cell>
 
                           <Text
-                            color="gray.500"
+                            fontWeight="bold"
                           >
-                            Nenhuma
+
+                            {formatMoney(
+                              contract.contractedValue
+                            )}
+
                           </Text>
 
-                        )}
-
-                      </Table.Cell>
+                        </Table.Cell>
 
 
-                      {/* ==================================================
-                          STATUS
-                          ================================================== */}
+                        {/* INÍCIO */}
 
-                      <Table.Cell>
+                        <Table.Cell>
 
-                        {isContractActive(
-                          contract
-                        ) ? (
+                          {formatDate(
+                            contract.startDate
+                          )}
 
-                          <Badge>
-                            Ativo
-                          </Badge>
-
-                        ) : (
-
-                          <Badge
-                            variant="outline"
-                          >
-                            Encerrado
-                          </Badge>
-
-                        )}
-
-                      </Table.Cell>
+                        </Table.Cell>
 
 
-                      {/* ==================================================
-                          AÇÕES
-                          ================================================== */}
+                        {/* FIM PREVISTO */}
 
-                      <Table.Cell>
+                        <Table.Cell>
 
-                        <HStack
-                          gap={1}
-                        >
+                          {contract.indefinite
+                            ? "Indeterminado"
+                            : formatDate(
+                              contract.plannedEndDate
+                            )}
 
-                          {/* VISUALIZAR */}
-
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() =>
-                              handleViewContract(
-                                contract
-                              )
-                            }
-                          >
-                            Visualizar
-                          </Button>
+                        </Table.Cell>
 
 
-                          {/* EDITAR */}
+                        {/* FIM DEFINITIVO */}
+
+                        <Table.Cell>
+
+                          {contract.closedAt
+                            ? formatDateTime(
+                              contract.closedAt
+                            )
+                            : "-"}
+
+                        </Table.Cell>
+
+
+                        {/* STATUS */}
+
+                        <Table.Cell>
 
                           {isContractActive(
                             contract
-                          ) && (
+                          ) ? (
+
+                            <Badge>
+                              Ativo
+                            </Badge>
+
+                          ) : (
+
+                            <Badge
+                              variant="outline"
+                            >
+                              Encerrado
+                            </Badge>
+
+                          )}
+
+                        </Table.Cell>
+
+
+                        {/* AÇÕES */}
+
+                        <Table.Cell>
+
+                          <HStack
+                            gap={1}
+                          >
 
                             <Button
                               size="xs"
                               variant="ghost"
                               onClick={() =>
-                                handleEditContract(
+                                handleViewContract(
                                   contract
                                 )
                               }
                             >
-                              Editar
+                              Visualizar
                             </Button>
 
-                          )}
+
+                            {isContractActive(
+                              contract
+                            ) && (
+
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleEditContract(
+                                    contract
+                                  )
+                                }
+                              >
+                                Editar
+                              </Button>
+
+                            )}
 
 
-                          {/* ENCERRAR */}
+                            {isContractActive(
+                              contract
+                            ) && (
 
-                          {isContractActive(
-                            contract
-                          ) && (
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                colorPalette="red"
+                                onClick={() =>
+                                  handleEndContract(
+                                    contract
+                                  )
+                                }
+                              >
+                                Encerrar
+                              </Button>
 
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              colorPalette="red"
-                              onClick={() =>
-                                handleEndContract(
-                                  contract
-                                )
-                              }
-                            >
-                              Encerrar
-                            </Button>
+                            )}
 
-                          )}
+                          </HStack>
 
-                        </HStack>
+                        </Table.Cell>
 
-                      </Table.Cell>
+                      </Table.Row>
 
-                    </Table.Row>
+                    );
 
-                  )
+                  }
                 )}
 
               </Table.Body>
@@ -1827,7 +2036,9 @@ export default function PeopleManagementContracts() {
                   gap={5}
                 >
 
-                  {/* ALUNO */}
+                  {/* ==================================================
+                      ALUNO
+                      ================================================== */}
 
                   <Box>
 
@@ -1853,12 +2064,14 @@ export default function PeopleManagementContracts() {
                   </Box>
 
 
-                  {/* PLANO */}
+                  {/* ==================================================
+                      TIPO DE CONTRATO
+                      ================================================== */}
 
                   <Field.Root>
 
                     <Field.Label>
-                      Plano
+                      Tipo de contrato
                     </Field.Label>
 
 
@@ -1866,7 +2079,7 @@ export default function PeopleManagementContracts() {
 
                       <NativeSelect.Field
                         value={
-                          formData.plan
+                          formData.contractType
                         }
                         disabled={
                           dialogMode ===
@@ -1874,126 +2087,338 @@ export default function PeopleManagementContracts() {
                         }
                         onChange={(e) =>
                           handleChange(
-                            "plan",
+                            "contractType",
                             e.target.value
                           )
                         }
                       >
 
-                        <option value="">
-                          Selecione um plano
+                        <option value="Plano">
+                          Plano
                         </option>
 
-                        <option value="Raiz">
-                          Raiz
+                        <option value="Personalizado">
+                          Personalizado
                         </option>
 
-                        <option value="Balanço">
-                          Balanço
-                        </option>
-
-                        <option value="Imersão">
-                          Imersão
-                        </option>
-
-                        <option value="Beco">
-                          Beco
+                        <option value="Bolsista">
+                          Bolsista
                         </option>
 
                       </NativeSelect.Field>
 
                     </NativeSelect.Root>
 
+
+                    <Text
+                      fontSize="xs"
+                      color="gray.500"
+                      mt={1}
+                    >
+
+                      {formData.contractType ===
+                        "Plano" &&
+                        "Contrato baseado em um dos planos da escola."}
+
+                      {formData.contractType ===
+                        "Personalizado" &&
+                        "Contrato sem plano, com valor mensal definido pelo professor."}
+
+                      {formData.contractType ===
+                        "Bolsista" &&
+                        "Contrato com bolsa integral e valor mensal de R$ 0,00."}
+
+                    </Text>
+
                   </Field.Root>
 
 
-                  {/* PERIODICIDADE */}
+                  {/* ==================================================
+                      BLOCO PLANO
+                      ================================================== */}
 
-                  <HStack
-                    align="start"
-                    gap={4}
-                  >
+                  {formData.contractType ===
+                    "Plano" && (
 
-                    <Field.Root>
+                    <>
 
-                      <Field.Label>
-                        Periodicidade
-                      </Field.Label>
+                      {/* PLANO */}
+
+                      <Field.Root>
+
+                        <Field.Label>
+                          Plano
+                        </Field.Label>
 
 
-                      <NativeSelect.Root>
+                        <NativeSelect.Root>
 
-                        <NativeSelect.Field
-                          value={
-                            formData.periodicity
-                          }
-                          disabled={
-                            dialogMode ===
-                            "view"
-                          }
-                          onChange={(e) =>
-                            handleChange(
-                              "periodicity",
-                              e.target.value
-                            )
-                          }
+                          <NativeSelect.Field
+                            value={
+                              formData.plan
+                            }
+                            disabled={
+                              dialogMode ===
+                              "view"
+                            }
+                            onChange={(e) =>
+                              handleChange(
+                                "plan",
+                                e.target.value
+                              )
+                            }
+                          >
+
+                            <option value="">
+                              Selecione um plano
+                            </option>
+
+                            <option value="Raiz">
+                              Raiz
+                            </option>
+
+                            <option value="Balanço">
+                              Balanço
+                            </option>
+
+                            <option value="Imersão">
+                              Imersão
+                            </option>
+
+                            <option value="Beco">
+                              Beco
+                            </option>
+
+                          </NativeSelect.Field>
+
+                        </NativeSelect.Root>
+
+                      </Field.Root>
+
+
+                      {/* PERIODICIDADE + VALOR */}
+
+                      <HStack
+                        align="start"
+                        gap={4}
+                      >
+
+                        <Field.Root>
+
+                          <Field.Label>
+                            Duração
+                          </Field.Label>
+
+
+                          <NativeSelect.Root>
+
+                            <NativeSelect.Field
+                              value={
+                                formData.periodicity
+                              }
+                              disabled={
+                                dialogMode ===
+                                "view"
+                              }
+                              onChange={(e) =>
+                                handleChange(
+                                  "periodicity",
+                                  e.target.value
+                                )
+                              }
+                            >
+
+                              <option value="">
+                                Selecione
+                              </option>
+
+                              <option value="Mensal">
+                                Mensal
+                              </option>
+
+                              <option value="Semestral">
+                                Semestral
+                              </option>
+
+                              <option value="Anual">
+                                Anual
+                              </option>
+
+                            </NativeSelect.Field>
+
+                          </NativeSelect.Root>
+
+                        </Field.Root>
+
+
+                        <Field.Root>
+
+                          <Field.Label>
+                            Valor mensal
+                          </Field.Label>
+
+
+                          <Input
+                            value={
+                              formData.baseValue
+                                ? formatMoney(
+                                  formData.baseValue
+                                )
+                                : ""
+                            }
+                            readOnly
+                            bg="gray.50"
+                          />
+
+                        </Field.Root>
+
+                      </HStack>
+
+                    </>
+
+                  )}
+
+
+                  {/* ==================================================
+                      PERSONALIZADO
+                      ================================================== */}
+
+                  {formData.contractType ===
+                    "Personalizado" && (
+
+                    <Box
+                      borderWidth="1px"
+                      borderRadius="md"
+                      p={4}
+                    >
+
+                      <VStack
+                        align="stretch"
+                        gap={4}
+                      >
+
+                        <Field.Root>
+
+                          <Field.Label>
+                            Valor mensal
+                          </Field.Label>
+
+
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Ex.: 200"
+                            value={
+                              formData.customValue
+                            }
+                            disabled={
+                              dialogMode ===
+                              "view"
+                            }
+                            onChange={(e) =>
+                              handleChange(
+                                "customValue",
+                                e.target.value
+                              )
+                            }
+                          />
+
+                        </Field.Root>
+
+
+                        <Text
+                          fontSize="xs"
+                          color="gray.500"
                         >
 
-                          <option value="">
-                            Selecione a periodicidade
-                          </option>
+                          Este contrato não estará
+                          vinculado a nenhum plano.
+                          O valor informado será o
+                          valor mensal da cobrança.
 
-                          <option value="Mensal">
-                            Mensal
-                          </option>
+                        </Text>
 
-                          <option value="Semestral">
-                            Semestral
-                          </option>
+                      </VStack>
 
-                          <option value="Anual">
-                            Anual
-                          </option>
+                    </Box>
 
-                        </NativeSelect.Field>
-
-                      </NativeSelect.Root>
-
-                    </Field.Root>
+                  )}
 
 
-                    {/* VALOR DO PLANO */}
+                  {/* ==================================================
+                      BOLSISTA
+                      ================================================== */}
 
-                    <Field.Root>
+                  {formData.contractType ===
+                    "Bolsista" && (
 
-                      <Field.Label>
-                        Valor do plano
-                      </Field.Label>
+                    <Box
+                      borderWidth="1px"
+                      borderRadius="md"
+                      p={4}
+                    >
 
+                      <VStack
+                        align="stretch"
+                        gap={2}
+                      >
 
-                      <Input
-                        value={
-                          formData.baseValue
-                            ? formatMoney(
-                                formData.baseValue
-                              )
-                            : ""
-                        }
-                        readOnly
-                        bg="gray.50"
-                      />
-
-                    </Field.Root>
-
-                  </HStack>
+                        <Text
+                          fontWeight="semibold"
+                        >
+                          Bolsa integral
+                        </Text>
 
 
-                  {/* DATAS */}
+                        <Text
+                          fontSize="sm"
+                          color="gray.600"
+                        >
+
+                          Este aluno possui bolsa
+                          de 100%.
+
+                        </Text>
+
+
+                        <Text
+                          fontSize="lg"
+                          fontWeight="bold"
+                        >
+
+                          Valor mensal: R$ 0,00
+
+                        </Text>
+
+
+                        <Text
+                          fontSize="xs"
+                          color="gray.500"
+                        >
+
+                          O contrato não estará
+                          vinculado a nenhum plano.
+
+                        </Text>
+
+                      </VStack>
+
+                    </Box>
+
+                  )}
+
+
+                  {/* ==================================================
+                      DATAS
+                      ================================================== */}
 
                   <HStack
                     align="start"
                     gap={4}
                   >
+
+                    {/* DATA INÍCIO */}
 
                     <Field.Root>
 
@@ -2022,20 +2447,43 @@ export default function PeopleManagementContracts() {
                     </Field.Root>
 
 
+                    {/* FIM PREVISTO */}
+
                     <Field.Root>
 
                       <Field.Label>
-                        Data de fim
+                        Fim previsto
                       </Field.Label>
 
 
                       <Input
                         type="date"
                         value={
-                          formData.endDate
+                          formData.plannedEndDate
                         }
-                        readOnly
-                        bg="gray.50"
+                        disabled={
+                          dialogMode ===
+                          "view" ||
+                          formData.indefinite ||
+                          formData.contractType ===
+                          "Plano"
+                        }
+                        readOnly={
+                          formData.contractType ===
+                          "Plano"
+                        }
+                        bg={
+                          formData.contractType ===
+                            "Plano"
+                            ? "gray.50"
+                            : undefined
+                        }
+                        onChange={(e) =>
+                          handleChange(
+                            "plannedEndDate",
+                            e.target.value
+                          )
+                        }
                       />
 
                     </Field.Root>
@@ -2043,25 +2491,21 @@ export default function PeopleManagementContracts() {
                   </HStack>
 
 
-                  {/* CONDIÇÃO */}
+                  {/* ==================================================
+                      PRAZO INDETERMINADO
+                      ================================================== */}
 
-                  <HStack
-                    align="start"
-                    gap={4}
-                  >
+                  {formData.contractType !==
+                    "Plano" && (
 
                     <Field.Root>
 
-                      <Field.Label>
-                        Condição especial
-                      </Field.Label>
+                      <HStack>
 
-
-                      <NativeSelect.Root>
-
-                        <NativeSelect.Field
-                          value={
-                            formData.specialConditionType
+                        <input
+                          type="checkbox"
+                          checked={
+                            formData.indefinite
                           }
                           disabled={
                             dialogMode ===
@@ -2069,126 +2513,71 @@ export default function PeopleManagementContracts() {
                           }
                           onChange={(e) =>
                             handleChange(
-                              "specialConditionType",
-                              e.target.value
+                              "indefinite",
+                              e.target.checked
                             )
                           }
+                        />
+
+                        <Text
+                          fontSize="sm"
                         >
+                          Contrato por prazo
+                          indeterminado
+                        </Text>
 
-                          <option value="">
-                            Nenhuma
-                          </option>
+                      </HStack>
 
-                          <option value="Valor personalizado">
-                            Valor personalizado
-                          </option>
 
-                          <option value="Bolsa">
-                            Bolsa
-                          </option>
+                      <Text
+                        fontSize="xs"
+                        color="gray.500"
+                        mt={1}
+                      >
 
-                        </NativeSelect.Field>
+                        Quando selecionado, o contrato
+                        permanecerá ativo até ser
+                        encerrado manualmente.
 
-                      </NativeSelect.Root>
+                      </Text>
 
                     </Field.Root>
 
-
-                    {/* VALOR PERSONALIZADO */}
-
-                    {formData.specialConditionType ===
-                      "Valor personalizado" && (
-
-                        <Field.Root>
-
-                          <Field.Label>
-                            Valor personalizado
-                          </Field.Label>
+                  )}
 
 
-                          <Input
-                            type="number"
-                            placeholder="Ex.: 250"
-                            value={
-                              formData.customValue
-                            }
-                            disabled={
-                              dialogMode ===
-                              "view"
-                            }
-                            onChange={(e) =>
-                              handleChange(
-                                "customValue",
-                                e.target.value
-                              )
-                            }
-                          />
+                  {/* ==================================================
+                      FIM DEFINITIVO
+                      ================================================== */}
 
-                        </Field.Root>
+                  {dialogMode === "view" &&
+                    selectedContract?.closedAt && (
 
-                      )}
+                    <Field.Root>
+
+                      <Field.Label>
+                        Fim definitivo
+                      </Field.Label>
 
 
-                    {/* BOLSA */}
+                      <Input
+                        value={
+                          formatDateTime(
+                            selectedContract.closedAt
+                          )
+                        }
+                        readOnly
+                        bg="gray.50"
+                      />
 
-                    {formData.specialConditionType ===
-                      "Bolsa" && (
+                    </Field.Root>
 
-                        <Field.Root>
-
-                          <Field.Label>
-                            Bolsa
-                          </Field.Label>
-
-
-                          <HStack>
-
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              placeholder="Ex.: 50"
-                              value={
-                                formData.scholarshipPercentage
-                              }
-                              disabled={
-                                dialogMode ===
-                                "view"
-                              }
-                              onChange={(e) =>
-                                handleChange(
-                                  "scholarshipPercentage",
-                                  e.target.value
-                                )
-                              }
-                            />
+                  )}
 
 
-                            <Text>
-                              %
-                            </Text>
-
-                          </HStack>
-
-
-                          <Text
-                            fontSize="xs"
-                            color="gray.500"
-                            mt={1}
-                          >
-                            Percentual de desconto
-                            aplicado sobre o valor
-                            do plano.
-                          </Text>
-
-                        </Field.Root>
-
-                      )}
-
-                  </HStack>
-
-
-                  {/* VALOR FINAL */}
+                  {/* ==================================================
+                      VALOR FINAL
+                      ================================================== */}
 
                   <Box
                     borderWidth="1px"
@@ -2210,7 +2599,7 @@ export default function PeopleManagementContracts() {
                           fontSize="sm"
                           color="gray.500"
                         >
-                          Valor final
+                          Valor mensal
                         </Text>
 
 
@@ -2228,17 +2617,13 @@ export default function PeopleManagementContracts() {
                       </VStack>
 
 
-                      {formData.specialConditionType && (
+                      <Badge>
 
-                        <Badge>
+                        {
+                          formData.contractType
+                        }
 
-                          {
-                            formData.specialConditionType
-                          }
-
-                        </Badge>
-
-                      )}
+                      </Badge>
 
                     </HStack>
 
@@ -2249,7 +2634,9 @@ export default function PeopleManagementContracts() {
               </Dialog.Body>
 
 
-              {/* FOOTER */}
+              {/* ======================================================
+                  FOOTER
+                  ====================================================== */}
 
               <Dialog.Footer>
 
@@ -2274,10 +2661,7 @@ export default function PeopleManagementContracts() {
                       handleSaveContract
                     }
                     disabled={
-                      !formData.plan ||
-                      !formData.periodicity ||
-                      !formData.startDate ||
-                      !formData.contractedValue
+                      !isFormValid()
                     }
                   >
 
@@ -2304,7 +2688,7 @@ export default function PeopleManagementContracts() {
 
 
       {/* ======================================================
-          DIALOG DE CONFIRMAÇÃO
+          DIALOG ENCERRAMENTO
           ====================================================== */}
 
       <Dialog.Root
@@ -2375,8 +2759,42 @@ export default function PeopleManagementContracts() {
                         >
 
                           {
-                            contractToEnd.plan
+                            getContractType(
+                              contractToEnd
+                            )
                           }
+
+                        </Text>
+
+
+                        {contractToEnd.plan && (
+
+                          <Text
+                            fontSize="sm"
+                            color="gray.600"
+                          >
+
+                            Plano:{" "}
+
+                            {
+                              contractToEnd.plan
+                            }
+
+                          </Text>
+
+                        )}
+
+
+                        <Text
+                          fontSize="sm"
+                          color="gray.600"
+                        >
+
+                          Valor mensal:{" "}
+
+                          {formatMoney(
+                            contractToEnd.contractedValue
+                          )}
 
                         </Text>
 
@@ -2386,29 +2804,27 @@ export default function PeopleManagementContracts() {
                           color="gray.600"
                         >
 
-                          {
-                            contractToEnd.periodicity
-                          }
-
-                        </Text>
-
-
-                        <Text
-                          fontSize="sm"
-                          color="gray.600"
-                        >
-
-                          Vigência:{" "}
+                          Início:{" "}
 
                           {formatDate(
                             contractToEnd.startDate
                           )}
 
-                          {" "}até{" "}
+                        </Text>
 
-                          {formatDate(
-                            contractToEnd.endDate
-                          )}
+
+                        <Text
+                          fontSize="sm"
+                          color="gray.600"
+                        >
+
+                          Fim previsto:{" "}
+
+                          {contractToEnd.indefinite
+                            ? "Indeterminado"
+                            : formatDate(
+                              contractToEnd.plannedEndDate
+                            )}
 
                         </Text>
 
@@ -2424,9 +2840,10 @@ export default function PeopleManagementContracts() {
                     color="gray.500"
                   >
 
-                    O contrato será marcado como
-                    encerrado e permanecerá no
-                    histórico do aluno.
+                    Ao confirmar, o contrato será
+                    marcado como encerrado e a
+                    data e hora atuais serão
+                    registradas como fim definitivo.
 
                   </Text>
 

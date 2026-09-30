@@ -1,13 +1,12 @@
 /*
-Type: Componente
-User: Matheus Rodrigues
-Description: Componente para montar filtro de tabelas no sistema
-Date: 18/02/2026
+  Type: Componente
+  User: Matheus Rodrigues
+  Description: Componente para montar filtro de tabelas no sistema
+  Date: 18/02/2026
 */
 
 import { useEffect, useRef, useState } from "react";
 import { LuSearch, LuSearchX, LuChevronDown } from "react-icons/lu";
-
 import {
   Table,
   Input,
@@ -15,7 +14,6 @@ import {
   IconButton,
   NativeSelect,
 } from "@chakra-ui/react";
-
 import { selectOptions as UserSelectOptions } from "../utils/userSelectOptions";
 
 export default function HeaderFilter({
@@ -26,13 +24,12 @@ export default function HeaderFilter({
 }) {
   const [openFilters, setOpenFilters] = useState({});
   const [openMultiselect, setOpenMultiselect] = useState(null);
-
   const multiSelectRef = useRef(null);
 
   /*
-  ============================================================
-  FECHA O DROPDOWN DO MULTISELECT AO CLICAR FORA
-  ============================================================
+    ============================================================
+    FECHA O DROPDOWN DO MULTISELECT AO CLICAR FORA
+    ============================================================
   */
 
   useEffect(() => {
@@ -48,17 +45,14 @@ export default function HeaderFilter({
     document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   /*
-  ============================================================
-  ABRE / FECHA O FILTRO DA COLUNA
-  ============================================================
+    ============================================================
+    ABRE / FECHA O FILTRO DA COLUNA
+    ============================================================
   */
 
   const toggleFilter = (field) => {
@@ -67,10 +61,6 @@ export default function HeaderFilter({
       [field]: !prev[field],
     }));
 
-    /*
-    Se o filtro estava aberto e será fechado,
-    limpa o valor correspondente.
-    */
     if (openFilters[field]) {
       onFilterChange(field, "");
       setOpenMultiselect(null);
@@ -78,29 +68,20 @@ export default function HeaderFilter({
   };
 
   /*
-  ============================================================
-  REMOVE O CÓDIGO DAS OPÇÕES
-  ============================================================
-
-  Exemplo:
-
-  "01 - ADMINISTRADOR"
-
-  vira:
-
-  "ADMINISTRADOR"
+    ============================================================
+    REMOVE O CÓDIGO DAS OPÇÕES
+    ============================================================
   */
 
   const removeCode = (value) => {
     if (typeof value !== "string") return value;
-
     return value.replace(/^\d+\s*-\s*/, "");
   };
 
   /*
-  ============================================================
-  FORMATA O CAMPO DE DATA
-  ============================================================
+    ============================================================
+    FORMATA O CAMPO DE DATA
+    ============================================================
   */
 
   const formatYearDateInput = (value) => {
@@ -121,9 +102,9 @@ export default function HeaderFilter({
   };
 
   /*
-  ============================================================
-  ABRE / FECHA O DROPDOWN DO MULTISELECT
-  ============================================================
+    ============================================================
+    ABRE / FECHA O DROPDOWN DO MULTISELECT
+    ============================================================
   */
 
   const toggleMultiselect = (dataKey) => {
@@ -133,9 +114,9 @@ export default function HeaderFilter({
   };
 
   /*
-  ============================================================
-  SELECIONA OU REMOVE UMA OPÇÃO DO MULTISELECT
-  ============================================================
+    ============================================================
+    SELECIONA OU REMOVE UMA OPÇÃO DO MULTISELECT
+    ============================================================
   */
 
   const handleMultiselectChange = (dataKey, key) => {
@@ -148,16 +129,10 @@ export default function HeaderFilter({
     let newValues;
 
     if (exists) {
-      /*
-      Remove a opção
-      */
       newValues = currentValues.filter(
         (value) => value !== key
       );
     } else {
-      /*
-      Adiciona a opção
-      */
       newValues = [...currentValues, key];
     }
 
@@ -165,46 +140,12 @@ export default function HeaderFilter({
   };
 
   /*
-  ============================================================
-  OBTÉM AS OPÇÕES DO CAMPO
-  ============================================================
-
-  Campos normais:
-  --------------------------------
-  userSelectOptions
-
-  user_activities:
-  --------------------------------
-  coleção activities
-
-  Exemplo:
-
-  activities = [
-    {
-      activity_mat: "000001",
-      activity_title: "MULHERES NA GAFIEIRA"
-    },
-    {
-      activity_mat: "000006",
-      activity_title: "CORPO DE SAMBA"
-    }
-  ]
-
-  Será transformado em:
-
-  {
-    "000001": "MULHERES NA GAFIEIRA",
-    "000006": "CORPO DE SAMBA"
-  }
+    ============================================================
+    OBTÉM AS OPÇÕES DO CAMPO
+    ============================================================
   */
 
   const getFieldOptions = (col) => {
-    /*
-    ==========================================
-    ATIVIDADES
-    ==========================================
-    */
-
     if (col.dataKey === "user_activities") {
       return (activities || []).reduce(
         (acc, activity) => {
@@ -222,19 +163,13 @@ export default function HeaderFilter({
       );
     }
 
-    /*
-    ==========================================
-    OPÇÕES NORMAIS
-    ==========================================
-    */
-
     return UserSelectOptions[col.optionsKey] || {};
   };
 
   /*
-  ============================================================
-  TEXTO QUE APARECE NO CAMPO DO MULTISELECT
-  ============================================================
+    ============================================================
+    TEXTO DO MULTISELECT
+    ============================================================
   */
 
   const getMultiselectLabel = (col) => {
@@ -244,21 +179,10 @@ export default function HeaderFilter({
       ? filters[col.dataKey]
       : [];
 
-    /*
-    Nenhuma opção selecionada
-    */
     if (selectedValues.length === 0) {
       return "Selecione as opções";
     }
 
-    /*
-    Pega as opções corretas.
-    Para user_activities:
-    vem da coleção activities.
-
-    Para os outros:
-    vem do userSelectOptions.
-    */
     const options = getFieldOptions(col);
 
     const labels = selectedValues
@@ -266,98 +190,99 @@ export default function HeaderFilter({
       .filter(Boolean)
       .map(removeCode);
 
-    /*
-    Até duas opções
-    */
     if (labels.length <= 2) {
       return labels.join(", ");
     }
 
-    /*
-    Mais de duas opções
-    */
     return `${labels.slice(0, 2).join(", ")} +${
       labels.length - 2
     }`;
   };
 
   /*
-  ============================================================
-  RENDER
-  ============================================================
+    ============================================================
+    RENDER
+    ============================================================
   */
 
   return (
     <Table.Header
       position="sticky"
       top={0}
-      zIndex={10}
+      zIndex={20}
+      bg="#f3f8f6"
     >
-      <Table.Row>
+      <Table.Row bg="#f3f8f6">
         {fields.map((col) => (
           <Table.ColumnHeader
             key={col.dataKey}
-            minW={col.minWidth}
-            maxW={col.maxWidth}
-            border="1px solid"
-            borderColor="gray.200"
-            pl={4}
+            width={col.width}
+            minW={col.width}
+            maxW={col.width}
+            px={4}
+            py={2.5}
+            bg="#f3f8f6"
+            borderBottom="1px solid"
+            borderColor="#d9e5e1"
+            color="#315c54"
+            fontSize="11px"
+            fontWeight="700"
+            textTransform="none"
+            letterSpacing="0"
           >
             <Box
               display="flex"
               alignItems="center"
               gap={2}
               position="relative"
+              width="100%"
+              minH="30px"
             >
-              {/* ====================================== */}
               {/* TEXTO DA COLUNA */}
-              {/* ====================================== */}
 
               <Box
                 as="p"
                 flex="1"
                 m={0}
+                overflow="hidden"
+                whiteSpace="nowrap"
+                textOverflow="ellipsis"
               >
                 {col.text}
               </Box>
 
-              {/* ====================================== */}
-              {/* FILTRO DA COLUNA */}
-              {/* ====================================== */}
+              {/* FILTRO */}
 
               {openFilters[col.dataKey] && (
                 <>
-                  {/* ====================================== */}
                   {/* MULTISELECT */}
-                  {/* ====================================== */}
 
                   {col.input === 3 ? (
                     <Box
                       ref={multiSelectRef}
                       position="absolute"
                       left={0}
-                      top={0}
+                      top="50%"
+                      transform="translateY(-50%)"
                       zIndex={100}
-                      backgroundColor="brand.secondary"
-                      ml={-2}
                       width="calc(100% - 32px)"
                     >
-                      {/* ====================================== */}
-                      {/* CAMPO QUE IMITA O SELECT */}
-                      {/* ====================================== */}
-
                       <Box
-                        height="40px"
-                        px={3}
+                        height="32px"
+                        px={2}
                         display="flex"
                         alignItems="center"
                         justifyContent="space-between"
+                        gap={2}
                         border="1px solid"
-                        borderColor="gray.300"
-                        borderRadius="md"
-                        backgroundColor="brand.secondary"
+                        borderColor="#b8d6ce"
+                        borderRadius="6px"
+                        bg="white"
                         cursor="pointer"
-                        fontSize="sm"
+                        fontSize="11px"
+                        fontWeight="400"
+                        color="#354d47"
+                        boxShadow="0 1px 2px rgba(0,0,0,0.04)"
                         onClick={() =>
                           toggleMultiselect(
                             col.dataKey
@@ -373,12 +298,12 @@ export default function HeaderFilter({
                           {getMultiselectLabel(col)}
                         </Box>
 
-                        <LuChevronDown />
+                        <LuChevronDown
+                          size={14}
+                        />
                       </Box>
 
-                      {/* ====================================== */}
                       {/* DROPDOWN */}
-                      {/* ====================================== */}
 
                       {openMultiselect ===
                         col.dataKey && (
@@ -387,14 +312,16 @@ export default function HeaderFilter({
                           top="36px"
                           left={0}
                           width="100%"
+                          minW="180px"
                           maxH="220px"
                           overflowY="auto"
-                          backgroundColor="white"
+                          bg="white"
                           border="1px solid"
-                          borderColor="gray.300"
-                          borderRadius="md"
-                          boxShadow="md"
+                          borderColor="#d5e2de"
+                          borderRadius="8px"
+                          boxShadow="0 8px 24px rgba(20,60,50,0.12)"
                           zIndex={200}
+                          py={1}
                         >
                           {Object.entries(
                             getFieldOptions(col)
@@ -425,10 +352,11 @@ export default function HeaderFilter({
                                   px={3}
                                   py={2}
                                   cursor="pointer"
-                                  fontSize="sm"
+                                  fontSize="11px"
+                                  fontWeight="400"
+                                  color="#354d47"
                                   _hover={{
-                                    backgroundColor:
-                                      "gray.100",
+                                    bg: "#f1f8f6",
                                   }}
                                   onClick={() =>
                                     handleMultiselectChange(
@@ -453,7 +381,11 @@ export default function HeaderFilter({
                                     }
                                   />
 
-                                  <Box>
+                                  <Box
+                                    overflow="hidden"
+                                    whiteSpace="nowrap"
+                                    textOverflow="ellipsis"
+                                  >
                                     {removeCode(
                                       value
                                     )}
@@ -466,24 +398,23 @@ export default function HeaderFilter({
                       )}
                     </Box>
                   ) : col.input === 2 ? (
-                    /* ====================================== */
                     /* SELECT NORMAL */
-                    /* ====================================== */
 
                     <NativeSelect.Root
                       position="absolute"
                       left={0}
-                      top={0}
+                      top="50%"
+                      transform="translateY(-50%)"
                       zIndex={15}
-                      backgroundColor="brand.secondary"
-                      ml={-2}
                       width="calc(100% - 32px)"
+                      bg="white"
                     >
                       <NativeSelect.Field
                         autoFocus
                         value={
-                          filters[col.dataKey] ||
-                          ""
+                          filters[
+                            col.dataKey
+                          ] || ""
                         }
                         onChange={(e) =>
                           onFilterChange(
@@ -491,7 +422,12 @@ export default function HeaderFilter({
                             e.target.value
                           )
                         }
-                        size="sm"
+                        height="32px"
+                        minH="32px"
+                        fontSize="11px"
+                        borderColor="#b8d6ce"
+                        borderRadius="6px"
+                        bg="white"
                       >
                         <option value="">
                           Selecione uma opção
@@ -505,43 +441,59 @@ export default function HeaderFilter({
                               key={key}
                               value={key}
                             >
-                              {removeCode(value)}
+                              {removeCode(
+                                value
+                              )}
                             </option>
                           )
                         )}
                       </NativeSelect.Field>
                     </NativeSelect.Root>
                   ) : (
-                    /* ====================================== */
                     /* INPUT NORMAL */
-                    /* ====================================== */
 
                     <Input
                       position="absolute"
                       left={0}
-                      top={0}
+                      top="50%"
+                      transform="translateY(-50%)"
                       zIndex={15}
-                      backgroundColor="brand.secondary"
-                      ml={-2}
                       width="calc(100% - 32px)"
+                      height="32px"
+                      minH="32px"
+                      px={2}
                       autoFocus
-                      size="sm"
                       type="text"
+                      fontSize="11px"
+                      borderColor="#b8d6ce"
+                      borderRadius="6px"
+                      bg="white"
+                      color="#263a36"
                       placeholder={
                         col.type === "date"
                           ? "aaaa/mm/dd"
-                          : ""
+                          : "Filtrar..."
                       }
+                      _focus={{
+                        borderColor:
+                          "#007565",
+                        boxShadow:
+                          "0 0 0 1px #007565",
+                      }}
                       value={
-                        filters[col.dataKey] || ""
+                        filters[
+                          col.dataKey
+                        ] || ""
                       }
                       onChange={(e) => {
                         if (
-                          col.type === "date"
+                          col.type ===
+                          "date"
                         ) {
                           const formatted =
                             formatYearDateInput(
-                              e.target.value
+                              e.target
+                                .value
                             );
 
                           onFilterChange(
@@ -551,7 +503,8 @@ export default function HeaderFilter({
                         } else {
                           onFilterChange(
                             col.dataKey,
-                            e.target.value
+                            e.target
+                              .value
                           );
                         }
                       }}
@@ -560,9 +513,7 @@ export default function HeaderFilter({
                 </>
               )}
 
-              {/* ====================================== */}
-              {/* ÍCONE DO FILTRO */}
-              {/* ====================================== */}
+              {/* BOTÃO DO FILTRO */}
 
               <IconButton
                 aria-label={
@@ -571,17 +522,42 @@ export default function HeaderFilter({
                     : "Abrir filtro"
                 }
                 variant="ghost"
-                size="sm"
+                size="xs"
+                minW="28px"
+                w="28px"
+                h="28px"
+                flexShrink={0}
+                borderRadius="6px"
+                color={
+                  openFilters[col.dataKey]
+                    ? "#007565"
+                    : "#71817d"
+                }
+                bg={
+                  openFilters[col.dataKey]
+                    ? "#dff3ed"
+                    : "transparent"
+                }
+                _hover={{
+                  bg: "#dff3ed",
+                  color: "#007565",
+                }}
                 onClick={() =>
                   toggleFilter(
                     col.dataKey
                   )
                 }
               >
-                {openFilters[col.dataKey] ? (
-                  <LuSearchX />
+                {openFilters[
+                  col.dataKey
+                ] ? (
+                  <LuSearchX
+                    size={15}
+                  />
                 ) : (
-                  <LuSearch />
+                  <LuSearch
+                    size={15}
+                  />
                 )}
               </IconButton>
             </Box>

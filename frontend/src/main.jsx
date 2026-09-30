@@ -18,6 +18,8 @@ import ActivityManagement from "./features/activities/pages/activityManagement.j
 import ActivityManagementDetailed from "./features/activities/pages/activityManagementDetailed.jsx";
 import ActivityManagementUsers from "./features/activities/pages/activityManagementUsers.jsx";
 
+import MonthlyFees from "./features/financial/monthlyFees/monthlyFees.jsx";
+
 import UnderConstruction from "./components/underConstruction.jsx";
 import PeopleManagementActivities from "./features/register/pages/peopleManagementActivities.jsx";
 
@@ -65,6 +67,11 @@ const pages = createHashRouter([
       {
         path: "/ActivityManagementUsers",
         element: <ActivityManagementUsers />,
+      },
+
+      {
+        path: "/mensalidade",
+        element: <MonthlyFees />,
       },
 
       {

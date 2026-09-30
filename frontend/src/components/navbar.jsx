@@ -13,10 +13,11 @@ import { LiaGraduationCapSolid } from "react-icons/lia";
 import { IoSettingsOutline } from "react-icons/io5";
 import { BiHome } from "react-icons/bi";
 import { LuNewspaper } from "react-icons/lu";
+import { MdCalendarMonth } from "react-icons/md";
 
 export default function NavBar({
   isMobileOpen = false,
-  onMobileClose = () => {},
+  onMobileClose = () => { },
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -56,6 +57,11 @@ export default function NavBar({
       label: "Atividades",
       icon: LiaGraduationCapSolid,
       route: "/ActivityManagement",
+    },
+    {
+      label: "Mensalidades",
+      icon: MdCalendarMonth,
+      route: "/mensalidade",
     },
     {
       label: "Relatórios",

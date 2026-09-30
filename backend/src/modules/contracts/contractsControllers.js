@@ -1,20 +1,33 @@
+import crypto from "crypto";
+
 import Contract from "../../models/Contract.js";
+
 
 // ============================================================
 // BUSCAR CONTRATOS DE UM USUÁRIO
 // ============================================================
 
 export const getContractsByUser = async (req, res) => {
+
   try {
-    const { userId } = req.params;
 
-    const contracts = await Contract.find({
+    const {
       userId,
-    }).sort({
-      createdAt: -1,
-    });
+    } = req.params;
 
-    return res.status(200).json(contracts);
+
+    const contracts =
+      await Contract.find({
+        userId,
+      }).sort({
+        createdAt: -1,
+      });
+
+
+    return res.status(200).json(
+      contracts
+    );
+
 
   } catch (error) {
 
@@ -23,11 +36,18 @@ export const getContractsByUser = async (req, res) => {
       error
     );
 
+
     return res.status(500).json({
+
       ok: false,
-      serverError: "Erro ao buscar contratos.",
+
+      serverError:
+        "Erro ao buscar contratos.",
+
     });
+
   }
+
 };
 
 
@@ -36,39 +56,94 @@ export const getContractsByUser = async (req, res) => {
 // ============================================================
 
 export const createContract = async (req, res) => {
+
   try {
 
     const {
+
       id,
+
       userId,
+
+      contractType,
+
       plan,
+
       periodicity,
+
       baseValue,
+
       contractedValue,
+
       startDate,
-      endDate,
+
+      plannedEndDate,
+
+      indefinite,
+
       specialCondition,
+
       active,
+
       createdAt,
+
       closedAt,
+
     } = req.body;
 
 
     // ========================================================
-    // VERIFICAR SE JÁ EXISTE CONTRATO ATIVO
+    // VALIDAR TIPO
     // ========================================================
 
-    const activeContract = await Contract.findOne({
-      userId,
-      active: true,
-    });
+    const validContractTypes = [
+      "Plano",
+      "Personalizado",
+      "Bolsista",
+    ];
+
+
+    if (
+      !validContractTypes.includes(
+        contractType
+      )
+    ) {
+
+      return res.status(400).json({
+
+        ok: false,
+
+        serverError:
+          "Tipo de contrato inválido.",
+
+      });
+
+    }
+
+
+    // ========================================================
+    // VERIFICAR CONTRATO ATIVO
+    // ========================================================
+
+    const activeContract =
+      await Contract.findOne({
+
+        userId,
+
+        active: true,
+
+      });
+
 
     if (activeContract) {
 
       return res.status(409).json({
+
         ok: false,
+
         serverError:
           "O aluno já possui um contrato ativo.",
+
       });
 
     }
@@ -78,56 +153,112 @@ export const createContract = async (req, res) => {
     // CRIAR
     // ========================================================
 
-    const contract = await Contract.create({
+    const contract =
+      await Contract.create({
 
-      id:
-        id ||
-        crypto.randomUUID(),
+        id:
+          id ||
+          crypto.randomUUID(),
 
-      userId,
 
-      plan,
+        userId,
 
-      periodicity,
 
-      baseValue:
+        // ----------------------------------------------------
+        // TIPO
+        // ----------------------------------------------------
 
-        Number(
-          baseValue || 0
-        ),
+        contractType,
 
-      contractedValue:
 
-        Number(
-          contractedValue || 0
-        ),
+        // ----------------------------------------------------
+        // PLANO
+        // ----------------------------------------------------
 
-      startDate,
+        plan:
+          plan || null,
 
-      endDate,
 
-      specialCondition:
-        specialCondition || null,
+        periodicity:
+          periodicity || null,
 
-      active:
-        active !== undefined
-          ? active
-          : true,
 
-      createdAt:
-        createdAt ||
-        new Date()
-          .toISOString()
-          .split("T")[0],
+        // ----------------------------------------------------
+        // VALORES
+        // ----------------------------------------------------
 
-      closedAt:
-        closedAt || null,
-    });
+        baseValue:
+          Number(
+            baseValue || 0
+          ),
+
+
+        contractedValue:
+          Number(
+            contractedValue || 0
+          ),
+
+
+        // ----------------------------------------------------
+        // DATAS
+        // ----------------------------------------------------
+
+        startDate,
+
+
+        plannedEndDate:
+          plannedEndDate || null,
+
+
+        indefinite:
+          indefinite === true,
+
+
+        // ----------------------------------------------------
+        // CONDIÇÃO ESPECIAL
+        // ----------------------------------------------------
+
+        specialCondition:
+          specialCondition || null,
+
+
+        // ----------------------------------------------------
+        // STATUS
+        // ----------------------------------------------------
+
+        active:
+          active !== undefined
+            ? active
+            : true,
+
+
+        // ----------------------------------------------------
+        // CRIAÇÃO
+        // ----------------------------------------------------
+
+        createdAt:
+          createdAt ||
+          new Date()
+            .toISOString()
+            .split("T")[0],
+
+
+        // ----------------------------------------------------
+        // ENCERRAMENTO
+        // ----------------------------------------------------
+
+        closedAt:
+          closedAt || null,
+
+      });
 
 
     return res.status(201).json({
+
       ok: true,
+
       contract,
+
     });
 
 
@@ -138,12 +269,18 @@ export const createContract = async (req, res) => {
       error
     );
 
+
     return res.status(500).json({
+
       ok: false,
+
       serverError:
         "Erro ao criar contrato.",
+
     });
+
   }
+
 };
 
 
@@ -152,19 +289,64 @@ export const createContract = async (req, res) => {
 // ============================================================
 
 export const updateContract = async (req, res) => {
+
   try {
 
-    const { id } = req.params;
+    const {
+      id,
+    } = req.params;
+
 
     const {
+
+      contractType,
+
       plan,
+
       periodicity,
+
       baseValue,
+
       contractedValue,
+
       startDate,
-      endDate,
+
+      plannedEndDate,
+
+      indefinite,
+
       specialCondition,
+
     } = req.body;
+
+
+    // ========================================================
+    // VALIDAR TIPO
+    // ========================================================
+
+    const validContractTypes = [
+      "Plano",
+      "Personalizado",
+      "Bolsista",
+    ];
+
+
+    if (
+      !validContractTypes.includes(
+        contractType
+      )
+    ) {
+
+      return res.status(400).json({
+
+        ok: false,
+
+        serverError:
+          "Tipo de contrato inválido.",
+
+      });
+
+    }
 
 
     // ========================================================
@@ -180,9 +362,12 @@ export const updateContract = async (req, res) => {
     if (!contract) {
 
       return res.status(404).json({
+
         ok: false,
+
         serverError:
           "Contrato não encontrado.",
+
       });
 
     }
@@ -195,46 +380,90 @@ export const updateContract = async (req, res) => {
     if (!contract.active) {
 
       return res.status(409).json({
+
         ok: false,
+
         serverError:
           "Não é possível editar um contrato encerrado.",
+
       });
 
     }
 
 
     // ========================================================
-    // ATUALIZAR
+    // ATUALIZAR TIPO
+    // ========================================================
+
+    contract.contractType =
+      contractType;
+
+
+    // ========================================================
+    // ATUALIZAR PLANO
     // ========================================================
 
     contract.plan =
-      plan;
+      plan || null;
+
 
     contract.periodicity =
-      periodicity;
+      periodicity || null;
+
+
+    // ========================================================
+    // ATUALIZAR VALORES
+    // ========================================================
 
     contract.baseValue =
-      Number(baseValue || 0);
+      Number(
+        baseValue || 0
+      );
+
 
     contract.contractedValue =
-      Number(contractedValue || 0);
+      Number(
+        contractedValue || 0
+      );
+
+
+    // ========================================================
+    // ATUALIZAR DATAS
+    // ========================================================
 
     contract.startDate =
       startDate;
 
-    contract.endDate =
-      endDate;
+
+    contract.plannedEndDate =
+      plannedEndDate || null;
+
+
+    contract.indefinite =
+      indefinite === true;
+
+
+    // ========================================================
+    // CONDIÇÃO ESPECIAL
+    // ========================================================
 
     contract.specialCondition =
       specialCondition || null;
 
 
+    // ========================================================
+    // SALVAR
+    // ========================================================
+
     await contract.save();
 
 
     return res.status(200).json({
+
       ok: true,
+
       contract,
+
     });
 
 
@@ -245,12 +474,18 @@ export const updateContract = async (req, res) => {
       error
     );
 
+
     return res.status(500).json({
+
       ok: false,
+
       serverError:
         "Erro ao editar contrato.",
+
     });
+
   }
+
 };
 
 
@@ -259,9 +494,12 @@ export const updateContract = async (req, res) => {
 // ============================================================
 
 export const closeContract = async (req, res) => {
+
   try {
 
-    const { id } = req.params;
+    const {
+      id,
+    } = req.params;
 
 
     // ========================================================
@@ -277,9 +515,12 @@ export const closeContract = async (req, res) => {
     if (!contract) {
 
       return res.status(404).json({
+
         ok: false,
+
         serverError:
           "Contrato não encontrado.",
+
       });
 
     }
@@ -292,9 +533,12 @@ export const closeContract = async (req, res) => {
     if (!contract.active) {
 
       return res.status(409).json({
+
         ok: false,
+
         serverError:
           "Este contrato já está encerrado.",
+
       });
 
     }
@@ -324,8 +568,11 @@ export const closeContract = async (req, res) => {
 
 
     return res.status(200).json({
+
       ok: true,
+
       contract,
+
     });
 
 
@@ -336,10 +583,16 @@ export const closeContract = async (req, res) => {
       error
     );
 
+
     return res.status(500).json({
+
       ok: false,
+
       serverError:
         "Erro ao encerrar contrato.",
+
     });
+
   }
+
 };

@@ -10,64 +10,131 @@ import { selectOptions } from "../utils/userSelectOptions";
 import activitiesServices from "../services/activitiesServices";
 import { useEffect } from "react";
 
-export default function List({ data, fields, ativo, onClick }) {
-  const { getActivitiesByMat, userActivitiesList, refetchActivities } =
-    activitiesServices();
+export default function List({
+  data,
+  fields,
+  ativo,
+  onClick,
+}) {
+  const {
+    getActivitiesByMat,
+    userActivitiesList,
+    refetchActivities,
+  } = activitiesServices();
 
   useEffect(() => {
     if (
       refetchActivities &&
-      Array.isArray(data?.user_activities) &&
+      Array.isArray(
+        data?.user_activities
+      ) &&
       data.user_activities.length > 0
     ) {
-      getActivitiesByMat(data.user_activities);
+      getActivitiesByMat(
+        data.user_activities
+      );
     }
-  }, [refetchActivities, data?.user_activities]);
+  }, [
+    refetchActivities,
+    data?.user_activities,
+  ]);
 
-  console.log(userActivitiesList)
+  /*
+    ============================================================
+    REMOVE O CÓDIGO DAS OPÇÕES
+    ============================================================
+  */
 
   const removeCode = (value) => {
-    if (typeof value !== "string") return value;
-    return value.replace(/^\d+\s*-\s*/, "");
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    return value.replace(
+      /^\d+\s*-\s*/,
+      ""
+    );
   };
 
-  // Função segura para obter o valor formatado
-  const getFormattedValue = (field, value) => {
-    if (value === undefined || value === null || value === "") {
+  /*
+    ============================================================
+    FORMATA O VALOR DA CÉLULA
+    ============================================================
+  */
+
+  const getFormattedValue = (
+    field,
+    value
+  ) => {
+    if (
+      value === undefined ||
+      value === null ||
+      value === ""
+    ) {
       return "";
     }
 
-    // Tratamento específico para atividades do usuário
-    if (field.dataKey === "user_activities") {
+    /*
+      ATIVIDADES DO USUÁRIO
+    */
+
+    if (
+      field.dataKey ===
+      "user_activities"
+    ) {
       if (!Array.isArray(value)) {
         return "";
       }
 
       return value
         .map((activityMat) => {
-          const activity = userActivitiesList?.find(
-            (item) => item.activity_mat === activityMat
-          );
+          const activity =
+            userActivitiesList?.find(
+              (item) =>
+                item.activity_mat ===
+                activityMat
+            );
 
-          return activity?.activity_title ?? activityMat;
+          return (
+            activity?.activity_title ??
+            activityMat
+          );
         })
         .join(" | ");
     }
 
+    /*
+      CAMPOS COM OPTIONS
+    */
+
     if (field.optionsKey) {
-      const options = selectOptions?.[field.optionsKey];
+      const options =
+        selectOptions?.[
+          field.optionsKey
+        ];
 
       if (options) {
         if (Array.isArray(value)) {
           return value
-            .map((item) => options?.[item] ?? item)
+            .map(
+              (item) =>
+                options?.[item] ??
+                item
+            )
             .map(removeCode)
             .join(" | ");
         }
 
-        return removeCode(options?.[value] ?? value);
+        return removeCode(
+          options?.[value] ??
+            value
+        );
       }
     }
+
+    /*
+      FORMATAÇÕES
+    */
 
     if (field.type === "cpf") {
       return formatCPF(value);
@@ -85,131 +152,87 @@ export default function List({ data, fields, ativo, onClick }) {
       return formatName(value);
     }
 
-    if (field.type === "proper") {
-      return formatProperNoun(value);
+    if (
+      field.type === "proper"
+    ) {
+      return formatProperNoun(
+        value
+      );
     }
 
     return value;
   };
 
-  const activeProps = ativo ? {
-    bg: "brand.primary",
-    color: "white",
-    _hover: { bg: "brand.primary", opacity: 0.8 },
-  } : {
-    _hover: { bg: "gray.100" },
-  };
-
-  //console.log(userActivitiesList)
+  /*
+    ============================================================
+    RENDER
+    ============================================================
+  */
 
   return (
+    <Table.Row
+      cursor="pointer"
+      onClick={onClick}
+      bg={
+        ativo
+          ? "#e8f6f2"
+          : "white"
+      }
+      color="#263a36"
+      borderLeft={
+        ativo
+          ? "3px solid #007565"
+          : "3px solid transparent"
+      }
+      transition="background 0.15s ease"
+      _hover={{
+        bg: ativo
+          ? "#e0f2ed"
+          : "#f7faf9",
+      }}
+    >
+      {fields.map((field) => {
+        const value =
+          data?.[
+            field.dataKey
+          ];
 
-    <>
-      <Table.Row
-        cursor="pointer"
-        onClick={onClick}
-        {...activeProps}
-      >
-        {fields.map((field) => {
-
-          const value = data?.[field.dataKey];
-
-          return (
-            <Table.Cell border="1px solid" borderColor="gray.200" key={field.dataKey}>
-              {getFormattedValue(field, value)}
-            </Table.Cell>
-          );
-        })}
-      </Table.Row>
-      {/*
-      <>
-        {page === "peopleManagement" ? (
-
-          <Table.Row
-            cursor="pointer"
-            onClick={onClick}
-            {...activeProps}
+        return (
+          <Table.Cell
+            key={
+              field.dataKey
+            }
+            width={
+              field.width
+            }
+            minW={
+              field.width
+            }
+            maxW={
+              field.width
+            }
+            px={4}
+            py={3}
+            fontSize="12px"
+            fontWeight={
+              ativo
+                ? "600"
+                : "400"
+            }
+            borderBottom="1px solid"
+            borderColor="#e5ece9"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            whiteSpace="nowrap"
+            verticalAlign="middle"
           >
-            <Table.Cell>{getFormattedValue("user_situation", data.user_situation)}</Table.Cell>
-            <Table.Cell>{data.user_mat}</Table.Cell>
-            <Table.Cell>{formatName(data.user_name)}</Table.Cell>
-            <Table.Cell>
-              {data.user_type
-                .map((id) => getFormattedValue("user_type", id))
-                .join(" | ")}
-            </Table.Cell>
-            <Table.Cell>{formatCPF(data.user_cpf)}</Table.Cell>
-            <Table.Cell>{formatRG(data.user_rg)}</Table.Cell>
-            <Table.Cell>{formatDate(data.user_registration_date)}</Table.Cell>
-            <Table.Cell>{formatDate(data.user_date_nasc)}</Table.Cell>
-            <Table.Cell>{formatProperNoun(data.user_district)}</Table.Cell>
-            <Table.Cell>{formatProperNoun(data.user_street)}</Table.Cell>
-            <Table.Cell>{formatName(data.user_mother_name)}</Table.Cell>
-          </Table.Row>
-
-        ) : page === "activityManagement" ? (
-
-          <Table.Row
-            cursor="pointer"
-            onClick={onClick}
-            {...activeProps}
-          >
-            <Table.Cell>{data.activity_mat}</Table.Cell>
-            <Table.Cell>{formatProperNoun(data.activity_title)}</Table.Cell>
-            <Table.Cell>{getFormattedValue("activity_type", data.activity_type).slice(3)}</Table.Cell>
-            <Table.Cell>
-              {Array.isArray(data.activity_days)
-                ? data.activity_days
-                  .map(day => getFormattedValue("activity_days", day).slice(3))
-                  .join(" | ")
-                : getFormattedValue("activity_days", data.activity_days).slice(3)}
-            </Table.Cell>
-            <Table.Cell>{userListActivies.length}</Table.Cell>
-            <Table.Cell>{data.activity_time_start}</Table.Cell>
-            <Table.Cell>{data.activity_time_end}</Table.Cell>
-          </Table.Row>
-
-        ) : page === "activityManagementUsers" ? (
-
-          <Table.Row
-            cursor="pointer"
-            onClick={onClick}
-            {...activeProps}
-          >
-            <Table.Cell>{data.user_mat}</Table.Cell>
-            <Table.Cell>{formatName(data.user_name)}</Table.Cell>
-            <Table.Cell>{data.user_registration_date}</Table.Cell>
-            <Table.Cell>{data.user_date_nasc}</Table.Cell>
-          </Table.Row>
-
-        ) : (
-          <Table.Row
-            cursor="pointer"
-            onClick={onClick}
-            {...activeProps}
-          >
-            {columns.map((col) => {
-
-              let value = data[col.dataKey];
-
-              if (col.optionsKey) {
-
-                if (Array.isArray(value)) {
-                  value = value
-                    .map((v) => selectOptions[col.optionsKey]?.[v] ?? v)
-                    .join(", ");
-                } else {
-                  value = selectOptions[col.optionsKey]?.[value] ?? value;
-                }
-              }
-
-              return <Table.Cell key={col.dataKey}>{value}</Table.Cell>;
-            })}
-          </Table.Row>
-        )}
-      </>
-    */}
-    </>
-
+            {getFormattedValue(
+              field,
+              value
+            )}
+          </Table.Cell>
+        );
+      })}
+    </Table.Row>
   );
 }
