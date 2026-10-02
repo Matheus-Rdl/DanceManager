@@ -61,7 +61,7 @@ export default function NavBar({
     {
       label: "Mensalidades",
       icon: MdCalendarMonth,
-      route: "/mensalidade",
+      route: "/MonthlyFees",
     },
     {
       label: "Relatórios",

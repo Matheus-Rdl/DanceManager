@@ -71,12 +71,12 @@ const pages = createHashRouter([
       },
 
       {
-        path: "/mensalidade",
+        path: "/MonthlyFees",
         element: <MonthlyFees />,
       },
 
       {
-        path: "/mensalidade/aluno",
+        path: "/MonthlyFeesDetailed",
         element: <MonthlyFeesDetailed />,
       },
 
