@@ -134,7 +134,7 @@ export default function ActivityManagementUsers() {
           </Link>
 
           <Link
-            to={"/PeopleManagement/alter"}
+            to={"/PeopleManagementDetailed"}
             state={{
               userId: userActivityActive,
               userData: selectedUser,

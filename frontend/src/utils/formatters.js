@@ -39,7 +39,6 @@ export function formatRG(rg) {
   return `${formattedNumbers}-${lastDigit}`;
 }
 
-
 //Formatar datas vindo do mongoDB
 export function formatDate(dateString) {
   if (!dateString) return "";

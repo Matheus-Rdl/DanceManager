@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Dialog, Flex, Heading, HStack, Input, NativeSelect, Portal, SimpleGrid, Table, Text, VStack } from "@chakra-ui/react";
+
+//React Icons
 import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiClock, FiCreditCard, FiFileText, FiInfo, FiMoreVertical, FiPlus, FiX } from "react-icons/fi";
+
+//Formatters
+import {
+  formatCPF,
+  formatDate,
+  formatName,
+  formatRG,
+  formatProperNoun,
+} from "../../../utils/formatters";
 
 const STORAGE_KEY = "danceManager_financial_v1";
 const STORAGE_EVENT = "danceManagerFinancialUpdated";
@@ -192,15 +203,29 @@ export default function MonthlyFeesDetailed() {
               </Box>
             </HStack>
 
-            {/* DADOS DO CONTRATO */}
-            <Flex w={{ base: "100%", lg: "430px" }} border="1px solid #e2e8e7" borderRadius="8px" overflow="hidden" direction={{ base: "column", sm: "row" }}>
-              <Box flex="1" p={3}><Text fontSize="10px" fontWeight="700" color="#174f4a">Contrato atual</Text><Text mt="2px" fontSize="14px" fontWeight="800" color="#063f39">{student.contract}</Text><Text mt="2px" fontSize="12px" color="#506a67">{student.periodicity} • {formatCurrency(student.monthlyAmount)} / mês</Text><HStack mt="7px" gap="6px" wrap="wrap"><Text fontSize="10px" color="#60777c">{student.contractStart} → {student.contractEnd}</Text><Badge px="7px" py="3px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="9px">Ativo</Badge></HStack></Box>
-              <Flex p={3} minW={{ sm: "180px" }} borderLeft={{ base: "0", sm: "1px solid #e2e8e7" }} borderTop={{ base: "1px solid #e2e8e7", sm: "0" }} align="center" justify="center"><Button w="100%" h="36px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" bg="white" fontSize="11px"><FiFileText /> Ver detalhes do contrato</Button></Flex>
-            </Flex>
           </Flex>
 
           <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
-            {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) => <Button key={tab} flexShrink={0} h="44px" px="12px" variant="ghost" borderRadius="0" color={tab === "Mensalidades" ? "#063f39" : "#506a67"} fontSize="11px" fontWeight={tab === "Mensalidades" ? "700" : "500"} borderBottom={tab === "Mensalidades" ? "2px solid #063f39" : "2px solid transparent"}>{tab}</Button>)}
+            {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
+              <Button
+                key={tab}
+                flexShrink={0}
+                h="44px" px="12px"
+                variant="ghost"
+                borderRadius="0"
+                color={tab === "Mensalidades" ? "#063f39" : "#506a67"}
+                fontSize="12px"
+                fontWeight={tab === "Mensalidades" ? "700" : "500"}
+                borderBottom={tab === "Mensalidades" ? "3px solid #063f39" : "3px solid transparent"}>
+                {tab}
+              </Button>
+            )}
+          </Flex>
+
+          {/* DADOS DO CONTRATO */}
+          <Flex m={3} w={{ base: "100%", lg: "430px" }} border="1px solid #e2e8e7" borderRadius="8px" overflow="hidden" direction={{ base: "column", sm: "row" }}>
+            <Box flex="1" p={3}><Text fontSize="10px" fontWeight="700" color="#174f4a">Contrato atual</Text><Text mt="2px" fontSize="14px" fontWeight="800" color="#063f39">{student.contract}</Text><Text mt="2px" fontSize="12px" color="#506a67">{student.periodicity} • {formatCurrency(student.monthlyAmount)} / mês</Text><HStack mt="7px" gap="6px" wrap="wrap"><Text fontSize="10px" color="#60777c">{student.contractStart} → {student.contractEnd}</Text><Badge px="7px" py="3px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="9px">Ativo</Badge></HStack></Box>
+            <Flex p={3} minW={{ sm: "180px" }} borderLeft={{ base: "0", sm: "1px solid #e2e8e7" }} borderTop={{ base: "1px solid #e2e8e7", sm: "0" }} align="center" justify="center"><Button w="100%" h="36px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" bg="white" fontSize="11px"><FiFileText /> Ver detalhes do contrato</Button></Flex>
           </Flex>
 
           <Box p={{ base: 3, md: 4 }}>

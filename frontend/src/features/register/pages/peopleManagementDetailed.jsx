@@ -21,6 +21,15 @@ import FormTextArea from "../../../components/formTextArea";
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
 import { TbUserSquareRounded } from "react-icons/tb";
 
+//Formatters
+import {
+  formatCPF,
+  formatDate,
+  formatName,
+  formatRG,
+  formatProperNoun,
+} from "../../../utils/formatters";
+
 
 export default function PeopleManagementDetailed() {
 
@@ -607,37 +616,11 @@ export default function PeopleManagementDetailed() {
             </Flex>
             <Box>
               <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
-                Visão geral do usuário
+                Visão geral
               </Heading>
             </Box>
           </Flex>
         </Flex>
-
-        {/*}
-        <HStack gap={2}>
-          <Button
-            size="xs"
-            variant="outline"
-            type="button"
-            onClick={handleBack}
-          >
-            Cancelar
-          </Button>
-
-          {!isViewMode && (
-            <Button
-              size="xs"
-              type="submit"
-              form="people-management-form"
-              bg="#00695c"
-              color="white"
-              _hover={{ bg: "#00574d" }}
-            >
-              Salvar
-            </Button>
-          )}
-        </HStack>
-{*/}
 
       </Flex>
 
@@ -666,8 +649,7 @@ export default function PeopleManagementDetailed() {
 
               <Box minW={0}>
                 <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
-                  {/*formData.user_name || formData.name || "Usuário"*/}
-                  João Pedro Silva
+                  {formatName(formData.user_name || formData.name || "Usuário")}
                 </Heading>
                 <Text mt="5px" fontSize="12px" color="#60777c">
                   MAT: {formData.user_mat || "-"}
@@ -677,246 +659,179 @@ export default function PeopleManagementDetailed() {
                 </Badge>
               </Box>
             </HStack>
-
-            {/* DADOS DO CONTRATO */}
-            <Flex w={{ base: "100%", lg: "430px" }} border="1px solid #e2e8e7" borderRadius="8px" overflow="hidden" direction={{ base: "column", sm: "row" }}>
-              <Box flex="1" p={3}><Text fontSize="10px" fontWeight="700" color="#174f4a">Contrato atual</Text><Text mt="2px" fontSize="14px" fontWeight="800" color="#063f39">{/*student.contract*/}Sem contrato</Text><Text mt="2px" fontSize="12px" color="#506a67">{/*{/*student.periodicity*/} • {/*formatCurrency(/*student.monthlyAmount) / mês*/} Adicione um contrato ou plano mensal</Text><HStack mt="7px" gap="6px" wrap="wrap"><Text fontSize="10px" color="#60777c">{/*student.contractStart} → {student.contractEnd*/}</Text><Badge px="7px" py="3px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="9px">Ativo</Badge></HStack></Box>
-              <Flex p={3} minW={{ sm: "180px" }} borderLeft={{ base: "0", sm: "1px solid #e2e8e7" }} borderTop={{ base: "1px solid #e2e8e7", sm: "0" }} align="center" justify="center"><Button w="100%" h="36px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" bg="white" fontSize="11px"><FiFileText /> Ver detalhes do contrato</Button></Flex>
-            </Flex>
           </Flex>
         )}
 
         {/* ABAS */}
         {!isAddMode && (
-          <HStack
-            px={5}
-            height="43px"
-            gap={7}
-            borderTopWidth="1px"
-            borderColor="gray.200"
-            overflowX="auto"
-          >
-            <Box
-              height="43px"
-              display="flex"
-              alignItems="center"
-              borderBottom="2px solid #00695c"
-              color="#004d40"
-              fontWeight="600"
-              fontSize="xs"
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              Visão geral
-            </Box>
-
-            <Box
-              height="43px"
-              display="flex"
-              alignItems="center"
-              color="gray.600"
-              fontSize="xs"
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              Contratos
-            </Box>
-
-            <Box
-              height="43px"
-              display="flex"
-              alignItems="center"
-              color="gray.600"
-              fontSize="xs"
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              Mensalidades
-            </Box>
-
-            <Box
-              height="43px"
-              display="flex"
-              alignItems="center"
-              color="gray.600"
-              fontSize="xs"
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              Pagamentos
-            </Box>
-
-            <Box
-              height="43px"
-              display="flex"
-              alignItems="center"
-              color="gray.600"
-              fontSize="xs"
-              whiteSpace="nowrap"
-              cursor="pointer"
-            >
-              Histórico
-            </Box>
-          </HStack>
-        )}
-      </Box>
-
-      {/* FORMULÁRIO */}
-      <Box
-        as="form"
-        id="people-management-form"
-        onSubmit={handleSubmitForm}
-        autoComplete="off"
-        mt={5}
-        px={1}
-      >
-        <input
-          type="text"
-          name="fakeusernameremembered"
-          style={{ display: "none" }}
-          autoComplete="username"
-        />
-
-        <input
-          type="password"
-          name="fakepasswordremembered"
-          style={{ display: "none" }}
-          autoComplete="new-password"
-        />
-
-        {/* TÍTULO PARA NOVO CADASTRO */}
-        {isAddMode && (
-          <Box mb={6}>
-            <Text
-              fontSize="lg"
-              fontWeight="700"
-              color="#003b36"
-            >
-              Novo usuário
-            </Text>
-
-            <Text
-              fontSize="sm"
-              color="gray.500"
-            >
-              Preencha os dados para cadastrar uma nova pessoa.
-            </Text>
-          </Box>
+          <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
+            {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
+              <Button
+                key={tab}
+                flexShrink={0}
+                h="44px" px="12px"
+                variant="ghost"
+                borderRadius="0"
+                color={tab === "Visão geral" ? "#063f39" : "#506a67"}
+                fontSize="12px"
+                fontWeight={tab === "Visão geral" ? "700" : "500"}
+                borderBottom={tab === "Visão geral" ? "3px solid #063f39" : "3px solid transparent"}>
+                {tab}
+              </Button>
+            )}
+          </Flex>
         )}
 
-        {/* SEÇÕES DOS CAMPOS */}
-        {pageMenus.map((menu) => {
 
-          const menuFields = fieldsList.filter(
-            (field) =>
-              Number(field.folder) ===
-              Number(menu.order)
-          );
 
-          if (menuFields.length === 0) {
-            return null;
-          }
-
-          return (
-            <Box
-              key={menu._id}
-              mb={8}
-              bg="white"
-            >
-              {/* TÍTULO DA SEÇÃO */}
-              <HStack
-                gap={3}
-                mb={5}
-                align="center"
-              >
-                <Text
-                  fontSize="md"
-                  fontWeight="700"
-                  color="#1a1a1a"
-                  whiteSpace="nowrap"
-                >
-                  {menu.name}
-                </Text>
-
-                <Box
-                  flex="1"
-                  height="1px"
-                  bg="gray.200"
-                />
-              </HStack>
-
-              {/* CAMPOS */}
-              <Flex
-                gap={5}
-                rowGap={5}
-                flexWrap="wrap"
-              >
-                {menuFields.map((field) => {
-
-                  if (field.dependsOn) {
-                    const {
-                      field: dependsField,
-                      value
-                    } = field.dependsOn;
-
-                    if (
-                      formData[dependsField] !== value
-                    ) {
-                      return null;
-                    }
-                  }
-
-                  return (
-                    <Box key={field._id}>
-                      <FormTextArea
-                        field={field}
-                        addMode={isAddMode}
-                        viewMode={isViewMode}
-                        handleChange={handleChange}
-                        data={formData}
-                        currentMode={currentMode}
-                        nextMat={userNextMat}
-                        errors={errors}
-                        dateRegister={formattedDate}
-                      />
-                    </Box>
-                  );
-                })}
-              </Flex>
-            </Box>
-          );
-        })}
-
-        {/* BOTÕES INFERIORES NO MOBILE */}
-        <Flex
-          display={{ base: "flex", md: "none" }}
-          justify="flex-end"
-          gap={2}
-          pt={3}
-          pb={6}
+        {/* FORMULÁRIO */}
+        <Box
+          as="form"
+          id="people-management-form"
+          onSubmit={handleSubmitForm}
+          autoComplete="off"
+          mt={5}
+          px={1}
         >
-          <Button
-            size="sm"
-            variant="outline"
-            type="button"
-            onClick={handleBack}
-          >
-            Cancelar
-          </Button>
+          <input
+            type="text"
+            name="fakeusernameremembered"
+            style={{ display: "none" }}
+            autoComplete="username"
+          />
 
+          <input
+            type="password"
+            name="fakepasswordremembered"
+            style={{ display: "none" }}
+            autoComplete="new-password"
+          />
+
+          {/* TÍTULO PARA NOVO CADASTRO */}
+          <Box p={{ base: 3, md: 4 }}>
+            {isAddMode && (
+              <>
+                <Heading fontSize="19px" color="#062f2b">Novo usuário</Heading>
+                <Text mt="4px" fontSize="11px" color="#60777c">Preencha os dados para cadastrar uma nova pessoa.</Text>
+              </>
+
+            )}
+
+            {isEditMode && (
+              <>
+                <Heading fontSize="19px" color="#062f2b">Visão geral</Heading>
+                <Text mt="4px" fontSize="11px" color="#60777c">Veja todas as informações do usuário.</Text>
+              </>
+
+            )}
+
+            {/* SEÇÕES DOS CAMPOS */}
+            {pageMenus.map((menu) => {
+
+              const menuFields = fieldsList.filter(
+                (field) =>
+                  Number(field.folder) ===
+                  Number(menu.order)
+              );
+
+              if (menuFields.length === 0) {
+                return null;
+              }
+
+              return (
+                <Box
+                  key={menu._id}
+                  mb={8}
+                  bg="white"
+                  mt={4}
+                >
+                  {/* TÍTULO DA SEÇÃO */}
+                  <HStack
+                    gap={3}
+                    mb={5}
+                    align="center"
+                  >
+                    <Text
+                      fontSize="md"
+                      fontWeight="700"
+                      color="#1a1a1a"
+                      whiteSpace="nowrap"
+                    >
+                      {menu.name}
+                    </Text>
+
+                    <Box
+                      flex="1"
+                      height="1px"
+                      bg="gray.200"
+                    />
+                  </HStack>
+
+                  {/* CAMPOS */}
+                  <Flex
+                    gap={5}
+                    rowGap={5}
+                    flexWrap="wrap"
+                  >
+                    {menuFields.map((field) => {
+
+                      if (field.dependsOn) {
+                        const {
+                          field: dependsField,
+                          value
+                        } = field.dependsOn;
+
+                        if (
+                          formData[dependsField] !== value
+                        ) {
+                          return null;
+                        }
+                      }
+
+                      return (
+                        <Box
+                          key={field._id}
+                          w={{ base: "100%", md: "auto" }}
+                        >
+                          <FormTextArea
+                            field={field}
+                            addMode={isAddMode}
+                            viewMode={isViewMode}
+                            handleChange={handleChange}
+                            data={formData}
+                            currentMode={currentMode}
+                            nextMat={userNextMat}
+                            errors={errors}
+                            dateRegister={formattedDate}
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Flex>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* BOTÕES INFERIORES NO MOBILE */}
+          {/* AÇÕES DO FORMULÁRIO */}
           {!isViewMode && (
-            <Button
-              size="sm"
-              type="submit"
-              bg="#00695c"
-              color="white"
-              _hover={{ bg: "#00574d" }}
-            >
-              Salvar
-            </Button>
+            <HStack position="absolute" right={{ base: "12px", md: "16px" }} bottom="12px" gap={2} zIndex={2}>
+              {!isEditMode && (
+                <Button h="36px" px={7} bg="white" color="#405a57" border="1px solid #ccd8d6" borderRadius="6px" fontSize="12px" fontWeight="600" type="button" onClick={handleBack} _hover={{ bg: "#f4f7f6" }}>
+                  Cancelar
+                </Button>
+              )}
+              <Button h="36px" px={7} bg="#0b6b5b" color="white" borderRadius="6px" fontSize="12px" fontWeight="600" type="submit" _hover={{ bg: "#08594c" }}>
+                Salvar
+              </Button>
+            </HStack>
           )}
-        </Flex>
+        </Box>
+
       </Box>
+
+
     </VStack>
   );
 }

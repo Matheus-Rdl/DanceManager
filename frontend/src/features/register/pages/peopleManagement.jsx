@@ -298,6 +298,49 @@ export default function PeopleManagement() {
     return registrationDate.getMonth() === now.getMonth() && registrationDate.getFullYear() === now.getFullYear();
   }).length || 0;
 
+  const cards = [
+    {
+      titleCard: "Total de pessoas",
+      dataCard: totalPeople,
+      descriptionCard: "pessoas cadastradas",
+      icon: LuUsers,
+      borderColor: "#c8e8df",
+      bgColor: "#f2fbf8",
+      iconBg: "#007565",
+      textColor: "#007565"
+    },
+    {
+      titleCard: "Vinculados a turmas",
+      dataCard: peopleWithActivities,
+      descriptionCard: "pessoas com turma",
+      icon: LuUserCheck,
+      borderColor: "#bde6cf",
+      bgColor: "#f1fbf5",
+      iconBg: "#149447",
+      textColor: "#149447"
+    },
+    {
+      titleCard: "Sem turma",
+      dataCard: peopleWithoutActivities,
+      descriptionCard: "pessoas sem vínculo",
+      icon: LuUserX,
+      borderColor: "#eadfc3",
+      bgColor: "#fffaf0",
+      iconBg: "#b7791f",
+      textColor: "#9c6418"
+    },
+    {
+      titleCard: "Novos no mês",
+      dataCard: newPeopleThisMonth,
+      descriptionCard: "cadastros neste mês",
+      icon: LuCalendarPlus,
+      borderColor: "#a1b9e4",
+      bgColor: "#dfe5f0",
+      iconBg: "#4267a9",
+      textColor: "#4267a9"
+    }
+  ];
+
   return (
     <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
       {/* Cabeçalho */}
@@ -323,7 +366,7 @@ export default function PeopleManagement() {
         {/* Ações */}
         <Flex p={3} gap={2} align="center" justify="space-between" wrap="wrap" borderBottom="1px solid #e6ecea">
           <Flex gap={2} wrap="wrap">
-            <Link to="/PeopleManagement/alter" state={{ userId: userActive, userData: selectedUser, currentMode: "E" }}>
+            <Link to="/PeopleManagementDetailed" state={{ userId: userActive, userData: selectedUser, currentMode: "E" }}>
               <Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={userActive === null}><LuPencil /> Dados Pessoais</Button>
             </Link>
             <Link to="/PeopleManagement/contracts" state={{ userId: userActive, userData: selectedUser }}>
@@ -347,53 +390,74 @@ export default function PeopleManagement() {
         {/* Indicadores de gestão */}
         <Box width="95%" mx="auto" mt={3} mb={3}>
           <Flex gap={2} wrap="wrap">
-            <Box flex="1" minW="180px" p={3} border="1px solid #c8e8df" borderRadius="8px" bg="#f2fbf8">
-              <Flex align="center" gap={3}>
-                <Flex w="34px" h="34px" borderRadius="full" bg="#007565" color="white" align="center" justify="center" flexShrink={0}><LuUsers size={16} /></Flex>
-                <Box minW={0}>
-                  <Box fontSize="12px" fontWeight="700" color="#007565">Total de pessoas</Box>
-                  <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">{totalPeople}</Heading>
-                  <Box fontSize="11px" color="#60777c">pessoas cadastradas</Box>
+            {cards.map((card, index) => {
+              const Icon = card.icon;
+
+              return (
+                <Box
+                  key={index}
+                  flex="1"
+                  minW="180px"
+                  p={3}
+                  border="1px solid"
+                  borderColor={card.borderColor}
+                  borderRadius="8px"
+                  bg={card.bgColor}
+                >
+                  <Flex align="center" gap={3}>
+
+                    <Flex
+                      w="34px"
+                      h="34px"
+                      borderRadius="full"
+                      bg={card.iconBg}
+                      color="white"
+                      align="center"
+                      justify="center"
+                      flexShrink={0}
+                    >
+                      <Icon size={16} />
+                    </Flex>
+
+                    <Box minW={0}>
+
+                      <Box
+                        fontSize="12px"
+                        fontWeight="700"
+                        color={card.textColor}
+                      >
+                        {card.titleCard}
+                      </Box>
+
+                      <Heading
+                        mt="1px"
+                        fontSize="20px"
+                        color="#063f37"
+                        fontWeight="800"
+                      >
+                        {card.dataCard}
+                      </Heading>
+
+                      <Box
+                        fontSize="11px"
+                        color="#60777c"
+                      >
+                        {card.descriptionCard}
+                      </Box>
+
+                    </Box>
+
+                  </Flex>
                 </Box>
-              </Flex>
-            </Box>
-            <Box flex="1" minW="180px" p={3} border="1px solid #bde6cf" borderRadius="8px" bg="#f1fbf5">
-              <Flex align="center" gap={3}>
-                <Flex w="34px" h="34px" borderRadius="full" bg="#16865f" color="white" align="center" justify="center" flexShrink={0}><LuUserCheck size={16} /></Flex>
-                <Box minW={0}>
-                  <Box fontSize="12px" fontWeight="700" color="#16865f">Vinculados a turmas</Box>
-                  <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">{peopleWithActivities}</Heading>
-                  <Box fontSize="11px" color="#60777c">pessoas com turma</Box>
-                </Box>
-              </Flex>
-            </Box>
-            <Box flex="1" minW="180px" p={3} border="1px solid #eadfc3" borderRadius="8px" bg="#fffaf0">
-              <Flex align="center" gap={3}>
-                <Flex w="34px" h="34px" borderRadius="full" bg="#b7791f" color="white" align="center" justify="center" flexShrink={0}><LuUserX size={16} /></Flex>
-                <Box minW={0}>
-                  <Box fontSize="12px" fontWeight="700" color="#9c6418">Sem turma</Box>
-                  <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">{peopleWithoutActivities}</Heading>
-                  <Box fontSize="11px" color="#60777c">pessoas sem vínculo</Box>
-                </Box>
-              </Flex>
-            </Box>
-            <Box flex="1" minW="180px" p={3} border="1px solid #d8dfeb" borderRadius="8px" bg="#f7f9fc">
-              <Flex align="center" gap={3}>
-                <Flex w="34px" h="34px" borderRadius="full" bg="#4267a9" color="white" align="center" justify="center" flexShrink={0}><LuCalendarPlus size={16} /></Flex>
-                <Box minW={0}>
-                  <Box fontSize="12px" fontWeight="700" color="#4267a9">Novos no mês</Box>
-                  <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">{newPeopleThisMonth}</Heading>
-                  <Box fontSize="11px" color="#60777c">cadastros neste mês</Box>
-                </Box>
-              </Flex>
-            </Box>
+              );
+            })}
           </Flex>
         </Box>
 
         {/* Tabela */}
         <Box px={3} pb={3}>
           <Flex justify="space-between" align="center" mb={2}>
-            <Heading as="h2" fontSize="16px" color="#062f2b" fontWeight="700">Pessoas</Heading>
+            <Heading fontSize="19px" color="#062f2b">Pessoas</Heading>
             <Box fontSize="13px" color="#607873">{filteredUsers?.length || 0} registros</Box>
           </Flex>
           <Box border="1px solid #e1e8e6" borderRadius="8px" maxW="100%" overflow="hidden" bg="white">

@@ -1,23 +1,35 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import fieldsServices from "../../../services/fieldsServices";
 import { useEffect, useState } from "react";
+import { Badge, Avatar, Box, Button, HStack, VStack, Flex, Text, Heading } from "@chakra-ui/react";
+
+//Services
+import fieldsServices from "../../../services/fieldsServices";
+import activitiesServices from "../../../services/activitiesServices";
+import menusServices from "../../../services/menusServices";
+
+//Components
 import CardList from "../../../components/cards/cardList";
 import FormTextArea from "../../../components/formTextArea";
-import { validateField } from "../../../utils/fieldValidators";
-import activitiesServices from "../../../services/activitiesServices";
 import HandleBack from "../../../components/handleBack";
-import {
-  Box,
-  Button,
-  Heading,
-  HStack,
-  VStack,
-  createToaster,
-  Flex,
-  SimpleGrid
-} from "@chakra-ui/react";
 import { toaster } from "../../../components/ui/toaster";
 import HeadingPage from "../../../components/headingPage";
+
+//Utils
+import { validateField } from "../../../utils/fieldValidators";
+
+//React Icons
+import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
+import { TbUserSquareRounded } from "react-icons/tb";
+import { LiaGraduationCapSolid } from "react-icons/lia";
+
+//Formatters
+import {
+  formatCPF,
+  formatDate,
+  formatName,
+  formatRG,
+  formatProperNoun,
+} from "../../../utils/formatters";
 
 export default function ActivityManagementDetailed() {
   const [formData, setFormData] = useState({});
@@ -27,7 +39,8 @@ export default function ActivityManagementDetailed() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activityId, activityData, currentMode } = location.state || {};
-  const { getFieldsByTitle, fieldsList } = fieldsServices();
+
+
   const {
     addActivity,
     getActivityNextMat,
@@ -36,9 +49,32 @@ export default function ActivityManagementDetailed() {
     activityNextMat,
   } = activitiesServices();
 
+  const {
+    getFieldsByTitle,
+    fieldsList
+  } = fieldsServices();
+
+  const {
+    getMenus,
+    refetchMenus,
+    menusList
+  } = menusServices();
+
   const isViewMode = currentMode === "V";
   const isEditMode = currentMode === "E";
   const isAddMode = currentMode === "A";
+
+  // ============================================================
+  // CARREGA MENUS
+  // ============================================================
+
+  useEffect(() => {
+
+    if (refetchMenus) {
+      getMenus();
+    }
+
+  }, [refetchMenus]);
 
   const listItems = {
     1: "Cadastrais",
@@ -180,34 +216,121 @@ export default function ActivityManagementDetailed() {
     }
   };
 
+  const pageMenus = menusList
+    .filter(
+      (menu) =>
+        menu.pageId === "activitiesManagement"
+    )
+    .sort((a, b) => {
+
+      if (a.order === 0) return 1;
+
+      if (b.order === 0) return -1;
+
+      return a.order - b.order;
+
+    });
+
   return (
-    <VStack gap={4} align="stretch">
+    <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
 
-      {isViewMode && <HeadingPage content={"Gerenciar Atividades - Visualizar"} />}
-      {isAddMode && <HeadingPage content={"Gerenciar Atividades - Inserir"} />}
-      {isEditMode && <HeadingPage content={"Gerenciar Atividades - Alterar"} />}
+      {/* TÍTULO */}
+      <Flex>
+        <Flex>
+          <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
+            <FiArrowLeft /> Voltar
+          </Button>
+          <Flex align="center" gap={3} marginLeft={12}>
+            <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}>
+              <LiaGraduationCapSolid size={18} />
+            </Flex>
+            <Box>
+              <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
+                Visão geral
+              </Heading>
+            </Box>
+          </Flex>
+        </Flex>
 
-      <HStack gap={2} overflowX="auto" overflowY="hidden">
-        {Object.entries(listItems).map(([key, label]) => (
-          <CardList
-            key={key}
-            text={label}
-            active={listActive === Number(key)}
-            onClick={() => setListActive(Number(key))}
-          />
-        ))}
-      </HStack>
+      </Flex>
 
-      <Box>
-        <Box as="form" onSubmit={handleSubmitForm} autoComplete="off" mt={6}>
+      {/* CABEÇALHO */}
+      <Box
+        bg="white"
+        borderWidth="1px"
+        borderColor="gray.200"
+        borderRadius="8px"
+        overflow="hidden"
+        width="100%"
+      >
 
-          {/* DUMMY FIELDS PARA BLOQUEAR AUTOFILL */}
+        {/* CABEÇALHO */}
+        {!isAddMode && (
+          <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
+
+            {/* DADOS DO ALUNO */}
+            <HStack gap={4} minW={0}>
+              {/*
+              <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
+                <Avatar.Fallback name={formData.user_name || formData.name || "Usuário"} />
+                {(formData.user_photo || formData.photo) && (
+                  <Avatar.Image src={formData.user_photo || formData.photo} />
+                )}
+              </Avatar.Root>
+              */}
+
+              <Box minW={0}>
+                <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
+                  {formatName(formData.activity_title || formData.title || "Atividade")}
+                </Heading>
+                <Text mt="5px" fontSize="12px" color="#60777c">
+                  MAT: {formData.activity_mat || "-"}
+                </Text>
+                <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
+                  <FiCheck /> Turma ativa
+                </Badge>
+              </Box>
+            </HStack>
+          </Flex>
+        )}
+
+        {/* ABAS */} 
+        {!isAddMode && (
+          <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
+            {["Visão geral", "Presenças", "Mensalidades"].map((tab) =>
+              <Button
+                key={tab}
+                flexShrink={0}
+                h="44px" px="12px"
+                variant="ghost"
+                borderRadius="0"
+                color={tab === "Visão geral" ? "#063f39" : "#506a67"}
+                fontSize="12px"
+                fontWeight={tab === "Visão geral" ? "700" : "500"}
+                borderBottom={tab === "Visão geral" ? "3px solid #063f39" : "3px solid transparent"}>
+                {tab}
+              </Button>
+            )}
+          </Flex>
+        )}
+
+
+        {/* FORMULÁRIO */}
+        <Box
+          as="form"
+          id="people-management-form"
+          onSubmit={handleSubmitForm}
+          autoComplete="off"
+          mt={5}
+          px={1}
+        >
           <input
             type="text"
             name="fakeusernameremembered"
             style={{ display: "none" }}
             autoComplete="username"
           />
+
           <input
             type="password"
             name="fakepasswordremembered"
@@ -215,32 +338,131 @@ export default function ActivityManagementDetailed() {
             autoComplete="new-password"
           />
 
-          <Flex gap={4} flexWrap="wrap">
-            {fieldsList.map((field) => (
-              <Box
-                key={field._id}
-                display={field.folder === listActive ? "block" : "none"}
-              >
-                <FormTextArea
-                  field={field}
-                  addMode={isAddMode}
-                  viewMode={isViewMode}
-                  handleChange={handleChange}
-                  data={formData}
-                  currentMode={currentMode}
-                  errors={errors}
-                  nextMat={activityNextMat}
-                />
-              </Box>
-            ))}
-          </Flex>
+          {/* TÍTULO PARA NOVO CADASTRO */}
+          <Box p={{ base: 3, md: 4 }}>
+            {isAddMode && (
+              <>
+                <Heading fontSize="19px" color="#062f2b">Nova turma</Heading>
+                <Text mt="4px" fontSize="11px" color="#60777c">Preencha os dados para cadastrar uma nova turma.</Text>
+              </>
 
-          <HStack position="fixed" top="72px" right="12px" gap={2}>
-            <Button size="xs" variant="surface" onClick={handleBack}>Cancelar</Button>
-            {!isViewMode && <Button size="xs" variant="surface" type="submit">Salvar</Button>}
-          </HStack>
+            )}
+
+            {isEditMode && (
+              <>
+                <Heading fontSize="19px" color="#062f2b">Visão geral</Heading>
+                <Text mt="4px" fontSize="11px" color="#60777c">Veja todas as informações da turma.</Text>
+              </>
+
+            )}
+
+            {/* SEÇÕES DOS CAMPOS */}
+            {pageMenus.map((menu) => {
+
+              const menuFields = fieldsList.filter(
+                (field) =>
+                  Number(field.folder) ===
+                  Number(menu.order)
+              );
+
+              if (menuFields.length === 0) {
+                return null;
+              }
+
+              return (
+                <Box
+                  key={menu._id}
+                  mb={8}
+                  bg="white"
+                  mt={4}
+                >
+                  {/* TÍTULO DA SEÇÃO */}
+                  <HStack
+                    gap={3}
+                    mb={5}
+                    align="center"
+                  >
+                    <Text
+                      fontSize="md"
+                      fontWeight="700"
+                      color="#1a1a1a"
+                      whiteSpace="nowrap"
+                    >
+                      {menu.name}
+                    </Text>
+
+                    <Box
+                      flex="1"
+                      height="1px"
+                      bg="gray.200"
+                    />
+                  </HStack>
+
+                  {/* CAMPOS */}
+                  <Flex
+                    gap={5}
+                    rowGap={5}
+                    flexWrap="wrap"
+                  >
+                    {menuFields.map((field) => {
+
+                      if (field.dependsOn) {
+                        const {
+                          field: dependsField,
+                          value
+                        } = field.dependsOn;
+
+                        if (
+                          formData[dependsField] !== value
+                        ) {
+                          return null;
+                        }
+                      }
+
+                      return (
+                        <Box
+                          key={field._id}
+                          w={{ base: "100%", md: "auto" }}
+                        >
+                          <FormTextArea
+                            field={field}
+                            addMode={isAddMode}
+                            viewMode={isViewMode}
+                            handleChange={handleChange}
+                            data={formData}
+                            currentMode={currentMode}
+                            nextMat={activityNextMat}
+                            errors={errors}
+                            //dateRegister={formattedDate}
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Flex>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* BOTÕES INFERIORES NO MOBILE */}
+          {/* AÇÕES DO FORMULÁRIO */}
+          {!isViewMode && (
+            <HStack position="absolute" right={{ base: "12px", md: "16px" }} bottom="12px" gap={2} zIndex={2}>
+              {!isEditMode && (
+                <Button h="36px" px={7} bg="white" color="#405a57" border="1px solid #ccd8d6" borderRadius="6px" fontSize="12px" fontWeight="600" type="button" onClick={handleBack} _hover={{ bg: "#f4f7f6" }}>
+                  Cancelar
+                </Button>
+              )}
+              <Button h="36px" px={7} bg="#0b6b5b" color="white" borderRadius="6px" fontSize="12px" fontWeight="600" type="submit" _hover={{ bg: "#08594c" }}>
+                Salvar
+              </Button>
+            </HStack>
+          )}
         </Box>
+
       </Box>
+
+
     </VStack>
   );
 }

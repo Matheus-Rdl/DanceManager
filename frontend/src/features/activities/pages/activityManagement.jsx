@@ -64,7 +64,8 @@ import ActivityWeekly from "../../../components/activities/activityWeekly";
 import { FaThList } from "react-icons/fa";
 import { MdViewWeek } from "react-icons/md";
 import { LiaGraduationCapSolid } from "react-icons/lia";
-import { PiCardsFill } from "react-icons/pi";
+import { PiCardsFill, PiUsersThree } from "react-icons/pi";
+import { FiCheck } from "react-icons/fi";
 import { LuCalendarDays, LuPlus, LuEye, LuPencil, LuUsers, LuEllipsis, LuTrash2 } from "react-icons/lu";
 
 
@@ -708,12 +709,50 @@ export default function ActivityManagement() {
 
 
   // =========================================================
-
   /* =========================================================
-   COMPONENTE
+    COMPONENTE
 ========================================================= */
   const activeFilters = Object.values(filters).filter((value) => value !== "" && value !== null && value !== undefined).length;
   const viewLabel = viewMode === "list" ? "Lista" : viewMode === "cards" ? "Cards" : "Semanal";
+
+
+  /* Indicadores de gestão - calculados apenas no frontend */
+  const totalActivities = activitiesList?.length || 0;
+  const activitiesActive = activitiesList?.filter((activity) => activity.activity_active === 1).length || 0;
+  const activitiesWithActivities = activitiesList?.reduce((total, activity) => total + (activity.students?.length || 0), 0) || 0
+
+  const cards = [
+    {
+      titleCard: "Total de atividades",
+      dataCard: totalActivities,
+      descriptionCard: "atividades cadastradas",
+      icon: FaThList,
+      borderColor: "#c8e8df",
+      bgColor: "#f2fbf8",
+      iconBg: "#007565",
+      textColor: "#007565"
+    },
+    {
+      titleCard: "Em andamento",
+      dataCard: activitiesActive,
+      descriptionCard: "atividades ativas",
+      icon: FiCheck,
+      borderColor: "#bde6cf",
+      bgColor: "#f1fbf5",
+      iconBg: "#16865f",
+      textColor: "#16865f"
+    },
+    {
+      titleCard: "Total de alunos",
+      dataCard: activitiesWithActivities,
+      descriptionCard: "alunos matriculados",
+      icon: PiUsersThree,
+      borderColor: "#a1b9e4",
+      bgColor: "#dfe5f0",
+      iconBg: "#4267a9",
+      textColor: "#4267a9"
+    }
+  ];
 
   return (
     <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
@@ -743,7 +782,7 @@ export default function ActivityManagement() {
             <Link to="/ActivityManagement/view" state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "V" }}>
               <Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={activityActive === null}><LuEye /> Visualizar</Button>
             </Link>
-            <Link to="/ActivityManagement/alter" state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "E" }}>
+            <Link to="/ActivityManagementDetailed" state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "E" }}>
               <Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={activityActive === null}><LuPencil /> Alterar</Button>
             </Link>
             <Link to="/ActivityAttendance" state={{ activityData: selectedActivity }}>
@@ -770,67 +809,77 @@ export default function ActivityManagement() {
           </Flex>
         </Flex>
 
-        {/* Resumo */}
-        {/* CARDS DE RESUMO */}
-        <Flex gap={3} wrap="wrap" width="95%" mx="auto" mt={3} mb={2} justify="space-between">
+        {/* Indicadores de gestão */}
+        <Box width="95%" mx="auto" mt={3} mb={3}>
+          <Flex gap={2} wrap="wrap">
+            {cards.map((card, index) => {
+              const Icon = card.icon;
 
-          {/* Total de atividades */}
-          <Box flex="1" minW="190px" p={3} border="1px solid #c8e8df" borderRadius="8px" bg="#f2fbf8">
-            <Flex align="center" gap={3}>
-              <Flex w="34px" h="34px" borderRadius="full" bg="#007565" color="white" align="center" justify="center" flexShrink={0}>
-                <FaThList size={15} />
-              </Flex>
-              <Box>
-                <Box fontSize="14px" fontWeight="600" color="#007565">Total de atividades</Box>
-                <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">
-                  {activitiesList?.length || 0}
-                </Heading>
-                <Box fontSize="12px" color="#60777c">atividades cadastradas</Box>
-              </Box>
-            </Flex>
-          </Box>
+              return (
+                <Box
+                  key={index}
+                  flex="1"
+                  minW="180px"
+                  p={3}
+                  border="1px solid"
+                  borderColor={card.borderColor}
+                  borderRadius="8px"
+                  bg={card.bgColor}
+                >
+                  <Flex align="center" gap={3}>
 
-          {/* Em andamento */}
-          <Box flex="1" minW="190px" p={3} border="1px solid #bde6cf" borderRadius="8px" bg="#f1fbf5">
-            <Flex align="center" gap={3}>
-              <Flex w="34px" h="34px" borderRadius="full" bg="#149447" color="white" align="center" justify="center" flexShrink={0}>
-                ✓
-              </Flex>
-              <Box>
-                <Box fontSize="14px" fontWeight="600" color="#149447">Em andamento</Box>
-                <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">
-                  {activitiesList?.filter((activity) => activity.activity_active === 1).length || 0}
-                </Heading>
-                <Box fontSize="12px" color="#60777c">atividades ativas</Box>
-              </Box>
-            </Flex>
-          </Box>
+                    <Flex
+                      w="34px"
+                      h="34px"
+                      borderRadius="full"
+                      bg={card.iconBg}
+                      color="white"
+                      align="center"
+                      justify="center"
+                      flexShrink={0}
+                    >
+                      <Icon size={16} />
+                    </Flex>
 
-          {/* Total de alunos */}
-          <Box flex="1" minW="190px" p={3} border="1px solid #d8dfeb" borderRadius="8px" bg="#f7f9fc">
-            <Flex align="center" gap={3}>
-              <Flex w="34px" h="34px" borderRadius="full" bg="#4267a9" color="white" align="center" justify="center" flexShrink={0}>
-                👥
-              </Flex>
-              <Box>
-                <Box fontSize="14px" fontWeight="600" color="#4267a9">Total de alunos</Box>
-                <Heading mt="1px" fontSize="20px" color="#063f37" fontWeight="800">
-                  {activitiesList?.reduce(
-                    (total, activity) => total + (activity.students?.length || 0),
-                    0
-                  ) || 0}
-                </Heading>
-                <Box fontSize="12px" color="#60777c">alunos matriculados</Box>
-              </Box>
-            </Flex>
-          </Box>
+                    <Box minW={0}>
 
-        </Flex>
+                      <Box
+                        fontSize="12px"
+                        fontWeight="700"
+                        color={card.textColor}
+                      >
+                        {card.titleCard}
+                      </Box>
+
+                      <Heading
+                        mt="1px"
+                        fontSize="20px"
+                        color="#063f37"
+                        fontWeight="800"
+                      >
+                        {card.dataCard}
+                      </Heading>
+
+                      <Box
+                        fontSize="11px"
+                        color="#60777c"
+                      >
+                        {card.descriptionCard}
+                      </Box>
+
+                    </Box>
+
+                  </Flex>
+                </Box>
+              );
+            })}
+          </Flex>
+        </Box>
 
         {/* Conteúdo */}
         <Box px={3} pb={3}>
           <Flex justify="space-between" align="center">
-            <Heading as="h2" fontSize="16px" color="#062f2b" fontWeight="700">Atividades</Heading>
+            <Heading fontSize="19px" color="#062f2b">Atividades</Heading>
             <Box fontSize="13px" color="#607873">{filteredActivities?.length || 0} registros</Box>
           </Flex>
           {viewMode === "list" && <Box width="100%" minWidth={0} overflowX="auto"><ActivityList activities={filteredActivities} fields={sortedFields} filters={filters} onFilterChange={handleFilterChange} activityActive={activityActive} setActivityActive={setActivityActive} /></Box>}

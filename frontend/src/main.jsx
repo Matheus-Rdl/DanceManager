@@ -39,7 +39,7 @@ const pages = createHashRouter([
       { path: "/PeopleManagement", element: <PeopleManagement /> },
       { path: "/PeopleManagement/add", element: <PeopleManagementDetailed /> },
       { path: "/PeopleManagement/view", element: <PeopleManagementDetailed /> },
-      { path: "/PeopleManagement/alter", element: <PeopleManagementDetailed /> },
+      { path: "/PeopleManagementDetailed", element: <PeopleManagementDetailed /> },
 
       {
         path: "/PeopleManagementActivities",
@@ -62,7 +62,7 @@ const pages = createHashRouter([
         element: <ActivityManagementDetailed />,
       },
       {
-        path: "/ActivityManagement/alter",
+        path: "/ActivityManagementDetailed",
         element: <ActivityManagementDetailed />,
       },
       {
