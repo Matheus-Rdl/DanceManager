@@ -5,6 +5,7 @@ import {
   createContract,
   updateContract,
   closeContract,
+  deleteContract,
 } from "./contractsControllers.js";
 
 
@@ -55,5 +56,10 @@ router.patch(
   closeContract
 );
 
+
+router.delete(
+  "/:id",
+  deleteContract
+);
 
 export default router;

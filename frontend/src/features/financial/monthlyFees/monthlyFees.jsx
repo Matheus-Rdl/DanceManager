@@ -1,98 +1,11 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Flex, Heading, HStack, Input, NativeSelect, SimpleGrid, Text, VStack, Table } from "@chakra-ui/react";
+import monthlyFeesServices from "../../../services/monthlyFeesServices";
 import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiClock, FiDollarSign, FiSearch, FiX } from "react-icons/fi";
 
-const STORAGE_KEY = "danceManager_financial_v1";
-const STORAGE_EVENT = "danceManagerFinancialUpdated";
-
-const students = [
-  { id: "000123", name: "João Pedro Silva", contract: "Balanço", activity: "Forró", monthlyAmount: 270, periodicity: "Semestral", contractStart: "17/05/2026", contractEnd: "16/11/2026", avatar: "https://i.pravatar.cc/80?img=12" },
-  { id: "000124", name: "Maria Silva", contract: "Raiz", activity: "Samba", monthlyAmount: 190, periodicity: "Semestral", contractStart: "05/05/2026", contractEnd: "04/11/2026", avatar: "https://i.pravatar.cc/80?img=47" },
-  { id: "000125", name: "Carlos Santos", contract: "Imersão", activity: "Forró", monthlyAmount: 320, periodicity: "Semestral", contractStart: "02/05/2026", contractEnd: "01/11/2026", avatar: "https://i.pravatar.cc/80?img=11" },
-  { id: "000126", name: "Ana Souza", contract: "Beco", activity: "Sertanejo", monthlyAmount: 430, periodicity: "Semestral", contractStart: "20/05/2026", contractEnd: "19/11/2026", avatar: "https://i.pravatar.cc/80?img=44" },
-  { id: "000127", name: "Lucas Ferreira", contract: "Balanço", activity: "Samba", monthlyAmount: 270, periodicity: "Semestral", contractStart: "28/05/2026", contractEnd: "27/11/2026", avatar: "https://i.pravatar.cc/80?img=13" },
-  { id: "000128", name: "Beatriz Lima", contract: "Imersão", activity: "Forró", monthlyAmount: 320, periodicity: "Semestral", contractStart: "15/05/2026", contractEnd: "14/11/2026", avatar: "https://i.pravatar.cc/80?img=45" },
-  { id: "000129", name: "Rafael Costa", contract: "Raiz", activity: "Sertanejo", monthlyAmount: 190, periodicity: "Semestral", contractStart: "10/05/2026", contractEnd: "09/11/2026", avatar: "https://i.pravatar.cc/80?img=15" },
-  { id: "000130", name: "Gabriela Oliveira", contract: "Balanço", activity: "Forró", monthlyAmount: 270, periodicity: "Semestral", contractStart: "12/05/2026", contractEnd: "11/11/2026", avatar: "https://i.pravatar.cc/80?img=48" },
-  { id: "000131", name: "Pedro Henrique", contract: "Beco", activity: "Samba", monthlyAmount: 430, periodicity: "Semestral", contractStart: "08/05/2026", contractEnd: "07/11/2026", avatar: "https://i.pravatar.cc/80?img=14" },
-  { id: "000132", name: "Juliana Martins", contract: "Raiz", activity: "Forró", monthlyAmount: 190, periodicity: "Semestral", contractStart: "22/05/2026", contractEnd: "21/11/2026", avatar: "https://i.pravatar.cc/80?img=49" },
-];
-
-const monthRefs = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
-const dayByStudent = { "000123": 17, "000124": 5, "000125": 2, "000126": 20, "000127": 28, "000128": 15, "000129": 10, "000130": 12, "000131": 8, "000132": 22 };
-const septemberStatus = { "000123": "paid", "000124": "overdue", "000125": "paid", "000126": "pending", "000127": "paid", "000128": "paid", "000129": "overdue", "000130": "paid", "000131": "overdue", "000132": "paid" };
-
 const pad = (value) => String(value).padStart(2, "0");
-const brDate = (year, month, day) => `${pad(day)}/${pad(month)}/${year}`;
-
-function buildInitialFinancialData() {
-  const monthlyFees = [];
-  const payments = [];
-
-  students.forEach((student) => {
-    monthRefs.forEach((reference, index) => {
-      const [year, month] = reference.split("-").map(Number);
-      const day = dayByStudent[student.id];
-      const nextDate = new Date(year, month, day);
-      const periodEndDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate() - 1);
-      let status = "paid";
-      if (reference === "2026-08" && ["000124", "000131"].includes(student.id)) status = "overdue";
-      if (reference === "2026-09") status = septemberStatus[student.id];
-      if (reference === "2026-10") status = "upcoming";
-
-      const feeId = `fee-${student.id}-${reference}`;
-      const paidAmount = status === "paid" ? student.monthlyAmount : 0;
-      monthlyFees.push({
-        id: feeId,
-        studentId: student.id,
-        reference,
-        number: index + 1,
-        periodStart: brDate(year, month, day),
-        periodEnd: brDate(periodEndDate.getFullYear(), periodEndDate.getMonth() + 1, periodEndDate.getDate()),
-        dueDate: brDate(year, month, day),
-        amount: student.monthlyAmount,
-        paidAmount,
-        status,
-      });
-
-      if (status === "paid") {
-        payments.push({
-          id: `pay-${student.id}-${reference}`,
-          monthlyFeeId: feeId,
-          studentId: student.id,
-          amount: student.monthlyAmount,
-          method: index % 3 === 0 ? "Pix" : index % 3 === 1 ? "Cartão" : "Dinheiro",
-          paidAt: `${brDate(year, month, day)} às ${index % 2 === 0 ? "14:32" : "18:10"}`,
-          receipt: index % 2 === 0,
-        });
-      }
-    });
-  });
-
-  return { version: 1, students, monthlyFees, payments };
-}
-
-function loadFinancialData() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed.students) && Array.isArray(parsed.monthlyFees) && Array.isArray(parsed.payments)) return parsed;
-    }
-  } catch (error) {
-    console.error("Erro ao ler financeiro do localStorage:", error);
-  }
-  const initial = buildInitialFinancialData();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-  return initial;
-}
-
-function saveFinancialData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  window.dispatchEvent(new Event(STORAGE_EVENT));
-}
-
 const formatCurrency = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 const formatReference = (reference) => {
   const [year, month] = reference.split("-").map(Number);
@@ -123,25 +36,22 @@ const contractConfig = {
 
 export default function MonthlyFees() {
   const navigate = useNavigate();
-  const [financialData, setFinancialData] = useState(loadFinancialData);
+  const { getMonthlyFees, monthlyFeesList, monthlyFeesLoading, refetchMonthlyFees, monthlyFeesError } = monthlyFeesServices();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
-  const [reference, setReference] = useState("2026-09");
+  const [reference, setReference] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
   const [mobileSearchMode, setMobileSearchMode] = useState(false);
 
-  useEffect(() => {
-    const refresh = () => setFinancialData(loadFinancialData());
-    window.addEventListener("storage", refresh);
-    window.addEventListener(STORAGE_EVENT, refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener(STORAGE_EVENT, refresh);
-    };
-  }, []);
 
-  const monthlyFees = useMemo(() => financialData.monthlyFees.filter((fee) => fee.reference === reference).map((fee) => ({ ...fee, student: financialData.students.find((student) => student.id === fee.studentId) })).filter((fee) => fee.student), [financialData, reference]);
+  useEffect(() => {
+    getMonthlyFees({ reference });
+  }, [reference, refetchMonthlyFees]);
+
+  const monthlyFees = monthlyFeesList;
   const activities = useMemo(() => [...new Set(monthlyFees.map((fee) => fee.student.activity))].sort(), [monthlyFees]);
+
+  console.log(monthlyFees)
 
   const filteredMonthlyFees = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -183,14 +93,8 @@ export default function MonthlyFees() {
   const hasFilters = search || statusFilter !== "all" || activityFilter !== "all";
   const clearFilters = () => { setSearch(""); setStatusFilter("all"); setActivityFilter("all"); };
   const changeMonth = (amount) => setReference((current) => changeReference(current, amount));
-  const handleView = (fee) => navigate("/MonthlyFeesDetailed", { state: { studentId: fee.studentId, feeId: fee.id } });
-  const resetTestData = () => {
-    const initial = buildInitialFinancialData();
-    saveFinancialData(initial);
-    setFinancialData(initial);
-    setReference("2026-09");
-    clearFilters();
-  };
+  const handleView = (fee) => navigate("/MonthlyFeesDetailed", { state: { studentId: fee.userId, feeId: fee.id } });
+  const resetTestData = () => getMonthlyFees({ reference });
 
   return (
     <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
@@ -201,7 +105,7 @@ export default function MonthlyFees() {
         </Flex>
         <HStack gap={2}>
           {totals.overdueCount > 0 && <Badge display={{ base: "none", md: "inline-flex" }} alignItems="center" gap="6px" px="12px" py="7px" borderRadius="999px" bg="#fff0f0" color="#c72e34" fontSize="11px" fontWeight="600"><FiAlertCircle size={14} />{totals.overdueCount} {totals.overdueCount === 1 ? "mensalidade em atraso" : "mensalidades em atraso"}</Badge>}
-          <Button display={{ base: "none", md: "inline-flex" }} onClick={resetTestData} h="34px" variant="outline" borderColor="#d6e0df" color="#174f4a" bg="white" fontSize="10px">Resetar teste</Button>
+          <Button display={{ base: "none", md: "inline-flex" }} onClick={resetTestData} h="34px" variant="outline" borderColor="#d6e0df" color="#174f4a" bg="white" fontSize="10px">Atualizar</Button>
         </HStack>
       </Flex>
 
@@ -233,11 +137,54 @@ export default function MonthlyFees() {
           <Text fontSize="11px" color="#607873">{filteredMonthlyFees.length} {filteredMonthlyFees.length === 1 ? "resultado" : "resultados"}</Text>
         </Flex>
 
+        {monthlyFeesLoading && <Box p={3} color="#607873">Carregando mensalidades...</Box>}
+        {monthlyFeesError && <Box p={3} color="red.600">{monthlyFeesError}</Box>}
         <Box display={{ base: "none", md: "block" }} overflowX="auto">
           <Table.Root size="sm" variant="line" minW="850px">
             <Table.Header bg="#f4f7f7"><Table.Row>{["Aluno", "Contrato", "Vencimento", "Valor", "Status", "Ações"].map((header) => <Table.ColumnHeader key={header} h="37px" color="#174f4a" fontSize="11px" fontWeight="600" borderColor="#e2e8e7">{header}</Table.ColumnHeader>)}</Table.Row></Table.Header>
             <Table.Body>
-              {filteredMonthlyFees.map((fee) => { const student = fee.student; const status = statusConfig[fee.status] || statusConfig.pending; const contract = contractConfig[student.contract] || contractConfig.Balanço; const StatusIcon = status.icon; return <Table.Row key={fee.id} h="62px" cursor="pointer" transition="background .15s ease" _hover={{ bg: "#f8fbfa" }} onClick={() => handleView(fee)}><Table.Cell borderColor="#e7eceb"><HStack gap="11px"><Avatar.Root size="sm"><Avatar.Image src={student.avatar} /><Avatar.Fallback name={student.name} /></Avatar.Root><Box><Text fontWeight="700" fontSize="12px" color="#164c47">{student.name}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id} • {student.activity}</Text></Box></HStack></Table.Cell><Table.Cell borderColor="#e7eceb"><Badge px="11px" py="4px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="11px">{student.contract}</Badge></Table.Cell><Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a">{fee.dueDate}</Table.Cell><Table.Cell borderColor="#e7eceb" fontSize="12px" fontWeight="600" color="#174f4a">{formatCurrency(fee.amount)}</Table.Cell><Table.Cell borderColor="#e7eceb"><Badge display="inline-flex" alignItems="center" gap="6px" px="10px" py="5px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="10px"><Flex w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center"><StatusIcon size={9} /></Flex>{status.label}</Badge></Table.Cell><Table.Cell borderColor="#e7eceb"><Button onClick={(e) => { e.stopPropagation(); handleView(fee); }} h="32px" minW="70px" px="11px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" fontSize="11px" bg="white" _hover={{ bg: "#f6faf9" }}><FiArrowRight size={14} /> Ver</Button></Table.Cell></Table.Row>; })}
+              {filteredMonthlyFees.map((fee) => {
+                const student = fee.student;
+                const status = statusConfig[fee.status] || statusConfig.pending;
+                const contract = contractConfig[student.contract] || contractConfig.Balanço;
+                const StatusIcon = status.icon;
+                return <Table.Row key={fee.id} h="62px" cursor="pointer" transition="background .15s ease" _hover={{ bg: "#f8fbfa" }} onClick={() => handleView(fee)}>
+                  {/* Dados do aluno */ }
+                  <Table.Cell borderColor="#e7eceb">
+                    <HStack gap="11px">
+                      <Avatar.Root size="sm">
+                        <Avatar.Image src={student.avatar} />
+                        <Avatar.Fallback name={student.name} />
+                      </Avatar.Root>
+                      <Box>
+                        <Text fontWeight="700" fontSize="12px" color="#164c47">{student.name}</Text>
+                        <Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id}</Text>
+                      </Box>
+                    </HStack>
+                  </Table.Cell>
+                  {/* Dados do contrato */ }
+                  <Table.Cell borderColor="#e7eceb">
+                    <Badge px="11px" py="4px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="11px">{student.contract}</Badge>
+                    </Table.Cell>
+                  {/* Vencimento */ }
+                  <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a">{fee.dueDate}</Table.Cell>
+                  {/* Valor */ }
+                  <Table.Cell borderColor="#e7eceb" fontSize="12px" fontWeight="600" color="#174f4a">{formatCurrency(fee.amount)}</Table.Cell>
+                  {/* Status */ }
+                  <Table.Cell borderColor="#e7eceb"><Badge display="inline-flex" alignItems="center" gap="6px" px="10px" py="5px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="10px">
+                    <Flex w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center">
+                      <StatusIcon size={9} />
+                    </Flex>{status.label}
+                  </Badge>
+                  </Table.Cell>
+                  {/* Ações */ }
+                  <Table.Cell borderColor="#e7eceb">
+                    <Button onClick={(e) => { e.stopPropagation(); handleView(fee); }} h="32px" minW="70px" px="11px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" fontSize="11px" bg="white" _hover={{ bg: "#f6faf9" }}>
+                      <FiArrowRight size={14} /> Ver
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>;
+              })}
             </Table.Body>
           </Table.Root>
         </Box>

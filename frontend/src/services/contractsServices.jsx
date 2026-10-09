@@ -245,6 +245,18 @@ export default function contractsServices() {
   };
 
 
+  // ============================================================
+  // EXCLUIR CONTRATO
+  // ============================================================
+  const deleteContract = async (contractId) => {
+    const response = await fetch(`${url}/${contractId}`, { method: "DELETE" });
+    const result = await response.json();
+    if (!response.ok) return result;
+    setContractsList((prev) => prev.filter((contract) => contract.id !== contractId));
+    return result;
+  };
+
+
   return {
 
     getContractsByUser,
@@ -254,6 +266,8 @@ export default function contractsServices() {
     updateContract,
 
     closeContract,
+
+    deleteContract,
 
     contractsList,
 
