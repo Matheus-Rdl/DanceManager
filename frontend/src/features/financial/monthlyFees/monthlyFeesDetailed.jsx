@@ -1,4 +1,4 @@
-
+import StudentNavigation from "../../../components/studentNavigation";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -11,7 +11,6 @@ import {
   FiClock, FiCreditCard, FiFileText, FiPlus, FiX
 } from "react-icons/fi";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
-
 //Formatters
 import {
   formatCPF,
@@ -20,11 +19,9 @@ import {
   formatRG,
   formatProperNoun,
 } from "../../../utils/formatters";
-
 const money = (value) => new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "BRL"
 }).format(Number(value) || 0);
-
 const dateBR = (value) => {
   if (!value) return "—";
   const date = String(value).slice(0, 10);
@@ -34,7 +31,6 @@ const dateBR = (value) => {
   }
   return String(value);
 };
-
 const referenceBR = (value) => {
   if (!value) return "—";
   const [year, month] = value.split("-").map(Number);
@@ -42,7 +38,6 @@ const referenceBR = (value) => {
     month: "long", year: "numeric"
   }).format(new Date(year, month - 1, 1));
 };
-
 const statusConfig = {
   paid: { label: "Pago", color: "#14833b", bg: "#dff5e6" },
   pending: { label: "Pendente", color: "#d98900", bg: "#fff2d8" },
@@ -51,7 +46,6 @@ const statusConfig = {
   partial: { label: "Parcial", color: "#8a5a00", bg: "#fff3cf" },
   cancelled: { label: "Cancelada", color: "#718096", bg: "#edf1f2" }
 };
-
 function StatusBadge({ status }) {
   const item = statusConfig[status] || statusConfig.pending;
   return (
@@ -61,11 +55,10 @@ function StatusBadge({ status }) {
     </Badge>
   );
 }
-
+/* Mensalidades: usa studentId para consultar cobranças do aluno. */
 export default function MonthlyFeesDetailed() {
   const navigate = useNavigate();
   const location = useLocation();
-
   /* Services */
   const {
     getMonthlyFees,
@@ -76,9 +69,8 @@ export default function MonthlyFeesDetailed() {
     paymentsList,
     paymentsLoading
   } = monthlyFeesServices();
-
   /* States */
-  const studentId = location.state?.studentId;
+  const studentId = location.state?.studentId || location.state?.userId || location.state?.userData?._id;
   const requestedFeeId = location.state?.feeId;
   const [selectedId, setSelectedId] = useState(requestedFeeId || "");
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -89,39 +81,33 @@ export default function MonthlyFeesDetailed() {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
   /* Buscar mensalidades do aluno */
   useEffect(() => {
     if (studentId) getMonthlyFees({ userId: studentId });
   }, [studentId]);
-
   const installments = useMemo(() => {
     return monthlyFeesList
       .filter((fee) => fee.userId === studentId || fee.studentId === studentId)
       .sort((a, b) => String(a.reference).localeCompare(String(b.reference)));
   }, [monthlyFeesList, studentId]);
-
-  const student = installments[0]?.student || {};
+  const studentData = location.state?.userData || installments[0]?.student || {};
+  const student = studentData;
   const selected = installments.find((fee) => fee.id === selectedId)
     || installments[0];
-
   useEffect(() => {
     if (selected?.id && selected.id !== selectedId) {
       setSelectedId(selected.id);
     }
   }, [selected?.id, selectedId]);
-
   /* Buscar pagamentos da mensalidade selecionada */
   useEffect(() => {
     if (selected?.id) getPaymentsByFee(selected.id);
   }, [selected?.id]);
-
   const selectedPayments = useMemo(() => {
     return paymentsList.filter((payment) =>
       payment.monthlyFeeId === selected?.id
     );
   }, [paymentsList, selected?.id]);
-
   /* Indicadores */
   const totals = useMemo(() => {
     const valid = installments.filter((fee) => fee.status !== "cancelled");
@@ -132,7 +118,6 @@ export default function MonthlyFeesDetailed() {
     );
     const balance = (fee) =>
       Math.max(Number(fee.amount) - Number(fee.paidAmount || 0), 0);
-
     return {
       count: valid.length,
       expected: valid.reduce((sum, fee) => sum + Number(fee.amount), 0),
@@ -144,21 +129,17 @@ export default function MonthlyFeesDetailed() {
       overdueValue: overdue.reduce((sum, fee) => sum + balance(fee), 0)
     };
   }, [installments]);
-
   const cards = [
     { title: "Total de mensalidades", value: totals.count, detail: money(totals.expected), icon: FiCalendar, color: "#174f4a", bg: "#f6f9f8" },
     { title: "Pagas", value: totals.paidCount, detail: money(totals.received), icon: FiCheck, color: "#14833b", bg: "#f5fbf7" },
     { title: "Pendentes / a vencer", value: totals.pendingCount, detail: money(totals.pendingValue), icon: FiClock, color: "#d98900", bg: "#fffaf0" },
     { title: "Em atraso", value: totals.overdueCount, detail: money(totals.overdueValue), icon: FiAlertCircle, color: "#d9343a", bg: "#fff5f5" }
   ];
-
   /* Registrar pagamento */
   const registerPayment = async () => {
     if (!selected || saving) return;
-
     const amount = Number(String(paymentAmount).replace(",", "."));
     const balance = Math.max(selected.amount - (selected.paidAmount || 0), 0);
-
     if (!Number.isFinite(amount) || amount <= 0 || amount > balance) {
       setError("Informe um valor válido, sem ultrapassar o saldo em aberto.");
       return;
@@ -167,10 +148,8 @@ export default function MonthlyFeesDetailed() {
       setError("Informe a data do pagamento.");
       return;
     }
-
     setSaving(true);
     setError("");
-
     try {
       const result = await addPayment(selected.id, {
         amount,
@@ -178,12 +157,10 @@ export default function MonthlyFeesDetailed() {
         paidAt: new Date(`${paymentDate}T12:00:00`).toISOString(),
         receipt: false
       });
-
       if (!result.success) {
         setError(result.message || "Não foi possível registrar o pagamento.");
         return;
       }
-
       await getMonthlyFees({ userId: studentId });
       await getPaymentsByFee(selected.id);
       setPaymentOpen(false);
@@ -194,11 +171,9 @@ export default function MonthlyFeesDetailed() {
       setSaving(false);
     }
   };
-
   if (monthlyFeesLoading && !monthlyFeesList.length) {
     return <Box p={6} color="#607873">Carregando mensalidades...</Box>;
   }
-
   if (!selected) {
     return (
       <Box p={6}>
@@ -211,14 +186,10 @@ export default function MonthlyFeesDetailed() {
       </Box>
     );
   }
-
   const paidAmount = Number(selected.paidAmount || 0);
   const balance = Math.max(Number(selected.amount) - paidAmount, 0);
-
   return (
-
     <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9">
-
       {/* TÍTULO */}
       <Flex>
         <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
@@ -238,7 +209,6 @@ export default function MonthlyFeesDetailed() {
           </Box>
         </Flex>
       </Flex>
-
       {/* Cabeçalho */}
       {/*
       <Flex align="center" gap={4} wrap="wrap">
@@ -258,7 +228,6 @@ export default function MonthlyFeesDetailed() {
         </Box>
       </Flex>
       */}
-
       {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
       <Box
         bg="white"
@@ -277,13 +246,12 @@ export default function MonthlyFeesDetailed() {
                 <Avatar.Image src={student.user_photo || student.photo} />
               )}
             </Avatar.Root>
-
             <Box minW={0}>
               <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
                 {formatName(student.user_name || student.name || "Usuário")}
               </Heading>
               <Text mt="5px" fontSize="12px" color="#60777c">
-                Matrícula: {student.id || "-"}
+                Matrícula: {student.user_mat || student.id || "-"}
               </Text>
               <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
                 <FiCheck /> Aluno ativo
@@ -291,35 +259,15 @@ export default function MonthlyFeesDetailed() {
             </Box>
           </HStack>
         </Flex>
-
         {/* ABAS */}
-        <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
-          {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
-            <Button
-              key={tab}
-              flexShrink={0}
-              h="44px" px="12px"
-              variant="ghost"
-              borderRadius="0"
-              color={tab === "Mensalidades" ? "#063f39" : "#506a67"}
-              fontSize="12px"
-              fontWeight={tab === "Mensalidades" ? "700" : "500"}
-              borderBottom={tab === "Mensalidades" ? "3px solid #063f39" : "3px solid transparent"}>
-              {tab}
-            </Button>
-          )}
-        </Flex>
+          <StudentNavigation activeTab="Mensalidades" userId={studentId} userData={studentData} />
       </Box>
-
       {/* MENSALIDADES - CONTEUDO PRINCIPAL */}
       <Flex gap={3} direction={{ base: "column", xl: "row" }}>
-
         <Flex direction={{ base: "column", lg: "column" }} gap={3} flex="1" minW={0} bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
-
           <Flex align="center" justify="space-between" px={4} py={3} borderBottom="1px solid #e6ecea" gap={2} flexWrap="wrap">
             <Heading fontSize="16px" color="#062f2b">Informações da mensalidade</Heading>
           </Flex>
-
           {/* Contrato */}
           <Box p={3} mx={3} bg="#f6f9f8"
             border="1px solid #e2e8e7" borderRadius="8px">
@@ -328,7 +276,6 @@ export default function MonthlyFeesDetailed() {
               {student.contract || "Não informado"}
             </Text>
           </Box>
-
           {/* Indicadores */}
           <SimpleGrid mx={3} columns={{ base: 2, lg: 4 }} gap={3}>
             {cards.map((card) => {
@@ -355,15 +302,12 @@ export default function MonthlyFeesDetailed() {
               );
             })}
           </SimpleGrid>
-
-
           {/* Lista de mensalidades */}
           <Box mx={3}>
             <Text fontSize="12px" color="#60777c">
               Selecione uma mensalidade para consultar ou registrar pagamentos.
             </Text>
           </Box>
-
           <Box mx={3}>
             <Box border="1px solid #e2e8e7" borderRadius="8px"
               overflowX="auto">
@@ -410,12 +354,10 @@ export default function MonthlyFeesDetailed() {
             </Text>
           </Box>
         </Flex>
-
         {/* Detalhes da mensalidade selecionada */}
         <Box w={{ base: "100%", xl: "330px" }} flexShrink={0}
           bg="white" border="1px solid #d7e2df"
           borderRadius="8px" p={4} alignSelf="flex-start">
-
           <Flex justify="space-between" align="center" gap={2}>
             <Heading fontSize="17px" color="#062f2b">
               Mensalidade
@@ -425,7 +367,6 @@ export default function MonthlyFeesDetailed() {
           <Text mt={2} fontWeight="700" color="#174f4a">
             {referenceBR(selected.reference)}
           </Text>
-
           <Box mt={4} p={3} bg="#f3f6f5" borderRadius="8px">
             <Text fontSize="10px" color="#60777c">
               Período da mensalidade
@@ -434,7 +375,6 @@ export default function MonthlyFeesDetailed() {
               {dateBR(selected.periodStart)} até {dateBR(selected.periodEnd)}
             </Text>
           </Box>
-
           <VStack mt={3} gap={0} align="stretch">
             {[
               ["Vencimento", dateBR(selected.dueDate)],
@@ -451,18 +391,15 @@ export default function MonthlyFeesDetailed() {
               </Flex>
             ))}
           </VStack>
-
           {/* Pagamentos */}
           <Heading mt={5} fontSize="13px" color="#174f4a">
             Pagamentos registrados
           </Heading>
-
           {paymentsLoading && (
             <Text mt={3} fontSize="11px" color="#60777c">
               Carregando pagamentos...
             </Text>
           )}
-
           {!paymentsLoading && selectedPayments.length === 0 && (
             <Box mt={3} p={3} border="1px dashed #cfdcda"
               borderRadius="8px">
@@ -471,7 +408,6 @@ export default function MonthlyFeesDetailed() {
               </Text>
             </Box>
           )}
-
           {selectedPayments.map((payment) => (
             <Box key={payment.id} mt={3} p={3}
               border="1px solid #e2e8e7" borderRadius="8px">
@@ -494,7 +430,6 @@ export default function MonthlyFeesDetailed() {
               )}
             </Box>
           ))}
-
           <Button mt={4} w="100%" bg="#003f36" color="white"
             fontSize="11px" borderRadius="8px"
             disabled={balance <= 0 || selected.status === "cancelled"}
@@ -507,7 +442,6 @@ export default function MonthlyFeesDetailed() {
           </Button>
         </Box>
       </Flex>
-
       {/* Modal de pagamento */}
       <Dialog.Root open={paymentOpen}
         onOpenChange={(e) => setPaymentOpen(e.open)}>
@@ -534,14 +468,12 @@ export default function MonthlyFeesDetailed() {
                       Saldo: {money(balance)}
                     </Text>
                   </Box>
-
                   <Box>
                     <Text mb={1} fontSize="11px">Valor recebido</Text>
                     <Input value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       h="38px" fontSize="12px" />
                   </Box>
-
                   <Box>
                     <Text mb={1} fontSize="11px">Forma de pagamento</Text>
                     <NativeSelect.Root>
@@ -555,13 +487,11 @@ export default function MonthlyFeesDetailed() {
                       <NativeSelect.Indicator />
                     </NativeSelect.Root>
                   </Box>
-
                   <Box>
                     <Text mb={1} fontSize="11px">Data do pagamento</Text>
                     <Input type="date" value={paymentDate}
                       onChange={(e) => setPaymentDate(e.target.value)} />
                   </Box>
-
                   {error && (
                     <Text color="red.600" fontSize="11px">{error}</Text>
                   )}

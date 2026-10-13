@@ -1,3 +1,4 @@
+import StudentNavigation from "../../../components/studentNavigation";
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -27,14 +28,11 @@ import contractsServices from "../../../services/contractsServices";
 //Formatters
 import {
   formatCPF,
-  formatDate,
   formatName,
   formatRG,
   formatProperNoun,
 } from "../../../utils/formatters";
-
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
-
 // ============================================================
 // PLANOS
 // ============================================================
@@ -63,6 +61,7 @@ const PLANS = {
 // ============================================================
 // COMPONENTE
 // ============================================================
+/* Contratos: mantém o aluno selecionado ao trocar de aba. */
 export default function PeopleManagementContracts() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -1036,9 +1035,7 @@ export default function PeopleManagementContracts() {
   // RENDER
   // ============================================================
   return (
-
     <VStack gap={3} align="stretch" w="100%" minW={0} bg="#f8faf9">
-
       {/* TÍTULO */}
       <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={3} wrap="wrap">
         <Flex>
@@ -1061,7 +1058,6 @@ export default function PeopleManagementContracts() {
         </Flex>
         <Button size="sm" h="36px" px={4} bg="#064e43" color="white" borderRadius="8px" fontSize="12px" fontWeight="700" _hover={{ bg: "#043f37" }} onClick={handleNewContract} disabled={!!activeContract || contractsLoading}><LuPlus /> Novo contrato</Button>
       </Flex>
-
       {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
       <Box
         bg="white"
@@ -1080,7 +1076,6 @@ export default function PeopleManagementContracts() {
                 <Avatar.Image src={userData?.user_photo || userData?.photo} />
               )}
             </Avatar.Root>
-
             <Box minW={0}>
               <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
                 {formatName(userData?.user_name || userData?.name || "Usuário")}
@@ -1099,26 +1094,9 @@ export default function PeopleManagementContracts() {
             </Box>
           </HStack>
         </Flex>
-
         {/* ABAS */}
-        <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
-          {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
-            <Button
-              key={tab}
-              flexShrink={0}
-              h="44px" px="12px"
-              variant="ghost"
-              borderRadius="0"
-              color={tab === "Contratos" ? "#063f39" : "#506a67"}
-              fontSize="12px"
-              fontWeight={tab === "Contratos" ? "700" : "500"}
-              borderBottom={tab === "Contratos" ? "3px solid #063f39" : "3px solid transparent"}>
-              {tab}
-            </Button>
-          )}
-        </Flex>
+          <StudentNavigation activeTab="Contratos" userId={userId} userData={userData} />
       </Box>
-
       {/* LISTA - CONTEUDO PRINCIPAL */}
       <Box
         bg="white"
@@ -1186,7 +1164,6 @@ export default function PeopleManagementContracts() {
           </>
         )}
       </Box>
-
       {/* DIALOG DE CONTRATO */}
       <Dialog.Root
         open={
@@ -1695,7 +1672,6 @@ export default function PeopleManagementContracts() {
           </Dialog.Positioner>
         </Portal>
       </Dialog.Root>
-
       {/* DIALOG ENCERRAMENTO */}
       <Dialog.Root
         open={
