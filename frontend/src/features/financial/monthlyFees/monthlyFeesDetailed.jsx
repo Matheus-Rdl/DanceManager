@@ -11,7 +11,8 @@ import {
   FiClock, FiCreditCard, FiFileText, FiPlus, FiX
 } from "react-icons/fi";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
-//Formatters
+import paymentsServices from "../../../services/paymentsServices";
+/* Formatadores */
 import {
   formatCPF,
   formatDate,
@@ -38,6 +39,11 @@ const referenceBR = (value) => {
     month: "long", year: "numeric"
   }).format(new Date(year, month - 1, 1));
 };
+/* Referência atual no fuso local do navegador, sem conversão UTC. */
+const currentReference = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+};
 const statusConfig = {
   paid: { label: "Pago", color: "#14833b", bg: "#dff5e6" },
   pending: { label: "Pendente", color: "#d98900", bg: "#fff2d8" },
@@ -62,18 +68,18 @@ export default function MonthlyFeesDetailed() {
   /* Services */
   const {
     getMonthlyFees,
-    getPaymentsByFee,
-    addPayment,
     monthlyFeesList,
-    monthlyFeesLoading,
-    paymentsList,
-    paymentsLoading
+    monthlyFeesLoading
   } = monthlyFeesServices();
+  const { getPaymentsByFee, addPayment, paymentsList, paymentsLoading } = paymentsServices();
   /* States */
   const studentId = location.state?.studentId || location.state?.userId || location.state?.userData?._id;
   const requestedFeeId = location.state?.feeId;
   const [selectedId, setSelectedId] = useState(requestedFeeId || "");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(() => currentReference().slice(0, 4));
+  const currentMonth = currentReference();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Pix");
   const [paymentDate, setPaymentDate] = useState(
@@ -90,10 +96,37 @@ export default function MonthlyFeesDetailed() {
       .filter((fee) => fee.userId === studentId || fee.studentId === studentId)
       .sort((a, b) => String(a.reference).localeCompare(String(b.reference)));
   }, [monthlyFeesList, studentId]);
+  /* Anos disponíveis: somente os que possuem mensalidades cadastradas */
+  const availableYears = useMemo(() => [...new Set(installments.map((fee) => String(fee.reference || "").slice(0, 4)).filter((year) => /^\d{4}$/.test(year)))].sort((a, b) => b.localeCompare(a)), [installments]);
+  useEffect(() => {
+    if (!availableYears.length) return;
+    if (!availableYears.includes(selectedYear)) {
+      const thisYear = currentMonth.slice(0, 4);
+      setSelectedYear(availableYears.includes(thisYear) ? thisYear : availableYears[0]);
+    }
+  }, [availableYears, selectedYear]);
+  const visibleInstallments = useMemo(() => installments.filter((fee) => String(fee.reference || "").startsWith(selectedYear)), [installments, selectedYear]);
+  /* Seleciona uma mensalidade: no mobile abre os detalhes em Dialog */
+  const openFeeDetails = (fee) => {
+    setSelectedId(fee.id);
+    setDetailsOpen(true);
+  };
+  /* Mobile: troca o Dialog de detalhes pelo Dialog de pagamento */
+  const openPayment = () => {
+    setPaymentAmount(String(balance));
+    setError("");
+    setDetailsOpen(false);
+    setPaymentOpen(true);
+  };
+  const closePayment = () => {
+    setPaymentOpen(false);
+    if (window.matchMedia("(max-width: 767px)").matches) setDetailsOpen(true);
+  };
   const studentData = location.state?.userData || installments[0]?.student || {};
   const student = studentData;
   const selected = installments.find((fee) => fee.id === selectedId)
-    || installments[0];
+    || installments.find((fee) => String(fee.reference) === currentMonth)
+    || visibleInstallments[0] || installments[0];
   useEffect(() => {
     if (selected?.id && selected.id !== selectedId) {
       setSelectedId(selected.id);
@@ -260,7 +293,7 @@ export default function MonthlyFeesDetailed() {
           </HStack>
         </Flex>
         {/* ABAS */}
-          <StudentNavigation activeTab="Mensalidades" userId={studentId} userData={studentData} />
+        <StudentNavigation activeTab="Mensalidades" userId={studentId} userData={studentData} />
       </Box>
       {/* MENSALIDADES - CONTEUDO PRINCIPAL */}
       <Flex gap={3} direction={{ base: "column", xl: "row" }}>
@@ -302,60 +335,72 @@ export default function MonthlyFeesDetailed() {
               );
             })}
           </SimpleGrid>
-          {/* Lista de mensalidades */}
-          <Box mx={3}>
-            <Text fontSize="12px" color="#60777c">
-              Selecione uma mensalidade para consultar ou registrar pagamentos.
-            </Text>
-          </Box>
-          <Box mx={3}>
-            <Box border="1px solid #e2e8e7" borderRadius="8px"
-              overflowX="auto">
+          {/* Filtro de ano: funciona no desktop e no mobile */}
+          <Flex mx={3} justify="space-between" align="center" gap={2} wrap="wrap">
+            <Text fontSize="12px" color="#60777c">Selecione uma mensalidade para consultar ou registrar pagamentos.</Text>
+            <NativeSelect.Root width="125px" size="sm">
+              <NativeSelect.Field aria-label="Ano das mensalidades" value={selectedYear} onChange={(e) => {
+                  const year = e.target.value;
+                  setSelectedYear(year);
+                  const fee = installments.find((item) => String(item.reference) === `${year}-${currentMonth.slice(5)}`)
+                    || installments.find((item) => String(item.reference).startsWith(`${year}-`));
+                  if (fee) setSelectedId(fee.id);
+                }}>
+                {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
+              </NativeSelect.Field>
+              <NativeSelect.Indicator />
+            </NativeSelect.Root>
+          </Flex>
+          {/* Desktop: tabela original, apenas filtrada pelo ano */}
+          <Box mx={3} display={{ base: "none", md: "block" }}>
+            <Box border="1px solid #e2e8e7" borderRadius="8px" overflowX="auto">
               <Table.Root size="sm" minW="650px">
-                <Table.Header bg="#f4f7f7">
-                  <Table.Row>
-                    {["Referência", "Vencimento", "Valor", "Pago", "Status"].map((header) => (
-                      <Table.ColumnHeader key={header}
-                        fontSize="11px" color="#174f4a">
-                        {header}
-                      </Table.ColumnHeader>
-                    ))}
-                  </Table.Row>
-                </Table.Header>
+                <Table.Header bg="#f4f7f7"><Table.Row>
+                  {["Referência", "Vencimento", "Valor", "Pago", "Status"].map((header) => (
+                    <Table.ColumnHeader key={header} fontSize="11px" color="#174f4a">{header}</Table.ColumnHeader>
+                  ))}
+                </Table.Row></Table.Header>
                 <Table.Body>
-                  {installments.map((fee) => (
-                    <Table.Row key={fee.id}
-                      cursor="pointer"
-                      bg={selected.id === fee.id ? "#f2faf7" : "white"}
-                      _hover={{ bg: "#f7fbfa" }}
-                      onClick={() => setSelectedId(fee.id)}>
+                  {visibleInstallments.map((fee) => (
+                    <Table.Row key={fee.id} cursor="pointer" bg={selected.id === fee.id ? "#f2faf7" : String(fee.reference) === currentMonth ? "#f7fbf7" : "white"} _hover={{ bg: "#f7fbfa" }} onClick={() => setSelectedId(fee.id)}>
                       <Table.Cell fontWeight="700" fontSize="11px">
-                        {referenceBR(fee.reference)}
+                        <HStack gap={2} wrap="wrap"><Text>{referenceBR(fee.reference)}</Text>
+                          {String(fee.reference) === currentMonth && <Badge bg="#dff5e6" color="#14833b" fontSize="10px">Mês atual</Badge>}
+                        </HStack>
                       </Table.Cell>
-                      <Table.Cell fontSize="11px">
-                        {dateBR(fee.dueDate)}
-                      </Table.Cell>
-                      <Table.Cell fontSize="11px">
-                        {money(fee.amount)}
-                      </Table.Cell>
-                      <Table.Cell fontSize="11px">
-                        {money(fee.paidAmount)}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <StatusBadge status={fee.status} />
-                      </Table.Cell>
+                      <Table.Cell fontSize="11px">{dateBR(fee.dueDate)}</Table.Cell>
+                      <Table.Cell fontSize="11px">{money(fee.amount)}</Table.Cell>
+                      <Table.Cell fontSize="11px">{money(fee.paidAmount)}</Table.Cell>
+                      <Table.Cell><StatusBadge status={fee.status} /></Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
               </Table.Root>
             </Box>
-            <Text my={3} fontSize="10px" color="#60777c">
-              Mostrando {installments.length} mensalidades.
-            </Text>
           </Box>
+          {/* Mobile: cards clicáveis que abrem os detalhes em Dialog */}
+          <VStack mx={3} align="stretch" gap={2} display={{ base: "flex", md: "none" }}>
+            {visibleInstallments.map((fee) => (
+              <Box key={fee.id} as="button" type="button" textAlign="left" p={3} bg={String(fee.reference) === currentMonth ? "#f2faf7" : "white"} border="1px solid #d7e2df" borderRadius="8px" _active={{ bg: "#f2faf7" }} onClick={() => openFeeDetails(fee)}>
+                <Flex justify="space-between" align="center" gap={2}>
+                  <HStack gap={2} wrap="wrap"><Text fontWeight="700" fontSize="13px" color="#174f4a">{referenceBR(fee.reference)}</Text>
+                    {String(fee.reference) === currentMonth && <Badge bg="#dff5e6" color="#14833b" fontSize="10px">Mês atual</Badge>}
+                  </HStack>
+                  <StatusBadge status={fee.status} />
+                </Flex>
+                <Text mt={2} fontSize="11px" color="#60777c">Vencimento: {dateBR(fee.dueDate)}</Text>
+                <Flex justify="space-between" mt={1}>
+                  <Text fontSize="12px" fontWeight="700">{money(fee.amount)}</Text>
+                  <Text fontSize="11px" color="#174f4a">Ver detalhes ›</Text>
+                </Flex>
+              </Box>
+            ))}
+          </VStack>
+          <Text mx={3} my={3} fontSize="10px" color="#60777c">Mostrando {visibleInstallments.length} mensalidades de {selectedYear}.</Text>
+          {visibleInstallments.length === 0 && <Text mx={3} mb={3} fontSize="12px" color="#60777c">Nenhuma mensalidade neste ano.</Text>}
+          {/* Detalhes da mensalidade selecionada */}
         </Flex>
-        {/* Detalhes da mensalidade selecionada */}
-        <Box w={{ base: "100%", xl: "330px" }} flexShrink={0}
+        <Box display={{ base: "none", md: "block" }} w={{ md: "100%", xl: "330px" }} flexShrink={0}
           bg="white" border="1px solid #d7e2df"
           borderRadius="8px" p={4} alignSelf="flex-start">
           <Flex justify="space-between" align="center" gap={2}>
@@ -433,18 +478,54 @@ export default function MonthlyFeesDetailed() {
           <Button mt={4} w="100%" bg="#003f36" color="white"
             fontSize="11px" borderRadius="8px"
             disabled={balance <= 0 || selected.status === "cancelled"}
-            onClick={() => {
-              setPaymentAmount(String(balance));
-              setError("");
-              setPaymentOpen(true);
-            }}>
+            onClick={openPayment}>
             <FiPlus /> Registrar novo pagamento
           </Button>
         </Box>
       </Flex>
+      {/* Mobile: detalhes da mensalidade em primeiro Dialog */}
+      <Dialog.Root open={detailsOpen} onOpenChange={(e) => { if (!e.open) setDetailsOpen(false); }} size="md">
+        <Portal><Dialog.Backdrop /><Dialog.Positioner>
+          <Dialog.Content mx={3} maxW="430px" borderRadius="10px">
+            <Dialog.Header><Dialog.Title color="#063f39">Detalhes da mensalidade</Dialog.Title></Dialog.Header>
+            <Dialog.Body>
+              <VStack align="stretch" gap={3}>
+                <Flex justify="space-between" align="center" gap={2}>
+                  <Text fontWeight="700" color="#174f4a">{referenceBR(selected.reference)}</Text>
+                  <StatusBadge status={selected.status} />
+                </Flex>
+                <Box bg="#f3f6f5" p={3} borderRadius="8px">
+                  <Text fontSize="10px" color="#60777c">Período da mensalidade</Text>
+                  <Text fontSize="11px">{dateBR(selected.periodStart)} até {dateBR(selected.periodEnd)}</Text>
+                </Box>
+                {[["Vencimento", dateBR(selected.dueDate)], ["Valor da mensalidade", money(selected.amount)], ["Valor pago", money(paidAmount)], ["Saldo em aberto", money(balance)]].map(([label, value]) => (
+                  <Flex key={label} justify="space-between" borderBottom="1px solid #edf1f0" py={2} gap={2}>
+                    <Text fontSize="11px" color="#60777c">{label}</Text>
+                    <Text fontSize="11px" fontWeight="700">{value}</Text>
+                  </Flex>
+                ))}
+                <Heading fontSize="13px" color="#174f4a">Pagamentos registrados</Heading>
+                {paymentsLoading && <Text fontSize="11px">Carregando pagamentos...</Text>}
+                {!paymentsLoading && selectedPayments.length === 0 && <Text fontSize="11px" color="#60777c">Nenhum pagamento registrado.</Text>}
+                {selectedPayments.map((payment) => (
+                  <Box key={payment.id} p={2} border="1px solid #e2e8e7" borderRadius="8px">
+                    <Text fontSize="12px" fontWeight="700">{money(payment.amount)}</Text>
+                    <Text fontSize="10px" color="#60777c">{payment.method} • {dateBR(payment.paidAt)}</Text>
+                  </Box>
+                ))}
+              </VStack>
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button variant="outline" onClick={() => setDetailsOpen(false)}>Fechar</Button>
+              <Button bg="#003f36" color="white" disabled={balance <= 0 || selected.status === "cancelled"} onClick={openPayment}><FiPlus /> Registrar pagamento</Button>
+            </Dialog.Footer>
+            <Dialog.CloseTrigger asChild><Button position="absolute" top="10px" right="10px" variant="ghost" size="sm"><FiX /></Button></Dialog.CloseTrigger>
+          </Dialog.Content>
+        </Dialog.Positioner></Portal>
+      </Dialog.Root>
       {/* Modal de pagamento */}
       <Dialog.Root open={paymentOpen}
-        onOpenChange={(e) => setPaymentOpen(e.open)}>
+        onOpenChange={(e) => { if (!e.open) closePayment(); }}>
         <Portal>
           <Dialog.Backdrop />
           <Dialog.Positioner>
@@ -459,7 +540,7 @@ export default function MonthlyFeesDetailed() {
                   <Box p={3} bg="#f5f8f7" borderRadius="8px">
                     <Text fontSize="11px" color="#60777c">Aluno</Text>
                     <Text fontWeight="700" fontSize="13px" color="#174f4a">
-                      {student.name}
+                      {student.user_name || student.name || "Aluno"}
                     </Text>
                     <Text mt={2} fontSize="11px" color="#60777c">
                       {referenceBR(selected.reference)}
@@ -498,7 +579,7 @@ export default function MonthlyFeesDetailed() {
                 </VStack>
               </Dialog.Body>
               <Dialog.Footer>
-                <Button variant="outline" onClick={() => setPaymentOpen(false)}
+                <Button variant="outline" onClick={closePayment}
                   disabled={saving}>
                   Cancelar
                 </Button>

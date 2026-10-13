@@ -6,7 +6,7 @@ const TABS = [
   { label: "Contratos", path: "/PeopleManagementContracts" },
   { label: "Mensalidades", path: "/MonthlyFeesDetailed" },
   { label: "Turmas", path: "/PeopleManagementActivities" },
-  { label: "Pagamentos", path: null },
+  { label: "Pagamentos", path: "/PeopleManagementPayments" },
   { label: "Histórico", path: null },
 ];
 export default function StudentNavigation({ activeTab, userData, userId }) {

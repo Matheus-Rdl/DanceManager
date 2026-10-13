@@ -5,8 +5,6 @@ export default function monthlyFeesServices() {
   const [monthlyFeesList, setMonthlyFeesList] = useState([]);
   const [monthlyFeesLoading, setMonthlyFeesLoading] = useState(false);
   const [refetchMonthlyFees, setRefetchMonthlyFees] = useState(true);
-  const [paymentsList, setPaymentsList] = useState([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [monthlyFeesError, setMonthlyFeesError] = useState("");
   const url = `${import.meta.env.VITE_API_URL}/monthly-fees`;
 
@@ -37,32 +35,9 @@ export default function monthlyFeesServices() {
   const getMonthlyFeesByUser = (userId) => getMonthlyFees({ userId });
   const getMonthlyFeesByContract = (contractId) => getMonthlyFees({ contractId });
 
-  const getPaymentsByFee = (feeId) => {
-    setPaymentsLoading(true);
-    return fetch(`${url}/${feeId}/payments`, { method: "GET", headers: { "Content-Type": "application/json" } })
-      .then(readResponse)
-      .then((result) => { setPaymentsList(result.body); return result; })
-      .catch((error) => { console.log(error); return { success: false, message: error.message }; })
-      .finally(() => setPaymentsLoading(false));
-  };
-
-  const addPayment = async (feeId, paymentData) => {
-    try {
-      const response = await fetch(`${url}/${feeId}/payments`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(paymentData)
-      });
-      const result = await readResponse(response);
-      setRefetchMonthlyFees(true);
-      return result;
-    } catch (error) {
-      console.log(error);
-      return { success: false, message: error.message };
-    }
-  };
-
   return {
-    getMonthlyFees, getMonthlyFeesByUser, getMonthlyFeesByContract, getPaymentsByFee, addPayment,
+    getMonthlyFees, getMonthlyFeesByUser, getMonthlyFeesByContract,
     monthlyFeesList, monthlyFeesLoading, refetchMonthlyFees, setRefetchMonthlyFees,
-    paymentsList, paymentsLoading, monthlyFeesError
+    monthlyFeesError
   };
 }
