@@ -1,4 +1,4 @@
-import StudentNavigation from "../../../components/studentNavigation";
+import StudentNavigation from "../../../components/StudentNavigation";
 import { useEffect, useState } from "react";
 import {
   Box,

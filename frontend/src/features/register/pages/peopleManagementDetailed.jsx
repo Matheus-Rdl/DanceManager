@@ -1,4 +1,3 @@
-import StudentNavigation from "../../../components/studentNavigation";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Badge, Avatar, Box, Button, HStack, VStack, Flex, Text, Heading } from "@chakra-ui/react";
@@ -13,6 +12,7 @@ import usersServices from "../../../services/usersServices";
 import { toaster } from "../../../components/ui/toaster";
 import HeadingPage from "../../../components/headingPage";
 import FormTextArea from "../../../components/formTextArea";
+import StudentNavigation from "../../../components/StudentNavigation";
 //React Icons
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
 import { TbUserSquareRounded } from "react-icons/tb";

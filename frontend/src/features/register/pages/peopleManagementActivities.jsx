@@ -5,7 +5,7 @@ import { FiArrowLeft, FiCalendar, FiCheck, FiClock, FiPlus, FiUsers } from "reac
 import { TbUserSquareRounded } from "react-icons/tb";
 import activitiesServices from "../../../services/activitiesServices";
 import DialogAddActivity from "./dialog/dialogAddActivity";
-import StudentNavigation from "../../../components/studentNavigation";
+import StudentNavigation from "../../../components/StudentNavigation";
 //Formatters
 import {
   formatCPF,
