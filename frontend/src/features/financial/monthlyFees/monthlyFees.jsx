@@ -165,17 +165,18 @@ export default function MonthlyFees() {
                   {/* Dados do contrato */ }
                   <Table.Cell borderColor="#e7eceb">
                     <Badge px="11px" py="4px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="11px">{student.contract}</Badge>
-                    </Table.Cell>
+                  </Table.Cell>
                   {/* Vencimento */ }
                   <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a">{fee.dueDate}</Table.Cell>
                   {/* Valor */ }
                   <Table.Cell borderColor="#e7eceb" fontSize="12px" fontWeight="600" color="#174f4a">{formatCurrency(fee.amount)}</Table.Cell>
                   {/* Status */ }
-                  <Table.Cell borderColor="#e7eceb"><Badge display="inline-flex" alignItems="center" gap="6px" px="10px" py="5px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="10px">
-                    <Flex w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center">
-                      <StatusIcon size={9} />
-                    </Flex>{status.label}
-                  </Badge>
+                  <Table.Cell borderColor="#e7eceb">
+                    <Badge display="inline-flex" alignItems="center" gap="6px" px="10px" py="5px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="10px">
+                      <Flex  x w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center">
+                        <StatusIcon size={9} />
+                      </Flex>{status.label}
+                    </Badge>
                   </Table.Cell>
                   {/* Ações */ }
                   <Table.Cell borderColor="#e7eceb">

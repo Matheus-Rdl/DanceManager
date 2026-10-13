@@ -602,43 +602,44 @@ export default function PeopleManagementDetailed() {
   // ============================================================
 
   return (
+
     <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
 
       {/* TÍTULO */}
       <Flex>
-        <Flex>
-          <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
-            <FiArrowLeft /> Voltar
-          </Button>
-          <Flex align="center" gap={3} marginLeft={12}>
-            <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}>
-              <TbUserSquareRounded size={18} />
-            </Flex>
-            <Box>
-              <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
-                Visão geral
-              </Heading>
-            </Box>
+        <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
+          <FiArrowLeft /> Voltar
+        </Button>
+        <Flex align="center" gap={3} marginLeft={12}>
+          <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}>
+            <TbUserSquareRounded size={18} />
           </Flex>
+          <Box>
+            <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
+              Visão geral
+            </Heading>
+            <Text fontSize="11px" color="#60777c">
+              {isAddMode && "Preencha os dados para cadastrar uma nova pessoa."}
+              {isEditMode && "Veja todas as informações do usuário."}
+              {isViewMode && "Veja todas as informações do usuário."}
+            </Text>
+          </Box>
         </Flex>
-
       </Flex>
 
-      {/* CABEÇALHO */}
-      <Box
-        bg="white"
-        borderWidth="1px"
-        borderColor="gray.200"
-        borderRadius="8px"
-        overflow="hidden"
-        width="100%"
-      >
-
-        {/* CABEÇALHO */}
-        {!isAddMode && (
+      {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
+      {/* MOSTRA SOMENTE EM MODO DE VISUALIZAÇÃO E EDIÇÃO !!!*/}
+      {!isAddMode && (
+        <Box
+          bg="white"
+          borderWidth="1px"
+          borderColor="gray.200"
+          borderRadius="8px"
+          overflow="hidden"
+          width="100%"
+        >
+          {/* DADOS DO ALUNO */}
           <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
-
-            {/* DADOS DO ALUNO */}
             <HStack gap={4} minW={0}>
               <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
                 <Avatar.Fallback name={formData.user_name || formData.name || "Usuário"} />
@@ -652,7 +653,7 @@ export default function PeopleManagementDetailed() {
                   {formatName(formData.user_name || formData.name || "Usuário")}
                 </Heading>
                 <Text mt="5px" fontSize="12px" color="#60777c">
-                  MAT: {formData.user_mat || "-"}
+                  Matrícula: {formData.user_mat || "-"}
                 </Text>
                 <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
                   <FiCheck /> Aluno ativo
@@ -660,10 +661,8 @@ export default function PeopleManagementDetailed() {
               </Box>
             </HStack>
           </Flex>
-        )}
 
-        {/* ABAS */}
-        {!isAddMode && (
+          {/* ABAS */}
           <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
             {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
               <Button
@@ -680,18 +679,24 @@ export default function PeopleManagementDetailed() {
               </Button>
             )}
           </Flex>
-        )}
+        </Box>
+      )}
 
-
-
+      {/* FORMULÁRIO - CONTEUDO PRINCIPAL */}
+      <Box
+        bg="white"
+        borderWidth="1px"
+        borderColor="gray.200"
+        borderRadius="8px"
+        overflow="hidden"
+        width="100%"
+      >
         {/* FORMULÁRIO */}
         <Box
           as="form"
           id="people-management-form"
           onSubmit={handleSubmitForm}
           autoComplete="off"
-          mt={5}
-          px={1}
         >
           <input
             type="text"
@@ -699,7 +704,6 @@ export default function PeopleManagementDetailed() {
             style={{ display: "none" }}
             autoComplete="username"
           />
-
           <input
             type="password"
             name="fakepasswordremembered"
@@ -707,110 +711,112 @@ export default function PeopleManagementDetailed() {
             autoComplete="new-password"
           />
 
-          {/* TÍTULO PARA NOVO CADASTRO */}
-          <Box p={{ base: 3, md: 4 }}>
-            {isAddMode && (
-              <>
-                <Heading fontSize="19px" color="#062f2b">Novo usuário</Heading>
-                <Text mt="4px" fontSize="11px" color="#60777c">Preencha os dados para cadastrar uma nova pessoa.</Text>
-              </>
+          <Box>
+            {/* TÍTULO DO FORMULÁRIO */}
+            <Box>
+              {isAddMode && (
+                <Flex align="center" justify="space-between" px={4} py={3} borderBottom="1px solid #e6ecea" gap={2} flexWrap="wrap">
+                  <Heading fontSize="16px" color="#062f2b">Novo usuário</Heading>
+                  {/* <Text mt="4px" fontSize="11px" color="#60777c">Preencha os dados para cadastrar uma nova pessoa.</Text> */}
+                </Flex>
+              )}
 
-            )}
-
-            {isEditMode && (
-              <>
-                <Heading fontSize="19px" color="#062f2b">Visão geral</Heading>
-                <Text mt="4px" fontSize="11px" color="#60777c">Veja todas as informações do usuário.</Text>
-              </>
-
-            )}
+              {isEditMode && (
+                <Flex align="center" justify="space-between" px={4} py={3} borderBottom="1px solid #e6ecea" gap={2} flexWrap="wrap">
+                  <Heading fontSize="16px" color="#062f2b">Dados Cadastrais</Heading>
+                  {/* <Text mt="4px" fontSize="11px" color="#60777c">Veja todas as informações do usuário.</Text> */}
+                </Flex>
+              )}
+            </Box>
 
             {/* SEÇÕES DOS CAMPOS */}
-            {pageMenus.map((menu) => {
+            <Box px={3}>
+              {pageMenus.map((menu) => {
 
-              const menuFields = fieldsList.filter(
-                (field) =>
-                  Number(field.folder) ===
-                  Number(menu.order)
-              );
+                const menuFields = fieldsList.filter(
+                  (field) =>
+                    Number(field.folder) ===
+                    Number(menu.order)
+                );
 
-              if (menuFields.length === 0) {
-                return null;
-              }
+                if (menuFields.length === 0) {
+                  return null;
+                }
 
-              return (
-                <Box
-                  key={menu._id}
-                  mb={8}
-                  bg="white"
-                  mt={4}
-                >
-                  {/* TÍTULO DA SEÇÃO */}
-                  <HStack
-                    gap={3}
-                    mb={5}
-                    align="center"
+                return (
+                  <Box
+                    key={menu._id}
+                    mb={8}
+                    bg="white"
+                    mt={4}
                   >
-                    <Text
-                      fontSize="md"
-                      fontWeight="700"
-                      color="#1a1a1a"
-                      whiteSpace="nowrap"
+                    {/* TÍTULO DA SEÇÃO */}
+                    <HStack
+                      gap={3}
+                      mb={5}
+                      align="center"
                     >
-                      {menu.name}
-                    </Text>
+                      <Text
+                        fontSize="md"
+                        fontWeight="700"
+                        color="#1a1a1a"
+                        whiteSpace="nowrap"
+                      >
+                        {menu.name}
+                      </Text>
 
-                    <Box
-                      flex="1"
-                      height="1px"
-                      bg="gray.200"
-                    />
-                  </HStack>
+                      <Box
+                        flex="1"
+                        height="1px"
+                        bg="gray.200"
+                      />
+                    </HStack>
 
-                  {/* CAMPOS */}
-                  <Flex
-                    gap={5}
-                    rowGap={5}
-                    flexWrap="wrap"
-                  >
-                    {menuFields.map((field) => {
+                    {/* CAMPOS */}
+                    <Flex
+                      gap={5}
+                      rowGap={5}
+                      flexWrap="wrap"
+                    >
+                      {menuFields.map((field) => {
 
-                      if (field.dependsOn) {
-                        const {
-                          field: dependsField,
-                          value
-                        } = field.dependsOn;
+                        if (field.dependsOn) {
+                          const {
+                            field: dependsField,
+                            value
+                          } = field.dependsOn;
 
-                        if (
-                          formData[dependsField] !== value
-                        ) {
-                          return null;
+                          if (
+                            formData[dependsField] !== value
+                          ) {
+                            return null;
+                          }
                         }
-                      }
 
-                      return (
-                        <Box
-                          key={field._id}
-                          w={{ base: "100%", md: "auto" }}
-                        >
-                          <FormTextArea
-                            field={field}
-                            addMode={isAddMode}
-                            viewMode={isViewMode}
-                            handleChange={handleChange}
-                            data={formData}
-                            currentMode={currentMode}
-                            nextMat={userNextMat}
-                            errors={errors}
-                            dateRegister={formattedDate}
-                          />
-                        </Box>
-                      );
-                    })}
-                  </Flex>
-                </Box>
-              );
-            })}
+                        return (
+                          <Box
+                            key={field._id}
+                            w={{ base: "100%", md: "auto" }}
+                          >
+                            <FormTextArea
+                              field={field}
+                              addMode={isAddMode}
+                              viewMode={isViewMode}
+                              handleChange={handleChange}
+                              data={formData}
+                              currentMode={currentMode}
+                              nextMat={userNextMat}
+                              errors={errors}
+                              dateRegister={formattedDate}
+                            />
+                          </Box>
+                        );
+                      })}
+                    </Flex>
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
 
           {/* BOTÕES INFERIORES NO MOBILE */}
@@ -830,7 +836,6 @@ export default function PeopleManagementDetailed() {
         </Box>
 
       </Box>
-
 
     </VStack>
   );

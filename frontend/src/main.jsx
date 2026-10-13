@@ -47,7 +47,7 @@ const pages = createHashRouter([
       },
 
       {
-        path: "/PeopleManagement/contracts",
+        path: "/PeopleManagementContracts",
         element: <PeopleManagementContracts />,
       },
 

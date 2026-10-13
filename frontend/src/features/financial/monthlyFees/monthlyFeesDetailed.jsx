@@ -12,6 +12,15 @@ import {
 } from "react-icons/fi";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
 
+//Formatters
+import {
+  formatCPF,
+  formatDate,
+  formatName,
+  formatRG,
+  formatProperNoun,
+} from "../../../utils/formatters";
+
 const money = (value) => new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "BRL"
 }).format(Number(value) || 0);
@@ -207,8 +216,31 @@ export default function MonthlyFeesDetailed() {
   const balance = Math.max(Number(selected.amount) - paidAmount, 0);
 
   return (
+
     <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9">
+
+      {/* TÍTULO */}
+      <Flex>
+        <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
+          <FiArrowLeft /> Voltar
+        </Button>
+        <Flex align="center" gap={3} marginLeft={12}>
+          <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}>
+            <FiCalendar size={18} />
+          </Flex>
+          <Box>
+            <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
+              Mensalidades
+            </Heading>
+            <Text fontSize="11px" color="#60777c">
+              Acompanhamento financeiro do aluno
+            </Text>
+          </Box>
+        </Flex>
+      </Flex>
+
       {/* Cabeçalho */}
+      {/*
       <Flex align="center" gap={4} wrap="wrap">
         <Button variant="ghost" onClick={() => navigate(-1)}
           color="#174f4a" size="sm">
@@ -225,33 +257,71 @@ export default function MonthlyFeesDetailed() {
           </Text>
         </Box>
       </Flex>
+      */}
 
-      <Flex gap={3} direction={{ base: "column", xl: "row" }}>
-        {/* Conteúdo principal */}
-        <Box flex="1" minW={0} bg="white"
-          border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
-
-          {/* Dados do aluno */}
-          <Flex p={4} align="center" gap={4}>
-            <Avatar.Root size="xl">
-              <Avatar.Image src={student.avatar} />
-              <Avatar.Fallback name={student.name} />
+      {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
+      <Box
+        bg="white"
+        borderWidth="1px"
+        borderColor="gray.200"
+        borderRadius="8px"
+        overflow="hidden"
+        width="100%"
+      >
+        {/* DADOS DO ALUNO */}
+        <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
+          <HStack gap={4} minW={0}>
+            <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
+              <Avatar.Fallback name={student.user_name || student.name || "Usuário"} />
+              {(student.user_photo || student.photo) && (
+                <Avatar.Image src={student.user_photo || student.photo} />
+              )}
             </Avatar.Root>
-            <Box>
-              <Heading fontSize="19px" color="#003b36">
-                {student.name || "Aluno"}
+
+            <Box minW={0}>
+              <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
+                {formatName(student.user_name || student.name || "Usuário")}
               </Heading>
-              <Text mt={1} fontSize="12px" color="#60777c">
-                MAT: {student.id || "—"}
+              <Text mt="5px" fontSize="12px" color="#60777c">
+                Matrícula: {student.id || "-"}
               </Text>
-              <Text mt={1} fontSize="11px" color="#60777c">
-                {student.activity || ""}
-              </Text>
+              <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
+                <FiCheck /> Aluno ativo
+              </Badge>
             </Box>
+          </HStack>
+        </Flex>
+
+        {/* ABAS */}
+        <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
+          {["Visão geral", "Contratos", "Mensalidades", "Pagamentos", "Histórico"].map((tab) =>
+            <Button
+              key={tab}
+              flexShrink={0}
+              h="44px" px="12px"
+              variant="ghost"
+              borderRadius="0"
+              color={tab === "Mensalidades" ? "#063f39" : "#506a67"}
+              fontSize="12px"
+              fontWeight={tab === "Mensalidades" ? "700" : "500"}
+              borderBottom={tab === "Mensalidades" ? "3px solid #063f39" : "3px solid transparent"}>
+              {tab}
+            </Button>
+          )}
+        </Flex>
+      </Box>
+
+      {/* MENSALIDADES - CONTEUDO PRINCIPAL */}
+      <Flex gap={3} direction={{ base: "column", xl: "row" }}>
+
+        <Flex direction={{ base: "column", lg: "column" }} gap={3} flex="1" minW={0} bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
+
+          <Flex align="center" justify="space-between" px={4} py={3} borderBottom="1px solid #e6ecea" gap={2} flexWrap="wrap">
+            <Heading fontSize="16px" color="#062f2b">Informações da mensalidade</Heading>
           </Flex>
 
           {/* Contrato */}
-          <Box mx={4} mb={3} p={3} bg="#f6f9f8"
+          <Box p={3} mx={3} bg="#f6f9f8"
             border="1px solid #e2e8e7" borderRadius="8px">
             <Text fontSize="10px" color="#60777c">Contrato</Text>
             <Text mt={1} fontWeight="700" fontSize="13px" color="#174f4a">
@@ -260,7 +330,7 @@ export default function MonthlyFeesDetailed() {
           </Box>
 
           {/* Indicadores */}
-          <SimpleGrid columns={{ base: 2, lg: 4 }} gap={3} p={4}>
+          <SimpleGrid mx={3} columns={{ base: 2, lg: 4 }} gap={3}>
             {cards.map((card) => {
               const Icon = card.icon;
               return (
@@ -286,15 +356,15 @@ export default function MonthlyFeesDetailed() {
             })}
           </SimpleGrid>
 
+
           {/* Lista de mensalidades */}
-          <Box p={4}>
-            <Heading fontSize="17px" color="#062f2b" mb={1}>
-              Mensalidades do aluno
-            </Heading>
-            <Text fontSize="11px" color="#60777c" mb={3}>
+          <Box mx={3}>
+            <Text fontSize="12px" color="#60777c">
               Selecione uma mensalidade para consultar ou registrar pagamentos.
             </Text>
+          </Box>
 
+          <Box mx={3}>
             <Box border="1px solid #e2e8e7" borderRadius="8px"
               overflowX="auto">
               <Table.Root size="sm" minW="650px">
@@ -335,11 +405,11 @@ export default function MonthlyFeesDetailed() {
                 </Table.Body>
               </Table.Root>
             </Box>
-            <Text mt={3} fontSize="10px" color="#60777c">
+            <Text my={3} fontSize="10px" color="#60777c">
               Mostrando {installments.length} mensalidades.
             </Text>
           </Box>
-        </Box>
+        </Flex>
 
         {/* Detalhes da mensalidade selecionada */}
         <Box w={{ base: "100%", xl: "330px" }} flexShrink={0}
