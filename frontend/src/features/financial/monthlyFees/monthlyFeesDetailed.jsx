@@ -1,4 +1,4 @@
-import StudentNavigation from "../../../components/studentNavigation";
+import StudentNavigation from "../../../components/StudentNavigation";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
