@@ -12,7 +12,7 @@ import Home from "./home/home.jsx";
 import PeopleManagement from "./features/register/pages/peopleManagement.jsx";
 import PeopleManagementDetailed from "./features/register/pages/peopleManagementDetailed.jsx";
 import PeopleManagementContracts from "./features/register/pages/peopleManagementContracts.jsx";
-import PeopleManagementPayments from "./features/register/pages/PeopleManagementPayments.jsx";
+import PeopleManagementPayments from "./features/register/pages/peopleManagementPayments.jsx";
 
 import ActivityAttendance from "./features/activities/pages/activityAttendance.jsx";
 import ActivityManagement from "./features/activities/pages/activityManagement.jsx";
