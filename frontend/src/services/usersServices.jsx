@@ -1,5 +1,16 @@
 import { useState } from "react";
 
+/* Consulta um aluno diretamente pelo _id do MongoDB. */
+export async function fetchUserById(userId) {
+  if (!userId) throw new Error("ID do aluno não informado.");
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/users/${encodeURIComponent(userId)}`);
+  const result = await response.json();
+  if (!response.ok || result.success === false) {
+    throw new Error(typeof result.body === "string" ? result.body : "Não foi possível consultar o aluno.");
+  }
+  return result.body;
+}
+
 export default function usersServices() {
   const [usersByType, setUsersByType] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -178,6 +189,7 @@ export default function usersServices() {
   };
 
   return {
+    getUserById: fetchUserById,
     addUser,
     getUsers,
     getUserNextMat,

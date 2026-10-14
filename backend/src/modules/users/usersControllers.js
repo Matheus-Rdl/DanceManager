@@ -1,5 +1,6 @@
 import UsersDataAccess from "./usersDataAccess.js";
-import { ok, serverError } from "../../helpers/httpResponse.js";
+import { ok, badRequest, notFound, serverError } from "../../helpers/httpResponse.js";
+import mongoose from "mongoose";
 
 export default class UsersControllers {
   constructor() {
@@ -10,6 +11,17 @@ export default class UsersControllers {
     try {
       const users = await this.dataAccess.getUsers();
       return ok(users);
+    } catch (error) {
+      return serverError(error);
+    }
+  }
+
+  /* Busca um único aluno pelo _id. */
+  async getUserById(userId) {
+    try {
+      if (!mongoose.isValidObjectId(userId)) return badRequest("ID do aluno inválido.");
+      const user = await this.dataAccess.getUser(userId);
+      return user ? ok(user) : notFound("Aluno não encontrado.");
     } catch (error) {
       return serverError(error);
     }

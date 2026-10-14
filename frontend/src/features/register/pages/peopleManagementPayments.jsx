@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Dialog, Flex, Heading, HStack, NativeSelect, Portal, SimpleGrid, Table, Text, VStack } from "@chakra-ui/react";
 import { FiArrowLeft, FiCalendar, FiCheck, FiCreditCard, FiDollarSign, FiEye, FiFileText, FiX } from "react-icons/fi";
+
+//Components
+import StudentProfileHeader from "../../../components/StudentProfileHeader";
 import StudentNavigation from "../../../components/StudentNavigation";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
 import paymentsServices from "../../../services/paymentsServices";
@@ -56,8 +59,10 @@ export default function PeopleManagementPayments() {
     return (Array.isArray(paymentsList) ? paymentsList : []).filter((payment) => getId(payment.userId) === getId(studentId)).map((payment, index) => {
       const feeId = getId(payment.monthlyFeeId);
       const fee = payment.monthlyFee || byFee.get(feeId);
-      return { ...payment, _key: `${feeId}-${getId(payment) || index}`, _feeId: feeId,
-        _reference: fee?.reference || "", _feeAmount: fee?.amount == null ? null : Number(fee.amount), _dueDate: fee?.dueDate };
+      return {
+        ...payment, _key: `${feeId}-${getId(payment) || index}`, _feeId: feeId,
+        _reference: fee?.reference || "", _feeAmount: fee?.amount == null ? null : Number(fee.amount), _dueDate: fee?.dueDate
+      };
     }).sort((a, b) => String(paymentDate(b)).localeCompare(String(paymentDate(a))));
   }, [paymentsList, installments, studentId]);
   const loadingPayments = paymentsLoading;
@@ -115,13 +120,32 @@ export default function PeopleManagementPayments() {
 
   return (
     <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9">
-      {/* Título */}
-      <Flex align="center" gap={3}>
-        <Button onClick={() => navigate(-1)} variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px"><FiArrowLeft /> Voltar</Button>
-        <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center"><FiCreditCard size={18} /></Flex>
-        <Box><Heading fontSize={{ base: "16px", md: "20px" }} color="#062f2b">Pagamentos</Heading><Text fontSize="11px" color="#60777c">Histórico financeiro individual do aluno</Text></Box>
+      {/* TITULO */}
+      <Flex>
+        <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
+          <FiArrowLeft /> Voltar
+        </Button>
+        <Flex align="center" gap={3} marginLeft={12}>
+          <Flex w="36px" h="36px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}>
+            <FiCreditCard size={18} />
+          </Flex>
+          <Box>
+            <Heading as="h1" fontSize={{ base: "16px", md: "20px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">
+              Pagamentos
+            </Heading>
+            <Text fontSize="11px" color="#60777c">
+              Histórico financeiro individual do aluno
+            </Text>
+          </Box>
+        </Flex>
       </Flex>
-      {/* Identificação do aluno e abas */}
+      
+      <StudentProfileHeader
+        userId={studentId}
+        activeTab="Pagamentos"
+      />
+
+      {/* Identificação do aluno e abas 
       <Box bg="white" border="1px solid #e2e8e7" borderRadius="8px" overflow="hidden">
         <Flex px={{ base: 3, md: 4 }} py={4} align="center" gap={4}>
           <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
@@ -136,6 +160,7 @@ export default function PeopleManagementPayments() {
         </Flex>
         <StudentNavigation activeTab="Pagamentos" userId={studentId} userData={studentData} />
       </Box>
+      */}
       {!studentId && <Box p={4} bg="#fff2d8" borderRadius="8px"><Text fontSize="12px">Não foi possível identificar o aluno. Acesse esta aba pelo cadastro do aluno.</Text></Box>}
       {(monthlyFeesError || paymentsError) && <Box p={3} bg="#fff2d8" borderRadius="8px"><Text fontSize="12px" color="#8a5a00">{monthlyFeesError || paymentsError}</Text></Box>}
       {/* Conteúdo principal */}
@@ -143,10 +168,12 @@ export default function PeopleManagementPayments() {
         <VStack gap={3} align="stretch" flex="1" minW={0} bg="white" border="1px solid #d7e2df" borderRadius="8px" p={3}>
           <Heading fontSize="16px" color="#062f2b">Informações dos pagamentos</Heading>
           <SimpleGrid columns={{ base: 2, lg: 4 }} gap={3}>
-            {cards.map((card) => { const Icon = card.icon; return <Flex key={card.title} p={3} gap={2} bg={card.bg} border="1px solid #e2e8e7" borderRadius="8px" align="flex-start">
-              <Box color={card.color} mt={1}><Icon size={18} /></Box>
-              <Box minW={0}><Text fontSize="10px" color="#60777c">{card.title}</Text><Text fontSize={{ base: "15px", md: "19px" }} fontWeight="800" color={card.color}>{card.value}</Text><Text fontSize="10px" color="#60777c">{card.detail}</Text></Box>
-            </Flex>; })}
+            {cards.map((card) => {
+              const Icon = card.icon; return <Flex key={card.title} p={3} gap={2} bg={card.bg} border="1px solid #e2e8e7" borderRadius="8px" align="flex-start">
+                <Box color={card.color} mt={1}><Icon size={18} /></Box>
+                <Box minW={0}><Text fontSize="10px" color="#60777c">{card.title}</Text><Text fontSize={{ base: "15px", md: "19px" }} fontWeight="800" color={card.color}>{card.value}</Text><Text fontSize="10px" color="#60777c">{card.detail}</Text></Box>
+              </Flex>;
+            })}
           </SimpleGrid>
           {/* Filtros por ano, mês e forma de pagamento */}
           <Flex gap={2} wrap="wrap" align="center">

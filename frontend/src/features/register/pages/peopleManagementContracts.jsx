@@ -1,3 +1,5 @@
+//Components
+import StudentProfileHeader from "../../../components/StudentProfileHeader";
 import StudentNavigation from "../../../components/StudentNavigation";
 import { useEffect, useState } from "react";
 import {
@@ -1058,7 +1060,16 @@ export default function PeopleManagementContracts() {
         </Flex>
         <Button size="sm" h="36px" px={4} bg="#064e43" color="white" borderRadius="8px" fontSize="12px" fontWeight="700" _hover={{ bg: "#043f37" }} onClick={handleNewContract} disabled={!!activeContract || contractsLoading}><LuPlus /> Novo contrato</Button>
       </Flex>
-      {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
+
+      <StudentProfileHeader
+        userId={userId}
+        activeTab="Contratos"
+        activeContract={activeContract || null}
+        contractsLoading={contractsLoading}
+        showContractStatus
+      />
+
+      {/* NAVEGAÇÃO - DADOS DE USUÁRIO 
       <Box
         bg="white"
         borderWidth="1px"
@@ -1067,7 +1078,7 @@ export default function PeopleManagementContracts() {
         overflow="hidden"
         width="100%"
       >
-        {/* DADOS DO ALUNO */}
+        {/* DADOS DO ALUNO 
         <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
           <HStack gap={4} minW={0}>
             <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
@@ -1094,9 +1105,11 @@ export default function PeopleManagementContracts() {
             </Box>
           </HStack>
         </Flex>
-        {/* ABAS */}
+        {/* ABAS 
           <StudentNavigation activeTab="Contratos" userId={userId} userData={userData} />
       </Box>
+      */}
+
       {/* LISTA - CONTEUDO PRINCIPAL */}
       <Box
         bg="white"

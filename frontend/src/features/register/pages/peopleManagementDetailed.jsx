@@ -12,6 +12,7 @@ import usersServices from "../../../services/usersServices";
 import { toaster } from "../../../components/ui/toaster";
 import HeadingPage from "../../../components/headingPage";
 import FormTextArea from "../../../components/formTextArea";
+import StudentProfileHeader from "../../../components/StudentProfileHeader";
 import StudentNavigation from "../../../components/StudentNavigation";
 //React Icons
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
@@ -414,8 +415,17 @@ export default function PeopleManagementDetailed() {
           </Box>
         </Flex>
       </Flex>
+
       {/* NAVEGAÇÃO - DADOS DE USUÁRIO */}
       {/* MOSTRA SOMENTE EM MODO DE VISUALIZAÇÃO E EDIÇÃO !!!*/}
+      {!isAddMode && (
+        <StudentProfileHeader
+          userId={userId}
+          activeTab="Visão geral"
+        />
+      )}
+
+      {/*
       {!isAddMode && (
         <Box
           bg="white"
@@ -425,7 +435,7 @@ export default function PeopleManagementDetailed() {
           overflow="hidden"
           width="100%"
         >
-          {/* DADOS DO ALUNO */}
+          {/* DADOS DO ALUNO 
           <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
             <HStack gap={4} minW={0}>
               <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
@@ -447,10 +457,11 @@ export default function PeopleManagementDetailed() {
               </Box>
             </HStack>
           </Flex>
-          {/* ABAS */}
+          {/* ABAS 
           <StudentNavigation activeTab="Visão geral" userId={userId} userData={formData} />
         </Box>
       )}
+      */}
       {/* FORMULÁRIO - CONTEUDO PRINCIPAL */}
       <Box
         bg="white"

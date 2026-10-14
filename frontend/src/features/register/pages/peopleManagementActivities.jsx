@@ -5,6 +5,8 @@ import { FiArrowLeft, FiCalendar, FiCheck, FiClock, FiPlus, FiUsers } from "reac
 import { TbUserSquareRounded } from "react-icons/tb";
 import activitiesServices from "../../../services/activitiesServices";
 import DialogAddActivity from "./dialog/dialogAddActivity";
+//Components
+import StudentProfileHeader from "../../../components/StudentProfileHeader";
 import StudentNavigation from "../../../components/StudentNavigation";
 //Formatters
 import {
@@ -63,8 +65,14 @@ export default function PeopleManagementActivities() {
           </Box>
         </Flex>
       </Flex>
+      
+      <StudentProfileHeader
+        userId={userId}
+        activeTab="Turmas"
+      />
+      {/* NAVEGAÇÃO - DADOS DE USUÁRIO 
       <Box bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
-        {/* DADOS DO ALUNO */}
+        {/* DADOS DO ALUNO 
         <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
           <HStack gap={4} minW={0}>
             <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
@@ -88,6 +96,7 @@ export default function PeopleManagementActivities() {
         </Flex>
         <StudentNavigation activeTab="Turmas" userId={userId || userData?._id} userData={userData} />
       </Box>
+      */}
       {/* Indicadores calculados com as turmas retornadas pelo serviço. */}
       <SimpleGrid columns={{ base: 1, sm: 3 }} gap={3}>
         {[{ title: "Turmas matriculadas", value: activities.length, icon: FiUsers }, { title: "Dias na semana", value: uniqueDays, icon: FiCalendar }, { title: "Carga semanal", value: `${Math.floor(totalMinutes / 60)}h${totalMinutes % 60 ? ` ${totalMinutes % 60}min` : ""}`, icon: FiClock }].map(({ title, value, icon: Icon }) => (
