@@ -12,6 +12,8 @@ import menusRouter from "./modules/menus/menusRouter.js";
 import attendancesRouter from "./modules/attendances/attendancesRouter.js";
 import monthlyFeesRouter from "./modules/monthlyFees/monthlyFeesRouter.js";
 import paymentsRouter from "./modules/payments/paymentsRouter.js";
+import MonthlyFee from "./models/MonthlyFee.js";
+import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
 
 // Em ES Modules, precisamos recriar as variáveis __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -88,6 +90,21 @@ async function main() {
       body: "Erro interno no servidor. A operação não pôde ser concluída."
     });
   });
+
+  /* Geração de competências na inicialização e periodicamente.
+     Também ocorre sob demanda em GET /monthly-fees, caso o servidor fique suspenso. */
+  await MonthlyFee.init(); // Garante o índice único (contractId + reference).
+  const runFeeGeneration = async () => {
+    try {
+      const count = await ensureAllActiveMonthlyFees();
+      if (count) console.log(`[Mensalidades] ${count} novas competências criadas.`);
+    } catch (error) {
+      console.error("[Mensalidades] Erro na geração automática:", error);
+    }
+  };
+  await runFeeGeneration();
+  const generationInterval = setInterval(runFeeGeneration, 6 * 60 * 60 * 1000);
+  generationInterval.unref?.();
 
   // Start the server and listen on the defined port
   app.listen(port, "0.0.0.0", () => {

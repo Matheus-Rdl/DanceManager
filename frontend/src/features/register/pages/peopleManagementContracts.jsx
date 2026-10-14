@@ -117,6 +117,7 @@ export default function PeopleManagementContracts() {
     contractToEnd,
     setContractToEnd,
   ] = useState(null);
+  const [saveError, setSaveError] = useState("");
   // ============================================================
   // FORMULÁRIO
   // ============================================================
@@ -192,6 +193,11 @@ export default function PeopleManagementContracts() {
     }
     return "Plano";
   };
+  /* Mantém os Personalizados antigos que foram criados sem prazo final.
+     Novos Personalizados devem obrigatoriamente ter data final. */
+  const legacyCustomIndefinite = dialogMode !== "new" && selectedContract &&
+    getContractType(selectedContract) === "Personalizado" &&
+    (selectedContract.indefinite === true || !selectedContract.plannedEndDate);
   // ============================================================
   // FORMATAR DINHEIRO
   // ============================================================
@@ -276,69 +282,17 @@ export default function PeopleManagementContracts() {
   // ============================================================
   // CALCULAR FIM DO PLANO
   // ============================================================
-  const calculateEndDate = (
-    startDate,
-    periodicity
-  ) => {
-    if (
-      !startDate ||
-      !periodicity
-    ) {
-      return "";
-    }
-    const [
-      year,
-      month,
-      day,
-    ] = startDate
-      .split("-")
-      .map(Number);
-    const date = new Date(
-      year,
-      month - 1,
-      day
-    );
-    if (
-      periodicity === "Mensal"
-    ) {
-      date.setMonth(
-        date.getMonth() + 1
-      );
-    }
-    if (
-      periodicity === "Semestral"
-    ) {
-      date.setMonth(
-        date.getMonth() + 6
-      );
-    }
-    if (
-      periodicity === "Anual"
-    ) {
-      date.setFullYear(
-        date.getFullYear() + 1
-      );
-    }
-    date.setDate(
-      date.getDate() - 1
-    );
-    const finalYear =
-      date.getFullYear();
-    const finalMonth =
-      String(
-        date.getMonth() + 1
-      ).padStart(
-        2,
-        "0"
-      );
-    const finalDay =
-      String(
-        date.getDate()
-      ).padStart(
-        2,
-        "0"
-      );
-    return `${finalYear}-${finalMonth}-${finalDay}`;
+  const calculateEndDate = (startDate, periodicity) => {
+    if (!startDate || !periodicity) return "";
+    const months = { Mensal: 1, Semestral: 6, Anual: 12 }[periodicity];
+    if (!months) return "";
+    const [year, month, day] = startDate.split("-").map(Number);
+    const nextMonth = new Date(Date.UTC(year, month - 1 + months, 1));
+    const y = nextMonth.getUTCFullYear();
+    const m = nextMonth.getUTCMonth() + 1;
+    const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const end = new Date(Date.UTC(y, m - 1, Math.min(day, lastDay) - 1));
+    return end.toISOString().slice(0, 10);
   };
   // ============================================================
   // VALOR DO PLANO
@@ -367,11 +321,8 @@ export default function PeopleManagementContracts() {
     field,
     value
   ) => {
-    if (
-      dialogMode === "view"
-    ) {
-      return;
-    }
+    if (dialogMode === "view" || (dialogMode === "edit" && field === "contractType")) return;
+    setSaveError("");
     setFormData((prev) => {
       const updated = {
         ...prev,
@@ -398,20 +349,16 @@ export default function PeopleManagementContracts() {
           updated.customValue = "";
         }
         // ------------------------------------------------------
-        // PERSONALIZADO
+        // MENSAL: valor livre, sem data final.
+        // PERSONALIZADO: valor livre, com data inicial e final.
         // ------------------------------------------------------
-        if (
-          value === "Personalizado"
-        ) {
+        if (value === "Mensal" || value === "Personalizado") {
           updated.plan = "";
-          updated.periodicity = "";
+          updated.periodicity = "Mensal";
           updated.baseValue = 0;
-          updated.contractedValue =
-            Number(
-              prev.customValue || 0
-            );
+          updated.contractedValue = Number(prev.customValue || 0);
           updated.plannedEndDate = "";
-          updated.indefinite = false;
+          updated.indefinite = value === "Mensal";
         }
         // ------------------------------------------------------
         // BOLSISTA
@@ -503,8 +450,7 @@ export default function PeopleManagementContracts() {
         field === "customValue"
       ) {
         if (
-          prev.contractType ===
-          "Personalizado"
+          ["Mensal", "Personalizado"].includes(prev.contractType)
         ) {
           updated.contractedValue =
             Number(
@@ -533,6 +479,7 @@ export default function PeopleManagementContracts() {
       return;
     }
     setSelectedContract(null);
+    setSaveError("");
     setDialogMode("new");
     setFormData({
       contractType: "Plano",
@@ -563,8 +510,7 @@ export default function PeopleManagementContracts() {
         contract.plan ||
         "",
       periodicity:
-        contract.periodicity ||
-        "",
+        contract.periodicity || (["Mensal", "Personalizado"].includes(contractType) ? "Mensal" : ""),
       baseValue:
         contract.baseValue ??
         "",
@@ -583,8 +529,7 @@ export default function PeopleManagementContracts() {
         contract.specialCondition
           ?.customValue ??
         (
-          contractType ===
-            "Personalizado"
+          ["Mensal", "Personalizado"].includes(contractType)
             ? contract.contractedValue
             : ""
         ),
@@ -596,12 +541,9 @@ export default function PeopleManagementContracts() {
   const handleViewContract = (
     contract
   ) => {
-    setSelectedContract(
-      contract
-    );
-    setDialogMode(
-      "view"
-    );
+    setSelectedContract(contract);
+    setSaveError("");
+    setDialogMode("view");
     setFormData(
       buildFormFromContract(
         contract
@@ -624,12 +566,9 @@ export default function PeopleManagementContracts() {
     ) {
       return;
     }
-    setSelectedContract(
-      contract
-    );
-    setDialogMode(
-      "edit"
-    );
+    setSelectedContract(contract);
+    setSaveError("");
+    setDialogMode("edit");
     setFormData(
       buildFormFromContract(
         contract
@@ -747,26 +686,13 @@ export default function PeopleManagementContracts() {
       }
     }
     // ----------------------------------------------------------
-    // PERSONALIZADO
+    // MENSAL E PERSONALIZADO: ambos têm valor definido livremente.
+    // O Personalizado novo exige data final; contratos legados indeterminados são preservados.
     // ----------------------------------------------------------
-    if (
-      formData.contractType ===
-      "Personalizado"
-    ) {
-      if (
-        !formData.customValue ||
-        Number(
-          formData.customValue
-        ) <= 0
-      ) {
-        return false;
-      }
-      if (
-        !formData.indefinite &&
-        !formData.plannedEndDate
-      ) {
-        return false;
-      }
+    if (["Mensal", "Personalizado"].includes(formData.contractType)) {
+      if (!Number.isFinite(Number(formData.customValue)) || Number(formData.customValue) <= 0) return false;
+      if (formData.contractType === "Personalizado" && !legacyCustomIndefinite &&
+          (!formData.plannedEndDate || formData.plannedEndDate < formData.startDate)) return false;
     }
     // ----------------------------------------------------------
     // BOLSISTA
@@ -782,6 +708,9 @@ export default function PeopleManagementContracts() {
         return false;
       }
     }
+    if (formData.contractType === "Plano" && formData.plannedEndDate < formData.startDate) return false;
+    if (formData.contractType === "Bolsista" && !formData.indefinite &&
+        formData.plannedEndDate < formData.startDate) return false;
     return true;
   };
   // ============================================================
@@ -849,19 +778,15 @@ export default function PeopleManagementContracts() {
           );
       }
       // ========================================================
-      // PERSONALIZADO
+      // MENSAL: indeterminado. PERSONALIZADO: com fim previsto.
+      // Contratos Personalizados antigos sem fim continuam indeterminados.
       // ========================================================
-      if (
-        formData.contractType ===
-        "Personalizado"
-      ) {
+      if (["Mensal", "Personalizado"].includes(formData.contractType)) {
         baseValue = 0;
-        contractedValue =
-          Number(
-            formData.customValue || 0
-          );
+        contractedValue = Number(formData.customValue || 0);
         plan = null;
-        periodicity = null;
+        periodicity = "Mensal";
+        if (formData.contractType === "Mensal" || legacyCustomIndefinite) plannedEndDate = null;
       }
       // ========================================================
       // BOLSISTA
@@ -889,11 +814,10 @@ export default function PeopleManagementContracts() {
         startDate:
           formData.startDate,
         plannedEndDate,
-        indefinite:
-          formData.indefinite === true,
+        indefinite: formData.contractType === "Mensal" || legacyCustomIndefinite ||
+          (formData.contractType === "Bolsista" && formData.indefinite === true),
         specialCondition:
-          formData.contractType ===
-            "Personalizado"
+          ["Mensal", "Personalizado"].includes(formData.contractType)
             ? {
               type:
                 "Valor personalizado",
@@ -928,6 +852,7 @@ export default function PeopleManagementContracts() {
               contractData
             );
           if (!result?.ok) {
+            setSaveError(result?.serverError || "Não foi possível criar o contrato.");
             return;
           }
         } catch (error) {
@@ -952,6 +877,7 @@ export default function PeopleManagementContracts() {
               contractData
             );
           if (!result?.ok) {
+            setSaveError(result?.serverError || "Não foi possível atualizar o contrato.");
             return;
           }
         } catch (error) {
@@ -1244,10 +1170,7 @@ export default function PeopleManagementContracts() {
                         value={
                           formData.contractType
                         }
-                        disabled={
-                          dialogMode ===
-                          "view"
-                        }
+                        disabled={dialogMode !== "new"}
                         onChange={(e) =>
                           handleChange(
                             "contractType",
@@ -1257,6 +1180,9 @@ export default function PeopleManagementContracts() {
                       >
                         <option value="Plano">
                           Plano
+                        </option>
+                        <option value="Mensal">
+                          Mensal
                         </option>
                         <option value="Personalizado">
                           Personalizado
@@ -1274,9 +1200,12 @@ export default function PeopleManagementContracts() {
                       {formData.contractType ===
                         "Plano" &&
                         "Contrato baseado em um dos planos da escola."}
-                      {formData.contractType ===
-                        "Personalizado" &&
-                        "Contrato sem plano, com valor mensal definido pelo professor."}
+                      {formData.contractType === "Mensal" &&
+                        "Valor mensal definido livremente, sem vínculo com plano e sem data final."}
+                      {formData.contractType === "Personalizado" &&
+                        (legacyCustomIndefinite
+                          ? "Contrato antigo sem prazo final, preservado para manter o histórico."
+                          : "Valor mensal personalizado, sem vínculo com plano e com início e fim definidos.")}
                       {formData.contractType ===
                         "Bolsista" &&
                         "Contrato com bolsa integral e valor mensal de R$ 0,00."}
@@ -1390,10 +1319,9 @@ export default function PeopleManagementContracts() {
                       </>
                     )}
                   {/* ==================================================
-                      PERSONALIZADO
+                      MENSAL / PERSONALIZADO
                       ================================================== */}
-                  {formData.contractType ===
-                    "Personalizado" && (
+                  {["Mensal", "Personalizado"].includes(formData.contractType) && (
                       <Box
                         borderWidth="1px"
                         borderRadius="md"
@@ -1432,11 +1360,18 @@ export default function PeopleManagementContracts() {
                             fontSize="xs"
                             color="gray.500"
                           >
-                            Este contrato não estará
-                            vinculado a nenhum plano.
-                            O valor informado será o
-                            valor mensal da cobrança.
+                            Este contrato não está vinculado a nenhum plano.
+                            {formData.contractType === "Mensal"
+                              ? " A cobrança será mensal e continuará até o contrato ser encerrado."
+                              : legacyCustomIndefinite
+                                ? " Contrato antigo sem data final, mantido por compatibilidade."
+                                : " A cobrança será mensal entre as datas inicial e final."}
                           </Text>
+                          <Badge colorPalette="green" alignSelf="flex-start">
+                            {formData.contractType === "Mensal" || legacyCustomIndefinite
+                              ? "Mensal • Prazo indeterminado"
+                              : "Personalizado • Período definido"}
+                          </Badge>
                         </VStack>
                       </Box>
                     )}
@@ -1512,8 +1447,8 @@ export default function PeopleManagementContracts() {
                         }
                       />
                     </Field.Root>
-                    {/* FIM PREVISTO */}
-                    <Field.Root>
+                    {/* Mensal não tem fim. Mantemos o Personalizado indeterminado legado. */}
+                    {formData.contractType !== "Mensal" && !legacyCustomIndefinite && <Field.Root>
                       <Field.Label fontSize="12px" fontWeight="600" color="#315650">
                         Fim previsto
                       </Field.Label>
@@ -1547,13 +1482,12 @@ export default function PeopleManagementContracts() {
                           )
                         }
                       />
-                    </Field.Root>
+                    </Field.Root>}
                   </HStack>
                   {/* ==================================================
                       PRAZO INDETERMINADO
                       ================================================== */}
-                  {formData.contractType !==
-                    "Plano" && (
+                  {formData.contractType === "Bolsista" && (
                       <Field.Root>
                         <HStack>
                           <input
@@ -1665,6 +1599,7 @@ export default function PeopleManagementContracts() {
                     ? "Fechar"
                     : "Cancelar"}
                 </Button>
+                {saveError && <Text color="red.600" fontSize="12px">{saveError}</Text>}
                 {dialogMode !== "view" && (
                   <Button
                     onClick={

@@ -1,723 +1,200 @@
 import crypto from "crypto";
-
+import mongoose from "mongoose";
 import Contract from "../../models/Contract.js";
 import MonthlyFee from "../../models/MonthlyFee.js";
 import Payment from "../../models/Payment.js";
+import {
+  buildMonthlyFees, ensureMonthlyFeesForContract, getContractType, todayInBrazil
+} from "../monthlyFees/monthlyFeeGeneration.js";
 
-
-
-
-// ============================================================
-// MENSALIDADES DO CONTRATO
-// ============================================================
-const toISODate = (date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+const TYPES = ["Plano", "Mensal", "Personalizado", "Bolsista"];
+const isDate = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  return month >= 1 && month <= 12 && day >= 1 && day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 };
+const failure = (res, status, message) => res.status(status).json({ ok: false, serverError: message });
+const hasPayments = async (id) => Boolean(await Payment.exists({ contractId: id }));
 
-const addMonthsSafe = (isoDate, months) => {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const lastDay = new Date(year, month + months, 0).getDate();
-  return toISODate(new Date(year, month - 1 + months, Math.min(day, lastDay)));
-};
+/* Compatibilidade: contratos Personalizados indeterminados já cadastrados
+   continuam com suas regras anteriores, sem conversão automática do histórico. */
+const isLegacyIndefiniteCustom = (contract) => Boolean(
+  contract && getContractType(contract) === "Personalizado" &&
+  (contract.indefinite === true || !contract.plannedEndDate)
+);
 
-/* Retorna o último dia do mês */
-const getLastDayOfMonth = (reference) => {
-  const [year, month] = reference.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-};
-
-const buildMonthlyFees = (contract) => {
-  const fees = [];
-  const startDate = contract.startDate;
-  const endDate = contract.plannedEndDate;
-
-  if (!startDate) return fees;
-
-  /* Contratos indeterminados geram inicialmente uma mensalidade */
-  const maxInstallments = contract.indefinite || !endDate ? 1 : 120;
-
-  for (let index = 0; index < maxInstallments; index += 1) {
-    const periodStart = addMonthsSafe(startDate, index);
-    if (endDate && periodStart > endDate) break;
-
-    const nextPeriodStart = addMonthsSafe(startDate, index + 1);
-    const next = new Date(`${nextPeriodStart}T12:00:00`);
-    next.setDate(next.getDate() - 1);
-
-    const reference = periodStart.slice(0, 7);
-    const dueDate = getLastDayOfMonth(reference);
-    const today = new Date().toISOString().split("T")[0];
-
-    fees.push({
-      id: crypto.randomUUID(),
-      contractId: contract.id,
-      userId: contract.userId,
-      reference,
-      number: index + 1,
-      periodStart,
-      periodEnd: toISODate(next),
-      dueDate,
-      amount: Number(contract.contractedValue || 0),
-      paidAmount: 0,
-      status: dueDate < today ? "overdue" : dueDate === today ? "pending" : "upcoming",
-      createdAt: new Date().toISOString()
-    });
+const normalizePayload = (body, original = null) => {
+  const type = original ? getContractType(original) : body.contractType;
+  if (!TYPES.includes(type)) throw new Error("Tipo de contrato inválido.");
+  if (original && body.contractType != null && body.contractType !== type) {
+    throw new Error("O tipo do contrato não pode ser alterado após sua criação.");
   }
+  if (!isDate(body.startDate)) throw new Error("Informe uma data de início válida.");
+  const rawValue = Number(body.contractedValue);
+  if (!Number.isFinite(rawValue) || rawValue < 0) throw new Error("Valor do contrato inválido.");
+  if (type !== "Bolsista" && rawValue <= 0) throw new Error("Informe um valor mensal maior que zero.");
 
-  return fees;
+  const legacyIndefinite = isLegacyIndefiniteCustom(original);
+  const indefinite = type === "Mensal" || legacyIndefinite ||
+    (type === "Bolsista" && body.indefinite === true);
+  const plannedEndDate = indefinite ? null : body.plannedEndDate || null;
+  if (!indefinite && !isDate(plannedEndDate)) throw new Error("Informe uma data final válida.");
+  if (!indefinite && plannedEndDate < body.startDate) throw new Error("A data final é anterior ao início.");
+
+  if (type === "Plano" && (!body.plan || !["Mensal", "Semestral", "Anual"].includes(body.periodicity))) {
+    throw new Error("Selecione um plano e uma duração válidos.");
+  }
+  // Os contratos Mensal e Personalizado não dependem de um plano da escola.
+  const value = type === "Bolsista" ? 0 : rawValue;
+  const baseValue = type === "Plano" ? Number(body.baseValue || 0) : 0;
+  if (!Number.isFinite(baseValue) || baseValue < 0) throw new Error("Valor base inválido.");
+  return {
+    contractType: type,
+    plan: type === "Plano" ? body.plan : null,
+    periodicity: type === "Plano" ? body.periodicity :
+      ["Mensal", "Personalizado"].includes(type) ? "Mensal" : null,
+    baseValue, contractedValue: value,
+    startDate: body.startDate, plannedEndDate, indefinite,
+    specialCondition: ["Mensal", "Personalizado"].includes(type)
+      ? { type: "Valor personalizado", customValue: value, scholarshipPercentage: null }
+      : type === "Bolsista"
+        ? { type: "Bolsa", customValue: null, scholarshipPercentage: 100 }
+        : null
+  };
 };
-
-const recreateMonthlyFees = async (contract) => {
-  await MonthlyFee.deleteMany({ contractId: contract.id });
-  const fees = buildMonthlyFees(contract);
-  if (fees.length) await MonthlyFee.insertMany(fees);
-  return fees;
-};
-
-const contractHasPayments = async (contractId) => {
-  return Boolean(await Payment.exists({ contractId }));
-};
-
-// ============================================================
-// BUSCAR CONTRATOS DE UM USUÁRIO
-// ============================================================
 
 export const getContractsByUser = async (req, res) => {
-
   try {
-
-    const {
-      userId,
-    } = req.params;
-
-
-    const contracts =
-      await Contract.find({
-        userId,
-      }).sort({
-        createdAt: -1,
-      });
-
-
-    return res.status(200).json(
-      contracts
-    );
-
-
+    const contracts = await Contract.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    return res.status(200).json(contracts);
   } catch (error) {
-
-    console.error(
-      "Erro ao buscar contratos:",
-      error
-    );
-
-
-    return res.status(500).json({
-
-      ok: false,
-
-      serverError:
-        "Erro ao buscar contratos.",
-
-    });
-
+    console.error("Erro ao buscar contratos:", error);
+    return failure(res, 500, "Erro ao buscar contratos.");
   }
-
 };
-
-
-// ============================================================
-// CRIAR CONTRATO
-// ============================================================
 
 export const createContract = async (req, res) => {
-
   try {
-
-    const {
-
-      id,
-
-      userId,
-
-      contractType,
-
-      plan,
-
-      periodicity,
-
-      baseValue,
-
-      contractedValue,
-
-      startDate,
-
-      plannedEndDate,
-
-      indefinite,
-
-      specialCondition,
-
-      active,
-
-      createdAt,
-
-      closedAt,
-
-    } = req.body;
-
-
-    // ========================================================
-    // VALIDAR TIPO
-    // ========================================================
-
-    const validContractTypes = [
-      "Plano",
-      "Personalizado",
-      "Bolsista",
-    ];
-
-
-    if (
-      !validContractTypes.includes(
-        contractType
-      )
-    ) {
-
-      return res.status(400).json({
-
-        ok: false,
-
-        serverError:
-          "Tipo de contrato inválido.",
-
-      });
-
+    if (!req.body.userId) return failure(res, 400, "Aluno não informado.");
+    let payload;
+    try { payload = normalizePayload(req.body); }
+    catch (error) { return failure(res, 400, error.message); }
+    if (await Contract.exists({ userId: req.body.userId, active: true })) {
+      return failure(res, 409, "O aluno já possui um contrato ativo.");
     }
-
-
-    // ========================================================
-    // VERIFICAR CONTRATO ATIVO
-    // ========================================================
-
-    const activeContract =
-      await Contract.findOne({
-
-        userId,
-
-        active: true,
-
-      });
-
-
-    if (activeContract) {
-
-      return res.status(409).json({
-
-        ok: false,
-
-        serverError:
-          "O aluno já possui um contrato ativo.",
-
-      });
-
-    }
-
-
-    // ========================================================
-    // CRIAR
-    // ========================================================
-
-    const contract =
-      await Contract.create({
-
-        id:
-          id ||
-          crypto.randomUUID(),
-
-
-        userId,
-
-
-        // ----------------------------------------------------
-        // TIPO
-        // ----------------------------------------------------
-
-        contractType,
-
-
-        // ----------------------------------------------------
-        // PLANO
-        // ----------------------------------------------------
-
-        plan:
-          plan || null,
-
-
-        periodicity:
-          periodicity || null,
-
-
-        // ----------------------------------------------------
-        // VALORES
-        // ----------------------------------------------------
-
-        baseValue:
-          Number(
-            baseValue || 0
-          ),
-
-
-        contractedValue:
-          Number(
-            contractedValue || 0
-          ),
-
-
-        // ----------------------------------------------------
-        // DATAS
-        // ----------------------------------------------------
-
-        startDate,
-
-
-        plannedEndDate:
-          plannedEndDate || null,
-
-
-        indefinite:
-          indefinite === true,
-
-
-        // ----------------------------------------------------
-        // CONDIÇÃO ESPECIAL
-        // ----------------------------------------------------
-
-        specialCondition:
-          specialCondition || null,
-
-
-        // ----------------------------------------------------
-        // STATUS
-        // ----------------------------------------------------
-
-        active:
-          active !== undefined
-            ? active
-            : true,
-
-
-        // ----------------------------------------------------
-        // CRIAÇÃO
-        // ----------------------------------------------------
-
-        createdAt:
-          createdAt ||
-          new Date()
-            .toISOString()
-            .split("T")[0],
-
-
-        // ----------------------------------------------------
-        // ENCERRAMENTO
-        // ----------------------------------------------------
-
-        closedAt:
-          closedAt || null,
-
-      });
-
+    const contract = await Contract.create({
+      ...payload, id: crypto.randomUUID(), userId: req.body.userId,
+      active: true, createdAt: todayInBrazil(), closedAt: null
+    });
     try {
-      await recreateMonthlyFees(contract);
-    } catch (monthlyFeeError) {
-      await Contract.deleteOne({ id: contract.id });
-      throw monthlyFeeError;
+      await ensureMonthlyFeesForContract(contract);
+    } catch (error) {
+      /* O contrato é removido somente se não foram emitidas mensalidades. */
+      const count = await MonthlyFee.countDocuments({ contractId: contract.id });
+      if (count === 0) await Contract.deleteOne({ id: contract.id });
+      throw error;
     }
-
-
-    return res.status(201).json({
-
-      ok: true,
-
-      contract,
-
-    });
-
-
+    return res.status(201).json({ ok: true, contract });
   } catch (error) {
-
-    console.error(
-      "Erro ao criar contrato:",
-      error
-    );
-
-
-    return res.status(500).json({
-
-      ok: false,
-
-      serverError:
-        "Erro ao criar contrato.",
-
-    });
-
+    console.error("Erro ao criar contrato:", error);
+    return failure(res, 500, "Erro ao criar contrato.");
   }
-
 };
-
-
-// ============================================================
-// EDITAR CONTRATO
-// ============================================================
 
 export const updateContract = async (req, res) => {
-
   try {
-
-    const {
-      id,
-    } = req.params;
-
-
-    const {
-
-      contractType,
-
-      plan,
-
-      periodicity,
-
-      baseValue,
-
-      contractedValue,
-
-      startDate,
-
-      plannedEndDate,
-
-      indefinite,
-
-      specialCondition,
-
-    } = req.body;
-
-
-    // ========================================================
-    // VALIDAR TIPO
-    // ========================================================
-
-    const validContractTypes = [
-      "Plano",
-      "Personalizado",
-      "Bolsista",
-    ];
-
-
-    if (
-      !validContractTypes.includes(
-        contractType
-      )
-    ) {
-
-      return res.status(400).json({
-
-        ok: false,
-
-        serverError:
-          "Tipo de contrato inválido.",
-
-      });
-
+    const contract = await Contract.findOne({ id: req.params.id });
+    if (!contract) return failure(res, 404, "Contrato não encontrado.");
+    if (!contract.active) return failure(res, 409, "Não é possível editar um contrato encerrado.");
+    let payload;
+    try { payload = normalizePayload(req.body, contract); }
+    catch (error) { return failure(res, 400, error.message); }
+    /* Mantém a regra atual: não reescrever histórico de contratos que já receberam pagamentos. */
+    if (await hasPayments(contract.id)) {
+      return failure(res, 409, "Este contrato possui pagamentos. Para preservar o histórico, não é possível alterar seus dados financeiros ou vigência.");
     }
+    /* Edição atômica. Não muda IDs ou mensalidades canceladas.
+       Mensalidades fora da nova vigência são canceladas, não apagadas. */
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const freshContract = await Contract.findOne({ id: contract.id }).session(session);
+        if (!freshContract?.active) throw new Error("Contrato indisponível para edição.");
+        if (await Payment.exists({ contractId: contract.id }).session(session)) {
+          throw new Error("O contrato recebeu um pagamento durante a edição.");
+        }
+        Object.assign(freshContract, payload);
+        await freshContract.save({ session });
 
-
-    // ========================================================
-    // BUSCAR CONTRATO
-    // ========================================================
-
-    const contract =
-      await Contract.findOne({
-        id,
+        const expected = buildMonthlyFees(freshContract);
+        const byReference = new Map(expected.map(fee => [fee.reference, fee]));
+        const oldFees = await MonthlyFee.find({ contractId: contract.id }).session(session);
+        const ops = [];
+        for (const fee of oldFees) {
+          const generated = byReference.get(fee.reference);
+          if (generated) {
+            byReference.delete(fee.reference);
+            if (fee.status !== "cancelled") {
+              ops.push({ updateOne: {
+                filter: { id: fee.id },
+                update: { $set: {
+                  amount: generated.amount, number: generated.number,
+                  periodStart: generated.periodStart, periodEnd: generated.periodEnd,
+                  dueDate: generated.dueDate, status: generated.status
+                } }
+              } });
+            }
+          } else if (fee.status !== "cancelled") {
+            ops.push({ updateOne: { filter: { id: fee.id }, update: { $set: { status: "cancelled" } } } });
+          }
+        }
+        for (const generated of byReference.values()) {
+          ops.push({ updateOne: {
+            filter: { contractId: contract.id, reference: generated.reference },
+            update: { $setOnInsert: generated }, upsert: true
+          } });
+        }
+        if (ops.length) await MonthlyFee.bulkWrite(ops, { session, ordered: true });
+        Object.assign(contract, freshContract.toObject());
       });
-
-
-    if (!contract) {
-
-      return res.status(404).json({
-
-        ok: false,
-
-        serverError:
-          "Contrato não encontrado.",
-
-      });
-
+    } finally {
+      await session.endSession();
     }
-
-
-    // ========================================================
-    // CONTRATO ENCERRADO
-    // ========================================================
-
-    if (!contract.active) {
-
-      return res.status(409).json({
-
-        ok: false,
-
-        serverError:
-          "Não é possível editar um contrato encerrado.",
-
-      });
-
-    }
-
-
-    // ========================================================
-    // PROTEGER CONTRATO COM PAGAMENTO
-    // ========================================================
-
-    if (await contractHasPayments(id)) {
-      return res.status(409).json({
-        ok: false,
-        serverError: "Este contrato possui pagamento registrado. Para preservar o histórico financeiro, não é possível alterar seus dados financeiros ou sua vigência.",
-      });
-    }
-
-
-    // ========================================================
-    // ATUALIZAR TIPO
-    // ========================================================
-
-    contract.contractType =
-      contractType;
-
-
-    // ========================================================
-    // ATUALIZAR PLANO
-    // ========================================================
-
-    contract.plan =
-      plan || null;
-
-
-    contract.periodicity =
-      periodicity || null;
-
-
-    // ========================================================
-    // ATUALIZAR VALORES
-    // ========================================================
-
-    contract.baseValue =
-      Number(
-        baseValue || 0
-      );
-
-
-    contract.contractedValue =
-      Number(
-        contractedValue || 0
-      );
-
-
-    // ========================================================
-    // ATUALIZAR DATAS
-    // ========================================================
-
-    contract.startDate =
-      startDate;
-
-
-    contract.plannedEndDate =
-      plannedEndDate || null;
-
-
-    contract.indefinite =
-      indefinite === true;
-
-
-    // ========================================================
-    // CONDIÇÃO ESPECIAL
-    // ========================================================
-
-    contract.specialCondition =
-      specialCondition || null;
-
-
-    // ========================================================
-    // SALVAR
-    // ========================================================
-
-    await contract.save();
-    await recreateMonthlyFees(contract);
-
-
-    return res.status(200).json({
-
-      ok: true,
-
-      contract,
-
-    });
-
-
+    return res.status(200).json({ ok: true, contract });
   } catch (error) {
-
-    console.error(
-      "Erro ao editar contrato:",
-      error
-    );
-
-
-    return res.status(500).json({
-
-      ok: false,
-
-      serverError:
-        "Erro ao editar contrato.",
-
-    });
-
+    console.error("Erro ao editar contrato:", error);
+    return failure(res, 500, "Erro ao editar contrato.");
   }
-
 };
-
-
-// ============================================================
-// ENCERRAR CONTRATO
-// ============================================================
 
 export const closeContract = async (req, res) => {
-
   try {
-
-    const {
-      id,
-    } = req.params;
-
-
-    // ========================================================
-    // BUSCAR
-    // ========================================================
-
-    const contract =
-      await Contract.findOne({
-        id,
-      });
-
-
-    if (!contract) {
-
-      return res.status(404).json({
-
-        ok: false,
-
-        serverError:
-          "Contrato não encontrado.",
-
-      });
-
-    }
-
-
-    // ========================================================
-    // JÁ ENCERRADO
-    // ========================================================
-
-    if (!contract.active) {
-
-      return res.status(409).json({
-
-        ok: false,
-
-        serverError:
-          "Este contrato já está encerrado.",
-
-      });
-
-    }
-
-
-    // ========================================================
-    // DATA DE ENCERRAMENTO
-    // ========================================================
-
-    const today =
-      new Date()
-        .toISOString()
-        .split("T")[0];
-
-
-    // ========================================================
-    // ENCERRAR
-    // ========================================================
-
+    const contract = await Contract.findOne({ id: req.params.id });
+    if (!contract) return failure(res, 404, "Contrato não encontrado.");
+    if (!contract.active) return failure(res, 409, "Este contrato já está encerrado.");
+    const today = todayInBrazil();
     contract.active = false;
-
-    contract.closedAt =
-      today;
-
-
+    contract.closedAt = today;
     await contract.save();
-
-
-    return res.status(200).json({
-
-      ok: true,
-
-      contract,
-
-    });
-
-
+    /* Impede que cobranças futuras, ainda não pagas, permaneçam exigíveis. */
+    await MonthlyFee.updateMany({ contractId: contract.id, reference: { $gt: today.slice(0, 7) }, paidAmount: 0 }, { $set: { status: "cancelled" } });
+    return res.status(200).json({ ok: true, contract });
   } catch (error) {
-
-    console.error(
-      "Erro ao encerrar contrato:",
-      error
-    );
-
-
-    return res.status(500).json({
-
-      ok: false,
-
-      serverError:
-        "Erro ao encerrar contrato.",
-
-    });
-
+    console.error("Erro ao encerrar contrato:", error);
+    return failure(res, 500, "Erro ao encerrar contrato.");
   }
-
 };
 
-// ============================================================
-// EXCLUIR CONTRATO
-// Só é permitido quando não existe nenhum pagamento.
-// ============================================================
 export const deleteContract = async (req, res) => {
   try {
-    const { id } = req.params;
-    const contract = await Contract.findOne({ id });
-    if (!contract) return res.status(404).json({ ok: false, serverError: "Contrato não encontrado." });
-
-    if (await contractHasPayments(id)) {
-      return res.status(409).json({
-        ok: false,
-        serverError: "Não é possível excluir este contrato porque já existe pagamento registrado.",
-      });
-    }
-
-    await MonthlyFee.deleteMany({ contractId: id });
-    await Contract.deleteOne({ id });
-    return res.status(200).json({ ok: true, deletedId: id });
+    const contract = await Contract.findOne({ id: req.params.id });
+    if (!contract) return failure(res, 404, "Contrato não encontrado.");
+    if (await hasPayments(contract.id)) return failure(res, 409, "Não é possível excluir um contrato que possui pagamentos.");
+    await MonthlyFee.deleteMany({ contractId: contract.id });
+    await Contract.deleteOne({ id: contract.id });
+    return res.status(200).json({ ok: true, deletedId: contract.id });
   } catch (error) {
     console.error("Erro ao excluir contrato:", error);
-    return res.status(500).json({ ok: false, serverError: "Erro ao excluir contrato." });
+    return failure(res, 500, "Erro ao excluir contrato.");
   }
 };

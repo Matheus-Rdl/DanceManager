@@ -34,7 +34,7 @@ export default function StudentNavigation({ activeTab, userData, userId }) {
                 userId: resolvedId,
                 studentId: resolvedId,
                 userData: resolvedData,
-                currentMode: "V"
+                currentMode: "E"
               }});
             }}>
             {label}

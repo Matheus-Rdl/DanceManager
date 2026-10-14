@@ -1,3 +1,4 @@
+import { ensureMonthlyFeesForUser, ensureAllActiveMonthlyFees, todayInBrazil } from "./monthlyFeeGeneration.js";
 
 import mongoose from "mongoose";
 import MonthlyFee from "../../models/MonthlyFee.js";
@@ -11,7 +12,7 @@ export default class MonthlyFeesDataAccess {
 
     const amount = Number(fee.amount || 0);
     const paid = Number(fee.paidAmount || 0);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInBrazil();
 
     if (amount > 0 && paid >= amount) return "paid";
     if (paid > 0) return "partial";
@@ -22,6 +23,10 @@ export default class MonthlyFeesDataAccess {
 
   /* Busca mensalidades e adiciona informações dos alunos */
   async getMonthlyFees(filters = {}) {
+    /* Atualiza automaticamente a janela de competência antes da consulta. */
+    if (filters.userId) await ensureMonthlyFeesForUser(filters.userId);
+    else await ensureAllActiveMonthlyFees();
+
     const query = {};
 
     if (filters.reference) query.reference = filters.reference;

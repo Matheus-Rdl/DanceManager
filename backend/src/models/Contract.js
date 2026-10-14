@@ -35,7 +35,8 @@ const contractSchema = new mongoose.Schema(
     // NOVOS CONTRATOS:
     //
     // Plano
-    // Personalizado
+    // Mensal (sem prazo final, valor livre)
+    // Personalizado (com data inicial e final, valor livre)
     // Bolsista
     //
     // Contratos antigos não possuem esse campo.
@@ -46,6 +47,7 @@ const contractSchema = new mongoose.Schema(
       type: String,
       enum: [
         "Plano",
+        "Mensal",
         "Personalizado",
         "Bolsista",
       ],
@@ -56,7 +58,7 @@ const contractSchema = new mongoose.Schema(
     // ==========================================================
     // PLANO
     //
-    // Para contratos personalizados e bolsistas,
+    // Para contratos mensais, personalizados e bolsistas,
     // esse campo pode ser null.
     //
     // Mantemos o campo para não quebrar os contratos antigos.
@@ -89,7 +91,7 @@ const contractSchema = new mongoose.Schema(
     //
     // baseValue = preço oficial do plano
     //
-    // No personalizado:
+    // No mensal ou personalizado:
     //
     // baseValue = 0
     //
@@ -114,7 +116,7 @@ const contractSchema = new mongoose.Schema(
     // Exemplos:
     //
     // Plano Balanço -> 240
-    // Personalizado -> 200
+    // Mensal ou Personalizado -> 200
     // Bolsista -> 0
     // ==========================================================
 
@@ -141,7 +143,7 @@ const contractSchema = new mongoose.Schema(
     // calculado automaticamente.
     //
     // Para personalizado/bolsista:
-    // definido manualmente.
+    // definido manualmente. Mensal não possui fim previsto.
     //
     // Pode ser null quando o contrato for
     // por prazo indeterminado.
