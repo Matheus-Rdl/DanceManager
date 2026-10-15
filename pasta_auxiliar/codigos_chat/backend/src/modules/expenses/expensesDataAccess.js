@@ -9,7 +9,35 @@ import {
 } from "./expenseRules.js";
 
 const moment = () => new Date().toISOString();
-const log = (action, details = "") => ({ action, details, at: moment() });
+const log = (action, details = "", reason = "", before = null, after = null) => ({
+  action, details, reason, before, after, at: moment()
+});
+const snapshot = item => ({
+  description: item.description, category: item.category, amount: item.amount,
+  dueDate: item.dueDate, reference: item.reference, status: item.status,
+  paidAmount: item.paidAmount, paidAt: item.paidAt,
+  method: item.method, notes: item.notes
+});
+const reasonText = body => cleanText(body?.reason, "Justificativa", 500);
+const correctionPayment = body => {
+  const paidAmount = amountValue(body.paidAmount);
+  if (!isDate(body.paidAt)) throw validation("Data do pagamento inválida.");
+  if (body.paidAt > todayInBrazil()) throw validation("A data de pagamento não pode estar no futuro.");
+  const method = cleanText(body.method, "Forma de pagamento", 70);
+  return { paidAmount, paidAt: body.paidAt, method };
+};
+const applyUpdate = async (item, changes, action, reason, description) => {
+  const before = snapshot(item);
+  const after = { ...before, ...changes };
+  const updated = await Expense.findOneAndUpdate(
+    { schoolId: schoolId(), id: item.id, status: item.status, updatedAt: item.updatedAt, __v: item.__v },
+    { $set: { ...changes, updatedAt: moment() }, $inc: { __v: 1 },
+      $push: { history: log(action, description, reason, before, after) } },
+    { new: true, runValidators: true }
+  );
+  if (!updated) throw validation("Despesa modificada por outra operação. Atualize a página.", 409);
+  return visibleExpense(updated.toObject());
+};
 const findExpense = async (id) => {
   const item = await Expense.findOne({ schoolId: schoolId(), id });
   if (!item) throw validation("Despesa não encontrada.", 404);
@@ -60,20 +88,21 @@ export default class ExpensesDataAccess {
     return visibleExpense(item.toObject());
   }
 
+  /* Uma correção de uma despesa paga é sempre auditada com justificativa e valores antes/depois. */
   async update(id, body) {
     const item = await findExpense(id);
-    if (item.status !== "pending") throw validation("Somente despesas pendentes podem ser editadas.", 409);
+    if (!["pending", "paid"].includes(item.status)) throw validation("Essa despesa não pode mais ser editada.", 409);
     const fields = expenseFields(body);
     if (item.recurrenceId && fields.reference !== item.reference) {
-      throw validation("Uma despesa recorrente não pode mudar de competência. Edite a recorrência para as próximas cobranças.", 409);
+      throw validation("A competência de uma despesa recorrente não pode mudar. Ajuste a data dentro do mesmo mês.", 409);
     }
-    const changed = await Expense.findOneAndUpdate(
-      { schoolId: schoolId(), id, status: "pending" },
-      { $set: { ...fields, updatedAt: moment() }, $push: { history: log("edited", "Dados da despesa alterados individualmente") } },
-      { new: true, runValidators: true }
-    );
-    if (!changed) throw validation("Despesa alterada por outra operação. Atualize a tela.", 409);
-    return visibleExpense(changed.toObject());
+    if (item.status === "paid") {
+      const reason = reasonText(body);
+      const payment = correctionPayment(body);
+      return applyUpdate(item, { ...fields, ...payment }, "paid_corrected", reason, "Correção de despesa quitada");
+    }
+    const reason = body.reason ? cleanText(body.reason, "Justificativa", 500) : "";
+    return applyUpdate(item, fields, "edited", reason, "Dados da despesa alterados individualmente");
   }
 
   async pay(id, body) {
@@ -93,15 +122,35 @@ export default class ExpensesDataAccess {
     return visibleExpense(paid.toObject());
   }
 
-  async cancel(id) {
-    const cancelled = await Expense.findOneAndUpdate(
-      { schoolId: schoolId(), id, status: "pending" },
-      { $set: { status: "cancelled", updatedAt: moment() },
-        $push: { history: log("cancelled", "Despesa cancelada manualmente") } },
-      { new: true, runValidators: true }
-    );
-    if (!cancelled) throw validation("Despesa inexistente ou já finalizada.", 409);
-    return visibleExpense(cancelled.toObject());
+  /* Cancelar não apaga o histórico. Valores quitados deixam de entrar nos resultados. */
+  async cancel(id, body = {}) {
+    const item = await findExpense(id);
+    if (!["pending", "paid"].includes(item.status)) throw validation("Esta despesa já está cancelada ou zerada.", 409);
+    const reason = reasonText(body);
+    return applyUpdate(item, { status: "cancelled" }, "cancelled", reason,
+      item.status === "paid" ? "Cancelamento/estorno de despesa quitada" : "Cancelamento de despesa pendente");
+  }
+
+  /* Zerar equivale a corrigir um lançamento indevido para R$ 0,00, não a pagar R$ 0,00. */
+  async zero(id, body = {}) {
+    const item = await findExpense(id);
+    if (!["pending", "paid"].includes(item.status)) throw validation("Esta despesa já está cancelada ou zerada.", 409);
+    const reason = reasonText(body);
+    return applyUpdate(item, {
+      status: "zeroed", amount: 0, paidAmount: null, paidAt: null, method: null
+    }, "zeroed", reason, "Lançamento corrigido para R$ 0,00");
+  }
+
+  /* Exclusão permanente apenas de avulsa pendente, nunca quitada ou historicamente editada. */
+  async remove(id) {
+    const item = await findExpense(id);
+    if (item.recurrenceId || item.status !== "pending" || item.paidAt || item.paidAmount != null ||
+        item.history?.some(event => event.action !== "created")) {
+      throw validation("Só é possível excluir definitivamente uma despesa avulsa, pendente e sem histórico de alterações/pagamentos.", 409);
+    }
+    const deleted = await Expense.deleteOne({ schoolId: schoolId(), id, status: "pending", updatedAt: item.updatedAt });
+    if (deleted.deletedCount !== 1) throw validation("Despesa modificada por outra operação. Atualize a página.", 409);
+    return { id, deleted: true };
   }
 
   async createRecurrence(body) {

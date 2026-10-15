@@ -3,7 +3,10 @@ import mongoose from "mongoose";
 const historySchema = new mongoose.Schema({
   action: { type: String, required: true },
   at: { type: String, required: true },
-  details: { type: String, default: "" }
+  details: { type: String, default: "" },
+  reason: { type: String, default: "" },
+  before: { type: mongoose.Schema.Types.Mixed, default: null },
+  after: { type: mongoose.Schema.Types.Mixed, default: null }
 }, { _id: false });
 
 const expenseSchema = new mongoose.Schema({
@@ -12,10 +15,10 @@ const expenseSchema = new mongoose.Schema({
   recurrenceId: { type: String, default: null, index: true },
   description: { type: String, required: true },
   category: { type: String, required: true },
-  amount: { type: Number, required: true, min: 0.01 },
+  amount: { type: Number, required: true, min: 0 },
   reference: { type: String, required: true, index: true },
   dueDate: { type: String, required: true },
-  status: { type: String, enum: ["pending", "paid", "cancelled"], default: "pending" },
+  status: { type: String, enum: ["pending", "paid", "cancelled", "zeroed"], default: "pending" },
   paidAt: { type: String, default: null },
   paidAmount: { type: Number, default: null },
   method: { type: String, default: null },

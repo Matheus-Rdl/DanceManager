@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Badge, Box, Button, Dialog, Flex, Heading, HStack, Input, NativeSelect,
-  Portal, SimpleGrid, Table, Text, VStack
+  Portal, SimpleGrid, Table, Text, Textarea, VStack
 } from "@chakra-ui/react";
 import {
   FiActivity, FiAlertCircle, FiCalendar, FiCheckCircle, FiClock,
   FiCreditCard, FiDollarSign, FiEdit2, FiPlus, FiRefreshCw,
-  FiRepeat, FiTrendingUp, FiPieChart, FiX
+  FiRepeat, FiTrendingUp, FiPieChart, FiX, FiChevronLeft, FiChevronRight, FiTrash2, FiRotateCcw, FiList
 } from "react-icons/fi";
 import expensesServices, { expenseCategories } from "../../../services/expensesServices";
 import financialServices from "../../../services/financialServices";
+import FinancialTimelineChart from "./FinancialTimelineChart";
 
 const green = "#064e43";
 const gray = "#607873";
@@ -27,11 +28,39 @@ const formatMonth = value => {
 };
 const blankExpense = (month = today().slice(0, 7)) => ({ description: "", category: "Outros", amount: "", dueDate: month === today().slice(0, 7) ? today() : `${month}-01`, notes: "", recurring: false, startMonth: month, dueDay: "10", effectiveFrom: today().slice(0, 7) });
 const blankPayment = () => ({ paidAmount: "", paidAt: today(), method: "Pix", notes: "" });
+const shiftMonth = (reference, offset) => {
+  const [year, month] = reference.split("-").map(Number);
+  const next = new Date(year, month - 1 + offset, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+};
+const longMonths = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const actionLabels = { cancel: "Cancelar despesa", zero: "Zerar despesa", delete: "Excluir definitivamente" };
+const auditLabels = {
+  created: "Cadastrada", generated: "Gerada automaticamente", edited: "Editada",
+  paid: "Pagamento registrado", paid_corrected: "Despesa paga corrigida",
+  cancelled: "Cancelada / estornada", zeroed: "Zerada",
+  recurrence_updated: "Atualizada pela recorrência"
+};
+const auditFieldNames = {
+  description: "Descrição", category: "Categoria", amount: "Valor previsto",
+  dueDate: "Vencimento", reference: "Competência", status: "Situação",
+  paidAmount: "Valor pago", paidAt: "Pagamento em", method: "Forma de pagamento", notes: "Observações"
+};
+function ChangedFields({ entry }) {
+  if (!entry.before || !entry.after) return null;
+  const keys = Object.keys(entry.after).filter(key => JSON.stringify(entry.before[key] ?? null) !== JSON.stringify(entry.after[key] ?? null));
+  return <VStack mt={2} gap={1} align="stretch">
+    {keys.map(key => <Text key={key} fontSize="10px" color="#49645f">
+      <b>{auditFieldNames[key] || key}:</b> {key === "amount" || key === "paidAmount" ? money(entry.before[key]) : String(entry.before[key] ?? "—")} → {key === "amount" || key === "paidAmount" ? money(entry.after[key]) : String(entry.after[key] ?? "—")}
+    </Text>)}
+  </VStack>;
+}
 const badgeProps = {
   paid: { text: "Paga", bg: "#e1f5e8", color: "#147c3b" },
   pending: { text: "Pendente", bg: "#fff4d9", color: "#996500" },
   overdue: { text: "Em atraso", bg: "#ffe6e6", color: "#bd3030" },
-  cancelled: { text: "Cancelada", bg: "#eef1f1", color: "#637673" }
+  cancelled: { text: "Cancelada", bg: "#eef1f1", color: "#637673" },
+  zeroed: { text: "Zerada", bg: "#eef1f1", color: "#637673" }
 };
 function ExpenseBadge({ status }) {
   const value = badgeProps[status] || badgeProps.pending;
@@ -51,6 +80,7 @@ const inputStyle = { h: "38px", fontSize: "12px", borderColor: "#cedbd8", border
 
 export default function FinancialGeneral() {
   const [tab, setTab] = useState("overview");
+  const [chartRefresh, setChartRefresh] = useState(0);
   const [month, setMonth] = useState(today().slice(0, 7));
   const [summary, setSummary] = useState(null);
   const [receipts, setReceipts] = useState([]);
@@ -67,6 +97,14 @@ export default function FinancialGeneral() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(blankExpense);
   const [payment, setPayment] = useState(blankPayment);
+  const [reason, setReason] = useState("");
+  const [operation, setOperation] = useState("");
+  const [success, setSuccess] = useState("");
+  const yearCurrent = new Date().getFullYear();
+  const selectedYear = Number(month.slice(0, 4));
+  const yearOptions = Array.from(new Set([...Array.from({ length: 21 }, (_, index) => yearCurrent + 5 - index), selectedYear])).sort((a, b) => b - a);
+  const setSelectedMonth = value => setMonth(`${month.slice(0, 4)}-${value}`);
+  const setSelectedYear = value => setMonth(`${value}-${month.slice(5)}`);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +122,7 @@ export default function FinancialGeneral() {
     finally { setLoading(false); }
   }, [month]);
   useEffect(() => { load(); }, [load]);
+  const refreshAll = async () => { await load(); setChartRefresh(value => value + 1); };
 
   const filteredExpenses = useMemo(() => expenses.filter(item =>
     (!categoryFilter || item.category === categoryFilter) &&
@@ -91,29 +130,33 @@ export default function FinancialGeneral() {
     (!search || `${item.description} ${item.category}`.toLowerCase().includes(search.toLowerCase()))
   ), [expenses, categoryFilter, statusFilter, search]);
   const recurrenceById = useMemo(() => new Map(recurrences.map(r => [r.id, r])), [recurrences]);
-  const openCreate = () => { setEditing(null); setForm(blankExpense(month)); setActionError(""); setDialog("expense"); };
+  const openCreate = () => { setEditing(null); setForm(blankExpense(month)); setReason(""); setActionError(""); setDialog("expense"); };
   const openEdit = item => {
     setEditing(item);
     setForm({ ...blankExpense(), ...item, amount: String(item.amount), recurring: false });
-    setActionError(""); setDialog("expense");
+    setReason(""); setActionError(""); setDialog("expense");
   };
   const openEditRecurrence = item => {
     const rule = recurrenceById.get(item.recurrenceId);
     if (!rule?.active) return;
     setEditing(rule);
     setForm({ ...blankExpense(), ...rule, amount: String(rule.amount), dueDay: String(rule.dueDay), effectiveFrom: item.reference < today().slice(0, 7) ? today().slice(0, 7) : item.reference });
-    setActionError(""); setDialog("recurrence");
+    setReason(""); setActionError(""); setDialog("recurrence");
   };
   const openPay = item => {
     setEditing(item);
     setPayment({ ...blankPayment(), paidAmount: String(item.amount) });
-    setActionError(""); setDialog("pay");
+    setReason(""); setActionError(""); setDialog("pay");
   };
-  const closeDialog = () => { if (!saving) { setDialog(""); setEditing(null); setActionError(""); } };
+  const openOperation = (item, action) => {
+    setEditing(item); setOperation(action); setReason(""); setActionError(""); setDialog("operation");
+  };
+  const openHistory = item => { setEditing(item); setActionError(""); setDialog("history"); };
+  const closeDialog = () => { if (!saving) { setDialog(""); setEditing(null); setActionError(""); setReason(""); setOperation(""); } };
   const mutate = async fn => {
     if (saving) return;
-    setSaving(true); setActionError("");
-    try { await fn(); setDialog(""); setEditing(null); await load(); }
+    setSaving(true); setSuccess(""); setActionError("");
+    try { await fn(); setDialog(""); setEditing(null); setReason(""); setOperation(""); await refreshAll(); setSuccess("Alteração realizada com sucesso."); }
     catch (err) { setActionError(err.message || "Não foi possível concluir a operação."); }
     finally { setSaving(false); }
   };
@@ -127,7 +170,11 @@ export default function FinancialGeneral() {
     if (editing) {
       return expensesServices.update(editing.id, {
         description: form.description, category: form.category, amount: Number(form.amount),
-        dueDate: form.dueDate, notes: form.notes
+        dueDate: form.dueDate, notes: form.notes,
+        ...(editing.status === "paid" ? {
+          paidAmount: Number(form.paidAmount), paidAt: form.paidAt,
+          method: form.method, reason
+        } : { reason: reason.trim() })
       });
     }
     if (form.recurring) {
@@ -142,22 +189,30 @@ export default function FinancialGeneral() {
     });
   });
   const payExpense = () => mutate(() => expensesServices.pay(editing.id, { ...payment, paidAmount: Number(payment.paidAmount) }));
-  const cancelExpense = item => {
-    if (!window.confirm(`Cancelar a despesa “${item.description}” de ${formatMonth(item.reference)}?`)) return;
-    mutate(() => expensesServices.cancel(item.id));
-  };
+  const performOperation = () => mutate(async () => {
+    if (!editing || !operation) throw new Error("Selecione uma operação.");
+    if (operation !== "delete" && !reason.trim()) throw new Error("Informe a justificativa da alteração.");
+    if (operation === "zero") return expensesServices.zero(editing.id, reason.trim());
+    if (operation === "cancel") return expensesServices.cancel(editing.id, reason.trim());
+    if (operation === "delete") return expensesServices.remove(editing.id);
+  });
   const stopRecurrence = item => {
     if (!window.confirm(`Encerrar a recorrência “${item.description}”? As cobranças futuras não pagas serão canceladas.`)) return;
     mutate(() => expensesServices.stopRecurrence(item.recurrenceId));
   };
   const actions = item => {
-    if (item.status !== "pending") return <Text fontSize="10px" color={gray}>—</Text>;
     const activeRule = item.recurrenceId && recurrenceById.get(item.recurrenceId)?.active;
+    const editable = item.status === "pending" || item.status === "paid";
+    const deletable = item.status === "pending" && !item.recurrenceId &&
+      !(item.history || []).some(event => event.action !== "created") && !item.paidAt && item.paidAmount == null;
     return <Flex gap={1} wrap="wrap">
-      <Button size="xs" bg={green} color="white" onClick={() => openPay(item)}><FiCheckCircle/> Pagar</Button>
-      <Button size="xs" variant="outline" onClick={() => openEdit(item)}><FiEdit2/> Editar</Button>
-      <Button size="xs" variant="outline" color="#ba3b3b" onClick={() => cancelExpense(item)}><FiX/> Cancelar</Button>
-      {activeRule && <Button size="xs" variant="ghost" color={green} onClick={() => openEditRecurrence(item)}><FiRepeat/> Editar regra</Button>}
+      {item.status === "pending" && <Button size="xs" bg={green} color="white" onClick={() => openPay(item)}><FiCheckCircle/> Pagar</Button>}
+      {editable && <Button size="xs" variant="outline" onClick={() => openEdit(item)}><FiEdit2/> {item.status === "paid" ? "Corrigir" : "Editar"}</Button>}
+      {editable && <Button size="xs" variant="outline" onClick={() => openOperation(item, "zero")}>Zerar</Button>}
+      {editable && <Button size="xs" variant="outline" color="#ba3b3b" onClick={() => openOperation(item, "cancel")}><FiX/> Cancelar</Button>}
+      {deletable && <Button size="xs" variant="ghost" color="#ba3b3b" onClick={() => openOperation(item, "delete")}><FiTrash2/> Excluir</Button>}
+      {(item.history || []).length > 0 && <Button size="xs" variant="ghost" onClick={() => openHistory(item)}><FiList/> Histórico</Button>}
+      {item.status === "pending" && activeRule && <Button size="xs" variant="ghost" color={green} onClick={() => openEditRecurrence(item)}><FiRepeat/> Editar regra</Button>}
       {activeRule && <Button size="xs" variant="ghost" color="#ba3b3b" onClick={() => stopRecurrence(item)}>Encerrar regra</Button>}
     </Flex>;
   };
@@ -170,10 +225,22 @@ export default function FinancialGeneral() {
         <Flex w="39px" h="39px" bg={green} borderRadius="full" align="center" justify="center" color="white"><FiPieChart size={20}/></Flex>
         <Box><Heading fontSize={{ base: "18px", md: "22px" }} color="#062f2b">Financeiro Geral</Heading><Text fontSize="11px" color={gray}>Recebimentos, despesas e resultado da escola</Text></Box>
       </Flex>
-      <HStack gap={2}>
-        <Input type="month" aria-label="Competência financeira" {...inputStyle} w="165px" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }}/>
-        <Button size="sm" variant="outline" onClick={load} disabled={loading}><FiRefreshCw/> Atualizar</Button>
-      </HStack>
+      <Button size="sm" variant="outline" onClick={refreshAll} disabled={loading}><FiRefreshCw/> Atualizar</Button>
+    </Flex>
+    {/* Seletor compartilhado por visão geral, recebimentos e despesas. */}
+    <Flex bg="white" border="1px solid #d7e2df" borderRadius="9px" p={{ base: 2, md: 3 }} gap={2} align="center" wrap="wrap" justify="center">
+      <Button aria-label="Mês anterior" size="sm" variant="outline" flexShrink={0} onClick={() => setMonth(value => shiftMonth(value, -1))}><FiChevronLeft/><Text display={{ base: "none", lg: "inline" }}>Anterior</Text></Button>
+      <Flex flex="1" minW={{ base: "190px", md: "320px" }} maxW="390px" gap={2} align="center" justify="center">
+        <FiCalendar color={green}/>
+        <NativeSelect.Root flex="1" size="sm"><NativeSelect.Field aria-label="Selecionar mês" value={month.slice(5)} onChange={e => setSelectedMonth(e.target.value)}>
+          {longMonths.map((name, index) => <option key={name} value={String(index + 1).padStart(2, "0")}>{name}</option>)}
+        </NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
+        <NativeSelect.Root w="105px" size="sm"><NativeSelect.Field aria-label="Selecionar ano" value={month.slice(0,4)} onChange={e => setSelectedYear(e.target.value)}>
+          {yearOptions.map(year => <option value={String(year)} key={year}>{year}</option>)}
+        </NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
+      </Flex>
+      <Button aria-label="Próximo mês" size="sm" variant="outline" flexShrink={0} onClick={() => setMonth(value => shiftMonth(value, 1))}><Text display={{ base: "none", lg: "inline" }}>Próximo</Text><FiChevronRight/></Button>
+      <Button size="sm" variant="ghost" color={green} onClick={() => setMonth(today().slice(0,7))}><FiRotateCcw/> <Text display={{ base: "none", sm: "inline" }}>Mês atual</Text></Button>
     </Flex>
     <Flex bg="white" border="1px solid #d7e2df" borderRadius="9px" p={1} gap={1} wrap="wrap">
       {[{ id: "overview", name: "Visão Geral", icon: FiActivity }, { id: "receipts", name: "Recebimentos", icon: FiCreditCard }, { id: "expenses", name: "Despesas", icon: FiDollarSign }].map(item => {
@@ -181,6 +248,7 @@ export default function FinancialGeneral() {
         return <Button key={item.id} size="sm" flex={{ base: "1 1 auto", md: "unset" }} bg={tab === item.id ? green : "transparent"} color={tab === item.id ? "white" : green} onClick={() => setTab(item.id)} borderRadius="6px" fontSize="12px"><Icon/>{item.name}</Button>;
       })}
     </Flex>
+    {success && !dialog && <Box p={2} border="1px solid #c5e8d5" borderRadius="8px" bg="#f1fbf6"><Text color="#147c3b" fontSize="12px">{success}</Text></Box>}
     {actionError && !dialog && <Box bg="#fff1f1" border="1px solid #f4bdbd" p={3} borderRadius="8px"><Text fontSize="12px" color="#a42929">{actionError}</Text></Box>}
     {error && <Box bg="#fff1f1" border="1px solid #f4bdbd" p={3} borderRadius="8px"><Text fontSize="12px" color="#a42929">{error}</Text><Button mt={2} size="xs" onClick={load}>Tentar novamente</Button></Box>}
     {loading && <Text color={gray} fontSize="12px">Carregando informações financeiras...</Text>}
@@ -196,25 +264,7 @@ export default function FinancialGeneral() {
         <StatCard icon={FiClock} title="Mensalidades em aberto" value={money(summary?.openFees)} caption="Valor ainda não pago" tone="#996500"/>
         <StatCard icon={FiRepeat} title="Despesas pendentes" value={summary?.pendingExpensesCount ?? 0} caption={money(summary?.pendingExpensesValue)} tone="#996500"/>
       </SimpleGrid>
-      <Box bg="white" border="1px solid #e1e9e7" borderRadius="9px" p={4}>
-        <Heading fontSize="15px" color={green} mb={1}>Evolução dos últimos 6 meses</Heading>
-        <Text fontSize="10px" color={gray} mb={4}>Comparação entre dinheiro recebido e despesas efetivamente pagas.</Text>
-        <VStack align="stretch" gap={3}>
-          {(summary?.timeline || []).map(point => {
-            const max = Math.max(...(summary?.timeline || []).flatMap(p => [p.received, p.expensesPaid]), 1);
-            return <Flex key={point.reference} align="center" gap={3}>
-              <Text fontSize="10px" w="55px" flexShrink={0} color={gray}>{formatMonth(point.reference)}</Text>
-              <Box flex="1" minW={0}>
-                <Box h="9px" w={`${Math.max(0, point.received / max * 100)}%`} bg="#16845a" borderRadius="3px" mb="3px"/>
-                <Box h="9px" w={`${Math.max(0, point.expensesPaid / max * 100)}%`} bg="#da8861" borderRadius="3px"/>
-              </Box>
-              <Text fontSize="10px" w="92px" color={gray} textAlign="right">{money(point.result)}</Text>
-            </Flex>;
-          })}
-          {!summary?.timeline?.length && <Text fontSize="12px" color={gray}>Sem dados para o período.</Text>}
-        </VStack>
-        <HStack mt={4} gap={4}><HStack gap={1}><Box w="9px" h="9px" bg="#16845a"/><Text fontSize="10px" color={gray}>Recebimentos</Text></HStack><HStack gap={1}><Box w="9px" h="9px" bg="#da8861"/><Text fontSize="10px" color={gray}>Despesas pagas</Text></HStack></HStack>
-      </Box>
+      <FinancialTimelineChart month={month} refreshKey={chartRefresh}/>
       <Text fontSize="11px" color={gray}>O resultado realizado não representa o saldo bancário. Mensalidades emitidas e despesas previstas aparecem separadamente.</Text>
     </VStack>}
     {tab === "receipts" && <Box bg="white" border="1px solid #d7e2df" borderRadius="9px" overflow="hidden">
@@ -238,7 +288,7 @@ export default function FinancialGeneral() {
       <Flex p={3} gap={2} wrap="wrap">
         <Input size="sm" placeholder="Buscar despesa..." value={search} onChange={e => setSearch(e.target.value)} maxW={{ base: "100%", md: "230px" }}/>
         <NativeSelect.Root size="sm" w={{ base: "calc(50% - 4px)", md: "170px" }}><NativeSelect.Field value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}><option value="">Todas categorias</option>{expenseCategories.map(c => <option key={c}>{c}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
-        <NativeSelect.Root size="sm" w={{ base: "calc(50% - 4px)", md: "160px" }}><NativeSelect.Field value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos os status</option><option value="pending">Pendentes</option><option value="overdue">Em atraso</option><option value="paid">Pagas</option><option value="cancelled">Canceladas</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
+        <NativeSelect.Root size="sm" w={{ base: "calc(50% - 4px)", md: "160px" }}><NativeSelect.Field value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos os status</option><option value="pending">Pendentes</option><option value="overdue">Em atraso</option><option value="paid">Pagas</option><option value="cancelled">Canceladas</option><option value="zeroed">Zeradas</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
       </Flex>
       {!loading && filteredExpenses.length === 0 ? <Box py={12} px={4} textAlign="center"><FiCalendar size={28} style={{ margin: "0 auto 10px" }} color="#9aaead"/><Text fontWeight="700" color={green}>Nenhuma despesa encontrada</Text><Text mt={1} fontSize="12px" color={gray}>Cadastre uma despesa ou ajuste os filtros para visualizar os lançamentos.</Text></Box> : <>
         <Box display={{ base: "none", md: "block" }} overflowX="auto"><Table.Root minW="900px" size="sm">
@@ -252,9 +302,27 @@ export default function FinancialGeneral() {
 
     <Dialog.Root open={Boolean(dialog)} onOpenChange={change => { if (!change.open) closeDialog(); }} size="lg">
       <Portal><Dialog.Backdrop/><Dialog.Positioner><Dialog.Content maxW="520px" mx={3} borderRadius="11px">
-        <Dialog.Header><Dialog.Title color={green} fontSize="17px">{dialog === "pay" ? "Registrar pagamento da despesa" : dialog === "recurrence" ? "Editar recorrência" : editing ? "Editar despesa" : "Nova despesa"}</Dialog.Title></Dialog.Header>
+        <Dialog.Header><Dialog.Title color={green} fontSize="17px">
+          {dialog === "pay" ? "Registrar pagamento da despesa" : dialog === "recurrence" ? "Editar recorrência" : dialog === "operation" ? actionLabels[operation] : dialog === "history" ? "Histórico da despesa" : editing?.status === "paid" ? "Corrigir despesa paga" : editing ? "Editar despesa" : "Nova despesa"}
+        </Dialog.Title></Dialog.Header>
         <Dialog.Body><VStack align="stretch" gap={3}>
-          {dialog === "pay" ? <>
+          {dialog === "history" ? <>
+            <Box bg="#f4f8f7" borderRadius="8px" p={3}><Text fontWeight="700" color={green}>{editing?.description}</Text><Text fontSize="11px" color={gray}>Histórico de alterações registrado no banco</Text></Box>
+            <VStack align="stretch" gap={2} maxH="400px" overflowY="auto">
+              {[...(editing?.history || [])].reverse().map((entry, index) => <Box key={`${entry.at}-${index}`} border="1px solid #e1e9e7" p={3} borderRadius="8px">
+                <Flex justify="space-between" gap={2} wrap="wrap"><Text fontSize="12px" fontWeight="700" color={green}>{auditLabels[entry.action] || entry.action}</Text><Text fontSize="10px" color={gray}>{entry.at ? new Date(entry.at).toLocaleString("pt-BR") : "—"}</Text></Flex>
+                {entry.details && <Text mt={1} fontSize="11px" color={gray}>{entry.details}</Text>}
+                {entry.reason && <Text mt={1} fontSize="11px" color="#7b461c">Justificativa: {entry.reason}</Text>}
+                <ChangedFields entry={entry}/>
+              </Box>)}
+            </VStack>
+          </> : dialog === "operation" ? <>
+            <Box bg="#f4f8f7" borderRadius="8px" p={3}><Text fontWeight="700" fontSize="12px" color={green}>{editing?.description}</Text><Text fontSize="11px" color={gray}>Valor atual: {money(editing?.amount)} · {editing?.status === "paid" ? "Paga" : "Pendente"}</Text></Box>
+            <Text fontSize="12px" color={operation === "delete" ? "#b32f32" : gray}>
+              {operation === "delete" ? "Exclusão permanente: esta despesa avulsa não possui quitação nem alterações relevantes. Esta ação não poderá ser desfeita." : operation === "zero" ? "O valor será R$ 0,00; se houver quitação, será retirada dos indicadores. O histórico da correção será preservado." : "A despesa será cancelada e deixará de compor os totais. Pagamentos anteriores permanecerão registrados no histórico."}
+            </Text>
+            {operation !== "delete" && <FormField label="Justificativa obrigatória"><Textarea value={reason} onChange={e => setReason(e.target.value)} maxLength={500} placeholder="Explique por que esta correção é necessária" minH="85px" fontSize="12px"/></FormField>}
+          </> : dialog === "pay" ? <>
             <Box bg="#f3f7f6" p={3} borderRadius="8px"><Text fontSize="12px" fontWeight="700" color={green}>{editing?.description}</Text><Text fontSize="11px" color={gray}>Valor previsto: {money(editing?.amount)}</Text></Box>
             <SimpleGrid columns={2} gap={3}>
               <FormField label="Valor efetivamente pago"><Input {...inputStyle} type="number" min="0.01" step="0.01" value={payment.paidAmount} onChange={e => changePayment("paidAmount", e.target.value)}/></FormField>
@@ -277,10 +345,27 @@ export default function FinancialGeneral() {
               <Text fontSize="11px" color={gray}>O vencimento será ajustado ao último dia quando o mês tiver menos dias. Alterações de recorrência não modificam despesas pagas.</Text>
             </> : <FormField label="Data de vencimento"><Input {...inputStyle} type="date" value={form.dueDate} onChange={e => changeForm("dueDate", e.target.value)}/></FormField>}
             {dialog !== "recurrence" && <FormField label="Observações (opcional)"><Input {...inputStyle} value={form.notes} onChange={e => changeForm("notes", e.target.value)}/></FormField>}
+            {dialog === "expense" && editing?.status === "paid" && <>
+              <Box pt={2} borderTop="1px solid #e1e9e7"><Text fontWeight="700" fontSize="12px" color={green}>Corrigir informações da quitação</Text></Box>
+              <SimpleGrid columns={2} gap={3}>
+                <FormField label="Valor efetivamente pago"><Input {...inputStyle} type="number" min="0.01" step="0.01" value={form.paidAmount ?? ""} onChange={e => changeForm("paidAmount", e.target.value)}/></FormField>
+                <FormField label="Data do pagamento"><Input {...inputStyle} type="date" max={today()} value={form.paidAt || ""} onChange={e => changeForm("paidAt", e.target.value)}/></FormField>
+              </SimpleGrid>
+              <FormField label="Forma de pagamento"><NativeSelect.Root size="sm"><NativeSelect.Field value={form.method || "Pix"} onChange={e => changeForm("method", e.target.value)}>{["Pix","Dinheiro","Cartão","Transferência","Boleto","Outro"].map(method => <option key={method}>{method}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root></FormField>
+              <FormField label="Justificativa obrigatória"><Textarea value={reason} maxLength={500} onChange={e => setReason(e.target.value)} minH="80px" fontSize="12px" placeholder="Ex.: Data digitada incorretamente"/></FormField>
+              <Text fontSize="11px" color={gray}>A correção ficará no histórico e atualizará o resultado do mês do pagamento efetivo.</Text>
+            </>}
           </>}
           {actionError && <Text fontSize="12px" color="#bd3030"><FiAlertCircle style={{ display: "inline" }}/> {actionError}</Text>}
         </VStack></Dialog.Body>
-        <Dialog.Footer><Button variant="outline" onClick={closeDialog} disabled={saving}>Cancelar</Button><Button bg={green} color="white" loading={saving} onClick={dialog === "pay" ? payExpense : saveExpense}>{dialog === "pay" ? "Confirmar pagamento" : dialog === "recurrence" ? "Salvar nova regra" : editing ? "Salvar alterações" : "Cadastrar despesa"}</Button></Dialog.Footer>
+        <Dialog.Footer>
+          <Button variant="outline" onClick={closeDialog} disabled={saving}>{dialog === "history" ? "Fechar" : "Voltar"}</Button>
+          {dialog !== "history" && <Button bg={operation === "delete" ? "#b32f32" : green} color="white" loading={saving}
+            disabled={dialog === "operation" && operation !== "delete" && !reason.trim()}
+            onClick={dialog === "pay" ? payExpense : dialog === "operation" ? performOperation : saveExpense}>
+            {dialog === "pay" ? "Confirmar pagamento" : dialog === "operation" ? actionLabels[operation] : dialog === "recurrence" ? "Salvar nova regra" : editing ? "Salvar alterações" : "Cadastrar despesa"}
+          </Button>}
+        </Dialog.Footer>
         <Dialog.CloseTrigger asChild><Button size="sm" variant="ghost" position="absolute" right="9px" top="9px" onClick={closeDialog}><FiX/></Button></Dialog.CloseTrigger>
       </Dialog.Content></Dialog.Positioner></Portal>
     </Dialog.Root>

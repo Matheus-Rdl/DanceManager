@@ -21,6 +21,7 @@ import ActivityManagementUsers from "./features/activities/pages/activityManagem
 
 import MonthlyFees from "./features/financial/monthlyFees/monthlyFees.jsx";
 import MonthlyFeesDetailed from "./features/financial/monthlyFees/monthlyFeesDetailed.jsx";
+import FinancialGeneral from "./features/financial/general/FinancialGeneral.jsx";
 
 import UnderConstruction from "./components/underConstruction.jsx";
 import PeopleManagementActivities from "./features/register/pages/peopleManagementActivities.jsx";
@@ -92,7 +93,7 @@ const pages = createHashRouter([
       },
       {
         path: "/financeiro",
-        element: <UnderConstruction title="Financeiro" />,
+        element: <FinancialGeneral />,
       },
       {
         path: "/configuracoes",

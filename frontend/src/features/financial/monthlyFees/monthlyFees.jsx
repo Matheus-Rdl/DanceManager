@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Flex, Heading, HStack, Input, NativeSelect, SimpleGrid, Text, VStack, Table } from "@chakra-ui/react";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
-import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiClock, FiDollarSign, FiSearch, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown, FiClock, FiDollarSign, FiSearch, FiX } from "react-icons/fi";
 
 const pad = (value) => String(value).padStart(2, "0");
 const formatCurrency = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -25,6 +25,33 @@ const statusConfig = {
   upcoming: { label: "A vencer", fg: "#64748b", bg: "#edf1f2", icon: FiClock },
   partial: { label: "Parcial", fg: "#8a5a00", bg: "#fff3cf", icon: FiClock },
   cancelled: { label: "Cancelada", fg: "#718096", bg: "#edf1f2", icon: FiX },
+
+};
+
+/* A ordem alfabética ignora diferenças de maiúsculas e acentos; numeric ordena MAT 2 antes de MAT 10. */
+const collator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
+/* Quanto menor o número, mais atenção o status exige. */
+const statusPriority = { overdue: 0, partial: 1, pending: 2, upcoming: 3, paid: 4, cancelled: 5 };
+
+/* Aceita datas do Mongo/API em YYYY-MM-DD, ISO ou DD/MM/YYYY. */
+const dateOrder = (value) => {
+  if (!value) return null;
+  const text = String(value).trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return Number(`${iso[1]}${iso[2]}${iso[3]}`);
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return Number(`${br[3]}${br[2]}${br[1]}`);
+  const time = Date.parse(text);
+  if (Number.isNaN(time)) return null;
+  const date = new Date(time);
+  return Number(`${date.getUTCFullYear()}${String(date.getUTCMonth() + 1).padStart(2, "0")}${String(date.getUTCDate()).padStart(2, "0")}`);
+};
+
+const compareNullable = (a, b, comparator) => {
+  if (a == null || a === "") return b == null || b === "" ? 0 : 1;
+  if (b == null || b === "") return -1;
+  return comparator(a, b);
 };
 
 const contractConfig = {
@@ -33,6 +60,29 @@ const contractConfig = {
   Imersão: { fg: "#0865c6", bg: "#dcecff" },
   Beco: { fg: "#7b461c", bg: "#eee2d6" },
 };
+
+function SortHeader({ label, column, sort, onSort }) {
+    const active = sort.key === column || (column === "aluno" && sort.key === "matricula");
+    const direction = active ? sort.direction : null;
+    const description = column === "aluno" && sort.key === "matricula" ? "Matrícula" : label;
+    return (
+      <Table.ColumnHeader h="37px" color="#174f4a" fontSize="11px" fontWeight="600" borderColor="#e2e8e7"
+        aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}>
+        <Button variant="ghost" size="xs" h="31px" px="5px" minW="0" fontWeight="600"
+          color="#174f4a" borderRadius="5px" _hover={{ bg: "#e8f2ef" }}
+          aria-label={`Ordenar ${label.toLowerCase()}${active ? ` (${description}: ${direction === "asc" ? "crescente" : "decrescente"})` : ""}`}
+          onClick={() => onSort(column)}>
+          <Flex align="center" gap="5px">
+            <Text fontSize="11px">{label}</Text>
+            <Flex ml={1} direction="column" justify="center" align="center" gap="0" lineHeight="1">
+              <Box color={direction === "asc" ? "#08715c" : "#a8b7b4"} mb="-6px"><FiArrowUp size={12} strokeWidth={direction === "asc" ? 3 : 2} /></Box>
+              <Box ml={4} color={direction === "desc" ? "#08715c" : "#a8b7b4"}><FiArrowDown size={12} strokeWidth={direction === "desc" ? 3 : 2} /></Box>
+            </Flex>
+          </Flex>
+        </Button>
+      </Table.ColumnHeader>
+    );
+}
 
 export default function MonthlyFees() {
   const navigate = useNavigate();
@@ -43,6 +93,15 @@ export default function MonthlyFees() {
   const [reference, setReference] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
   const [mobileSearchMode, setMobileSearchMode] = useState(false);
 
+  /* Ordem inicial: matrícula crescente. Ao clicar em Aluno, ordena pelo nome. */
+  const [sort, setSort] = useState({ key: "matricula", direction: "asc" });
+
+  const changeSort = (key) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "asc" ? "desc" : "asc"
+    }));
+  };
 
   useEffect(() => {
     getMonthlyFees({ reference });
@@ -50,8 +109,6 @@ export default function MonthlyFees() {
 
   const monthlyFees = monthlyFeesList;
   const activities = useMemo(() => [...new Set(monthlyFees.map((fee) => fee.student.activity))].sort(), [monthlyFees]);
-
-  console.log(monthlyFees)
 
   const filteredMonthlyFees = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -63,6 +120,34 @@ export default function MonthlyFees() {
       return matchesSearch && matchesStatus && matchesActivity;
     });
   }, [monthlyFees, search, statusFilter, activityFilter]);
+
+  /* Filtra antes de ordenar; a mesma ordenação vale para tabela e cards mobile. */
+  const sortedMonthlyFees = useMemo(() => {
+    const result = [...filteredMonthlyFees];
+    const getValue = (fee) => {
+      const student = fee.student || {};
+      switch (sort.key) {
+        case "matricula": return String(student.id ?? student.user_mat ?? "");
+        case "aluno": return String(student.name ?? "");
+        case "contrato": return String(student.contract ?? "");
+        case "vencimento": return dateOrder(fee.dueDate);
+        case "valor": return Number(fee.amount);
+        case "status": return statusPriority[fee.status] ?? 999;
+        default: return "";
+      }
+    };
+    result.sort((a, b) => {
+      const first = getValue(a);
+      const second = getValue(b);
+      const numeric = ["vencimento", "valor", "status"].includes(sort.key);
+      const cmp = compareNullable(first, second, numeric
+        ? (x, y) => x - y
+        : (x, y) => collator.compare(String(x), String(y)));
+      if (cmp !== 0) return cmp * (sort.direction === "asc" ? 1 : -1);
+      return collator.compare(String(a.student?.id ?? ""), String(b.student?.id ?? ""));
+    });
+    return result;
+  }, [filteredMonthlyFees, sort]);
 
   const totals = useMemo(() => {
     const activeFees = monthlyFees.filter((fee) => fee.status !== "cancelled");
@@ -140,10 +225,21 @@ export default function MonthlyFees() {
         {monthlyFeesLoading && <Box p={3} color="#607873">Carregando mensalidades...</Box>}
         {monthlyFeesError && <Box p={3} color="red.600">{monthlyFeesError}</Box>}
         <Box display={{ base: "none", md: "block" }} overflowX="auto">
-          <Table.Root size="sm" variant="line" minW="850px">
-            <Table.Header bg="#f4f7f7"><Table.Row>{["Aluno", "Contrato", "Vencimento", "Valor", "Status", "Ações"].map((header) => <Table.ColumnHeader key={header} h="37px" color="#174f4a" fontSize="11px" fontWeight="600" borderColor="#e2e8e7">{header}</Table.ColumnHeader>)}</Table.Row></Table.Header>
+
+          <Table.Root size="sm" variant="line" minW="760px">
+
+            <Table.Header bg="#f4f7f7"><Table.Row>
+              <SortHeader label="Aluno" column="aluno" sort={sort} onSort={changeSort} />
+              <SortHeader label="Contrato" column="contrato" sort={sort} onSort={changeSort} />
+              <SortHeader label="Vencimento" column="vencimento" sort={sort} onSort={changeSort} />
+              <SortHeader label="Valor" column="valor" sort={sort} onSort={changeSort} />
+              <SortHeader label="Status" column="status" sort={sort} onSort={changeSort} />
+            </Table.Row></Table.Header>
+
             <Table.Body>
-              {filteredMonthlyFees.map((fee) => {
+
+              {sortedMonthlyFees.map((fee) => {
+
                 const student = fee.student;
                 const status = statusConfig[fee.status] || statusConfig.pending;
                 const contract = contractConfig[student.contract] || contractConfig.Balanço;
@@ -173,16 +269,13 @@ export default function MonthlyFees() {
                   {/* Status */ }
                   <Table.Cell borderColor="#e7eceb">
                     <Badge display="inline-flex" alignItems="center" gap="6px" px="10px" py="5px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="10px">
-                      <Flex  x w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center">
+
+                      <Flex w="15px" h="15px" borderRadius="full" bg={status.fg} color="white" align="center" justify="center">
+
                         <StatusIcon size={9} />
                       </Flex>{status.label}
                     </Badge>
-                  </Table.Cell>
-                  {/* Ações */ }
-                  <Table.Cell borderColor="#e7eceb">
-                    <Button onClick={(e) => { e.stopPropagation(); handleView(fee); }} h="32px" minW="70px" px="11px" variant="outline" borderColor="#d6e0df" borderRadius="8px" color="#174f4a" fontSize="11px" bg="white" _hover={{ bg: "#f6faf9" }}>
-                      <FiArrowRight size={14} /> Ver
-                    </Button>
+
                   </Table.Cell>
                 </Table.Row>;
               })}
@@ -191,7 +284,9 @@ export default function MonthlyFees() {
         </Box>
 
         <VStack display={{ base: "flex", md: "none" }} align="stretch" gap={0}>
-          {filteredMonthlyFees.map((fee) => { const student = fee.student; const status = statusConfig[fee.status] || statusConfig.pending; const contract = contractConfig[student.contract] || contractConfig.Balanço; const StatusIcon = status.icon; return <Box key={fee.id} px={3} py={3} borderBottom="1px solid #e7eceb" cursor="pointer" onClick={() => handleView(fee)} _active={{ bg: "#f6faf9" }}><Flex justify="space-between" align="flex-start" gap={3}><HStack gap="10px" minW={0}><Avatar.Root size="sm" flexShrink={0}><Avatar.Image src={student.avatar} /><Avatar.Fallback name={student.name} /></Avatar.Root><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{student.name}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id}</Text></Box></HStack><Text fontSize="13px" fontWeight="800" color="#073f39" flexShrink={0}>{formatCurrency(fee.amount)}</Text></Flex><Flex mt={3} align="center" justify="space-between" gap={2} wrap="wrap"><HStack gap="6px" wrap="wrap"><Badge px="9px" py="3px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="9px">{student.contract}</Badge><Badge display="inline-flex" alignItems="center" gap="4px" px="8px" py="3px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="9px"><StatusIcon size={9} />{status.label}</Badge></HStack><Text fontSize="10px" color="#607873">Venc. {fee.dueDate}</Text></Flex><Flex mt="9px" justify="space-between" align="center"><Text fontSize="10px" color="#71858a">{student.activity}</Text><Flex align="center" gap="4px" fontSize="10px" fontWeight="600" color="#0b6b5b">Ver detalhes<FiArrowRight size={12} /></Flex></Flex></Box>; })}
+
+          {sortedMonthlyFees.map((fee) => { const student = fee.student; const status = statusConfig[fee.status] || statusConfig.pending; const contract = contractConfig[student.contract] || contractConfig.Balanço; const StatusIcon = status.icon; return <Box key={fee.id} px={3} py={3} borderBottom="1px solid #e7eceb" cursor="pointer" onClick={() => handleView(fee)} _active={{ bg: "#f6faf9" }}><Flex justify="space-between" align="flex-start" gap={3}><HStack gap="10px" minW={0}><Avatar.Root size="sm" flexShrink={0}><Avatar.Image src={student.avatar} /><Avatar.Fallback name={student.name} /></Avatar.Root><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{student.name}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id}</Text></Box></HStack><Text fontSize="13px" fontWeight="800" color="#073f39" flexShrink={0}>{formatCurrency(fee.amount)}</Text></Flex><Flex mt={3} align="center" justify="space-between" gap={2} wrap="wrap"><HStack gap="6px" wrap="wrap"><Badge px="9px" py="3px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="9px">{student.contract}</Badge><Badge display="inline-flex" alignItems="center" gap="4px" px="8px" py="3px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="9px"><StatusIcon size={9} />{status.label}</Badge></HStack><Text fontSize="10px" color="#607873">Venc. {fee.dueDate}</Text></Flex><Flex mt="9px" justify="space-between" align="center"><Text fontSize="10px" color="#71858a">{student.activity}</Text><Flex align="center" gap="4px" fontSize="10px" fontWeight="600" color="#0b6b5b">Ver detalhes<FiArrowRight size={12} /></Flex></Flex></Box>; })}
+
         </VStack>
 
         {filteredMonthlyFees.length === 0 && <Box py="55px" px={4} textAlign="center"><Flex mx="auto" mb={3} w="42px" h="42px" borderRadius="full" bg="#eef5f3" color="#52756f" align="center" justify="center"><FiCalendar size={20} /></Flex><Text fontWeight="700" color="#174f4a">Nenhuma mensalidade encontrada</Text><Text mt="4px" color="#71858a" fontSize="11px">Não há mensalidades para os filtros selecionados.</Text>{hasFilters && <Button mt={3} onClick={clearFilters} size="sm" variant="outline" borderColor="#d6e0df" color="#174f4a" fontSize="11px">Limpar filtros</Button>}</Box>}

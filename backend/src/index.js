@@ -12,6 +12,10 @@ import menusRouter from "./modules/menus/menusRouter.js";
 import attendancesRouter from "./modules/attendances/attendancesRouter.js";
 import monthlyFeesRouter from "./modules/monthlyFees/monthlyFeesRouter.js";
 import paymentsRouter from "./modules/payments/paymentsRouter.js";
+import expensesRouter from "./modules/expenses/expensesRouter.js";
+import financialRouter from "./modules/financial/financialRouter.js";
+import Expense from "./models/Expense.js";
+import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
 import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
 
@@ -80,6 +84,8 @@ async function main() {
   app.use("/attendances", attendancesRouter);
   app.use("/monthly-fees", monthlyFeesRouter);
   app.use("/payments", paymentsRouter);
+  app.use("/expenses", expensesRouter);
+  app.use("/financial", financialRouter);
 
   app.use((err, req, res, next) => {
     console.error("🚨 Erro Global Capturado:", err.message);
@@ -103,6 +109,18 @@ async function main() {
     }
   };
   await runFeeGeneration();
+  await Expense.init(); // Índice único para despesas recorrentes.
+  const runExpenseGeneration = async () => {
+    try {
+      const count = await ensureAllExpenses();
+      if (count) console.log(`[Despesas] ${count} novas competências geradas.`);
+    } catch (error) {
+      console.error("[Despesas] Erro na geração automática:", error);
+    }
+  };
+  await runExpenseGeneration();
+  const expenseInterval = setInterval(runExpenseGeneration, 6 * 60 * 60 * 1000);
+  expenseInterval.unref?.();
   const generationInterval = setInterval(runFeeGeneration, 6 * 60 * 60 * 1000);
   generationInterval.unref?.();
 
