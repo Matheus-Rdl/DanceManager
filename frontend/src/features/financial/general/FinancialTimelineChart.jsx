@@ -120,7 +120,7 @@ export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
       {!loading && error && <Flex p={3} borderRadius="7px" bg="#fff4f4" color="#b02f36" align="center" gap={2} wrap="wrap"><FiAlertCircle/><Text fontSize="12px" flex="1">{error}</Text><Button size="xs" onClick={() => setRetry(v => v + 1)} variant="outline">Tentar novamente</Button></Flex>}
       {!loading && !error && <>
         <Box ref={chartScroller} overflowX="auto" w="100%" pb={2} scrollbarWidth="thin" aria-label="Gráfico de recebimentos e despesas por mês">
-          <Flex /*mt={4}*/ gap={2} minW={{ base: minChartWidth, md: mode === "12" || mode === "year" ? "800px" : "100%" }}>
+          <Flex mt={6} gap={2} minW={{ base: minChartWidth, md: mode === "12" || mode === "year" ? "800px" : "100%" }}>
             {/* Escala comum entre meses e séries: mantém as alturas comparáveis. */}
             <Box w="54px" flexShrink={0} h="232px" position="sticky" left={0} zIndex={2} bg="white" color={MUTED} fontSize="9px" aria-hidden="true">
               {axisTicks.map(tick => <Text key={tick} position="absolute" right="6px" bottom={`calc(27px + ${tick / chartTop * 205}px)`} transform="translateY(50%)" whiteSpace="nowrap" fontVariantNumeric="tabular-nums">{formatAxisTick(tick)}</Text>)}
