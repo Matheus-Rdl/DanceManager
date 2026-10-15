@@ -20,6 +20,23 @@ const resolveMonth = month => {
   return month;
 };
 
+/* Intervalo inclusivo YYYY-MM: compatível com datas ISO armazenadas como texto. */
+const resolveRange = filters => {
+  if (filters.from == null && filters.to == null) {
+    const month = resolveMonth(filters.month);
+    return { from: month, to: month, after: addMonths(month, 1) };
+  }
+  const { from, to } = filters;
+  if (!isMonth(from) || !isMonth(to) || from > to) {
+    throw Object.assign(new Error("Intervalo financeiro inválido."), { statusCode: 400 });
+  }
+  const yearDelta = (Number(to.slice(0, 4)) - Number(from.slice(0, 4))) * 12;
+  const months = yearDelta + Number(to.slice(5)) - Number(from.slice(5)) + 1;
+  if (months > 12) throw Object.assign(new Error("Selecione um período de até 12 meses."), { statusCode: 400 });
+  return { from, to, after: addMonths(to, 1) };
+};
+const round = value => Math.round(value * 100) / 100;
+
 /* Acesso e agregação aos dados financeiros; nenhuma resposta HTTP nesta camada. */
 export default class FinancialDataAccess {
   async getSummary(filters = {}) {
@@ -54,6 +71,39 @@ export default class FinancialDataAccess {
       pendingExpensesCount: pendingExpenses.length,
       pendingExpensesValue: sum(pendingExpenses, "amount"),
       timeline
+    };
+  }
+
+  /* Resumo por período. Realizados: paidAt; previstos: referência da cobrança/despesa. */
+  async getPeriodSummary(filters = {}) {
+    const { from, to, after } = resolveRange(filters);
+    await ensureAllExpenses();
+    const [paid, outgoing, fees, dueExpenses] = await Promise.all([
+      Payment.aggregate([
+        { $match: between("paidAt", from, after) },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      Expense.aggregate([
+        { $match: { schoolId: schoolId(), status: "paid", ...between("paidAt", from, after) } },
+        { $group: { _id: null, total: { $sum: "$paidAmount" } } }
+      ]),
+      MonthlyFee.find({ reference: { $gte: from, $lte: to }, status: { $ne: "cancelled" } })
+        .select("amount paidAmount dueDate status").lean(),
+      Expense.find({ schoolId: schoolId(), reference: { $gte: from, $lte: to }, status: { $nin: ["cancelled", "zeroed"] } })
+        .select("amount status dueDate").lean()
+    ]);
+    const received = round(Number(paid[0]?.total || 0));
+    const expensesPaid = round(Number(outgoing[0]?.total || 0));
+    const overdueFees = fees.filter(fee => status(fee) === "overdue");
+    const pendingExpenses = dueExpenses.filter(item => item.status === "pending");
+    return {
+      from, to, received, expensesPaid, result: round(received - expensesPaid),
+      expectedFees: sum(fees, "amount"),
+      openFees: round(fees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),
+      overdueFeesCount: overdueFees.length,
+      overdueFeesValue: round(overdueFees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),
+      pendingExpensesCount: pendingExpenses.length,
+      pendingExpensesValue: sum(pendingExpenses, "amount")
     };
   }
 
@@ -103,8 +153,8 @@ export default class FinancialDataAccess {
   }
 
   async getReceipts(filters = {}) {
-    const month = resolveMonth(filters.month);
-    const payments = await Payment.find(between("paidAt", month, addMonths(month, 1)))
+    const { from, after } = resolveRange(filters);
+    const payments = await Payment.find(between("paidAt", from, after))
       .sort({ paidAt: -1, createdAt: -1 }).lean();
     const monthlyFeeIds = [...new Set(payments.map(p => p.monthlyFeeId).filter(Boolean))];
     const userIds = [...new Set(payments.map(p => p.userId).filter(Boolean))];

@@ -61,7 +61,15 @@ export default class ExpensesDataAccess {
   async list(filters = {}) {
     await ensureAllExpenses();
     const query = { schoolId: schoolId() };
-    if (filters.reference) {
+    if (filters.from != null || filters.to != null) {
+      if (!isMonth(filters.from) || !isMonth(filters.to) || filters.from > filters.to) {
+        throw validation("Intervalo de competências inválido.");
+      }
+      const length = (Number(filters.to.slice(0, 4)) - Number(filters.from.slice(0, 4))) * 12
+        + Number(filters.to.slice(5)) - Number(filters.from.slice(5)) + 1;
+      if (length > 12) throw validation("Selecione um período de até 12 meses.");
+      query.reference = { $gte: filters.from, $lte: filters.to };
+    } else if (filters.reference) {
       if (!isMonth(filters.reference)) throw validation("Competência inválida.");
       query.reference = filters.reference;
     }

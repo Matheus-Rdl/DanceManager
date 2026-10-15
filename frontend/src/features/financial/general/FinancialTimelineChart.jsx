@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Flex, Heading, HStack, NativeSelect, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, HStack, Text } from "@chakra-ui/react";
 import { FiAlertCircle, FiBarChart2, FiChevronRight, FiRefreshCw } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
 
@@ -53,10 +53,11 @@ function TotalIndicator({ label, amount, color, highlight = false }) {
   </Box>;
 }
 
-export default function FinancialTimelineChart({ month, refreshKey = 0 }) {
-  const [mode, setMode] = useState("6");
-  const [selectedYear, setSelectedYear] = useState(() => String(month || "").slice(0, 4));
-  const [selectedMonth, setSelectedMonth] = useState(() => String(month || "").slice(5, 7));
+export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
+  const mode = period.mode;
+  const month = period.reference;
+  const selectedYear = period.year;
+  const selectedMonth = period.reference.slice(5, 7);
   const [data, setData] = useState(null);
   const [selectedReference, setSelectedReference] = useState("");
   const [loading, setLoading] = useState(true);
@@ -97,11 +98,6 @@ export default function FinancialTimelineChart({ month, refreshKey = 0 }) {
   const { top: chartTop, ticks: axisTicks } = useMemo(() => getFinancialAxisScale(maxValue), [maxValue]);
   const monthView = mode === "month";
   const minChartWidth = monthView ? "275px" : mode === "6" ? "525px" : "880px";
-  const currentYear = new Date().getFullYear();
-  const yearChoices = Array.from({ length: 11 }, (_, index) => currentYear + 1 - index);
-  if (selectedYear && !yearChoices.includes(Number(selectedYear))) yearChoices.push(Number(selectedYear));
-  yearChoices.sort((a, b) => b - a);
-
   const dateLabel = mode === "year"
     ? `Janeiro a dezembro de ${selectedYear}`
     : mode === "month" ? monthName(queryMonth)
@@ -119,31 +115,12 @@ export default function FinancialTimelineChart({ month, refreshKey = 0 }) {
       </HStack>
     </Flex>
 
-    {/* Segmentos compactos, com toque confortável no celular. */}
-    <Flex mt={4} gap={1} bg="#f3f7f6" p="4px" borderRadius="8px" w={{ base: "100%", md: "fit-content" }}>
-      {[
-        { value: "6", label: "6 meses" }, { value: "12", label: "12 meses" },
-        { value: "year", label: "Ano" }, { value: "month", label: "Mês" }
-      ].map(choice => <Button key={choice.value} flex={{ base: "1", md: "unset" }} size="sm" h="34px" px={{ base: 1, md: 3 }} borderRadius="6px" fontSize={{ base: "10px", md: "11px" }} bg={mode === choice.value ? DARK : "transparent"} color={mode === choice.value ? "white" : DARK} fontWeight={mode === choice.value ? "700" : "500"} _hover={{ bg: mode === choice.value ? DARK : "#e6eeeb" }} onClick={() => setMode(choice.value)}>{choice.label}</Button>)}
-    </Flex>
-
-    {(mode === "year" || mode === "month") && <Flex gap={2} mt={3} wrap="wrap">
-      {mode === "month" && <Box flex="1" maxW={{ md: "195px" }} minW="135px">
-        <Text color={MUTED} fontSize="10px" mb={1}>Mês</Text>
-        <NativeSelect.Root size="sm"><NativeSelect.Field value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} fontSize="12px" borderRadius="7px">{months.map((name, i) => <option value={formatMonthNumber(i + 1)} key={name}>{name}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
-      </Box>}
-      <Box flex="1" maxW={{ md: "145px" }} minW="120px">
-        <Text color={MUTED} fontSize="10px" mb={1}>Ano</Text>
-        <NativeSelect.Root size="sm"><NativeSelect.Field value={selectedYear} onChange={e => setSelectedYear(e.target.value)} fontSize="12px" borderRadius="7px">{yearChoices.map(year => <option key={year} value={year}>{year}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
-      </Box>
-    </Flex>}
-
     <Box mt={4} position="relative" aria-busy={loading}>
       {loading && <Flex align="center" gap={2} py={3} color={MUTED}><FiRefreshCw/><Text fontSize="12px">Carregando gráfico...</Text></Flex>}
       {!loading && error && <Flex p={3} borderRadius="7px" bg="#fff4f4" color="#b02f36" align="center" gap={2} wrap="wrap"><FiAlertCircle/><Text fontSize="12px" flex="1">{error}</Text><Button size="xs" onClick={() => setRetry(v => v + 1)} variant="outline">Tentar novamente</Button></Flex>}
       {!loading && !error && <>
         <Box ref={chartScroller} overflowX="auto" w="100%" pb={2} scrollbarWidth="thin" aria-label="Gráfico de recebimentos e despesas por mês">
-          <Flex mt={4} gap={2} minW={{ base: minChartWidth, md: mode === "12" || mode === "year" ? "800px" : "100%" }}>
+          <Flex /*mt={4}*/ gap={2} minW={{ base: minChartWidth, md: mode === "12" || mode === "year" ? "800px" : "100%" }}>
             {/* Escala comum entre meses e séries: mantém as alturas comparáveis. */}
             <Box w="54px" flexShrink={0} h="232px" position="sticky" left={0} zIndex={2} bg="white" color={MUTED} fontSize="9px" aria-hidden="true">
               {axisTicks.map(tick => <Text key={tick} position="absolute" right="6px" bottom={`calc(27px + ${tick / chartTop * 205}px)`} transform="translateY(50%)" whiteSpace="nowrap" fontVariantNumeric="tabular-nums">{formatAxisTick(tick)}</Text>)}

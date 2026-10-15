@@ -13,7 +13,10 @@ const request = async (path = "", method = "GET", data) => {
   return result?.body ?? result;
 };
 const expensesServices = {
-  list: (reference) => request(`?${new URLSearchParams({ reference })}`),
+  list: (referenceOrRange) => {
+    const query = typeof referenceOrRange === "string" ? { reference: referenceOrRange } : referenceOrRange || {};
+    return request(`?${new URLSearchParams(query)}`);
+  },
   listRecurrences: () => request("/recurrences"),
   create: (data) => request("", "POST", data),
   update: (id, data) => request(`/${encodeURIComponent(id)}`, "PUT", data),

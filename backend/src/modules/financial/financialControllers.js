@@ -19,6 +19,19 @@ export default class FinancialControllers {
     }
   }
 
+  async getPeriodSummary(filters = {}) {
+    try {
+      return ok(await this.dataAccess.getPeriodSummary(filters));
+    } catch (error) {
+      console.error("[Financeiro - Resumo do período]", error);
+      const statusCode = error.statusCode || 500;
+      return {
+        success: false, statusCode,
+        body: statusCode === 500 ? "Erro interno ao calcular o resumo do período." : error.message
+      };
+    }
+  }
+
   async getTimeline(filters = {}) {
     try {
       return ok(await this.dataAccess.getTimeline(filters));
