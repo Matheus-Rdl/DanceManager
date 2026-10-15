@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Flex, Heading, HStack, Input, NativeSelect, SimpleGrid, Text, VStack, Table } from "@chakra-ui/react";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
@@ -86,12 +86,15 @@ function SortHeader({ label, column, sort, onSort }) {
 
 export default function MonthlyFees() {
   const navigate = useNavigate();
-  const { getMonthlyFees, monthlyFeesList, monthlyFeesLoading, refetchMonthlyFees, monthlyFeesError } = monthlyFeesServices();
+  const { getMonthlyFees, monthlyFeesList, monthlyFeesLoading, monthlyFeesReference, refetchMonthlyFees, monthlyFeesError } = monthlyFeesServices();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
   const [reference, setReference] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; });
   const [mobileSearchMode, setMobileSearchMode] = useState(false);
+  const requestedReference = useRef(null);
+  const isLoading = monthlyFeesLoading || monthlyFeesReference !== reference;
+  const displayReady = !isLoading && !monthlyFeesError;
 
   /* Ordem inicial: matrícula crescente. Ao clicar em Aluno, ordena pelo nome. */
   const [sort, setSort] = useState({ key: "matricula", direction: "asc" });
@@ -103,11 +106,15 @@ export default function MonthlyFees() {
     }));
   };
 
+  /* Busca cada competência uma vez, salvo atualização solicitada. */
   useEffect(() => {
+    if (requestedReference.current === reference && !refetchMonthlyFees) return;
+    requestedReference.current = reference;
     getMonthlyFees({ reference });
-  }, [reference, refetchMonthlyFees]);
+  }, [reference, refetchMonthlyFees, getMonthlyFees]);
 
-  const monthlyFees = monthlyFeesList;
+  /* Nunca utiliza dados pertencentes à competência anterior. */
+  const monthlyFees = displayReady ? monthlyFeesList : [];
   const activities = useMemo(() => [...new Set(monthlyFees.map((fee) => fee.student.activity))].sort(), [monthlyFees]);
 
   const filteredMonthlyFees = useMemo(() => {
@@ -189,7 +196,7 @@ export default function MonthlyFees() {
           <Box><Heading as="h1" fontSize={{ base: "22px", md: "26px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">Mensalidades</Heading><Text mt="4px" fontSize="12px" color="#5e7471">Acompanhe as mensalidades e os recebimentos dos alunos.</Text></Box>
         </Flex>
         <HStack gap={2}>
-          {totals.overdueCount > 0 && <Badge display={{ base: "none", md: "inline-flex" }} alignItems="center" gap="6px" px="12px" py="7px" borderRadius="999px" bg="#fff0f0" color="#c72e34" fontSize="11px" fontWeight="600"><FiAlertCircle size={14} />{totals.overdueCount} {totals.overdueCount === 1 ? "mensalidade em atraso" : "mensalidades em atraso"}</Badge>}
+          {displayReady && totals.overdueCount > 0 && <Badge display={{ base: "none", md: "inline-flex" }} alignItems="center" gap="6px" px="12px" py="7px" borderRadius="999px" bg="#fff0f0" color="#c72e34" fontSize="11px" fontWeight="600"><FiAlertCircle size={14} />{totals.overdueCount} {totals.overdueCount === 1 ? "mensalidade em atraso" : "mensalidades em atraso"}</Badge>}
           <Button display={{ base: "none", md: "inline-flex" }} onClick={resetTestData} h="34px" variant="outline" borderColor="#d6e0df" color="#174f4a" bg="white" fontSize="10px">Atualizar</Button>
         </HStack>
       </Flex>
@@ -200,11 +207,13 @@ export default function MonthlyFees() {
         <Button onClick={() => changeMonth(1)} variant="ghost" h="34px" px={{ base: 2, md: 3 }} color="#174f4a" fontSize="12px" borderRadius="8px" _hover={{ bg: "#f2f7f6" }}><Text display={{ base: "none", sm: "block" }}>Próximo mês</Text><FiChevronRight size={17} /></Button>
       </Flex>
 
+      {displayReady && (
       <Box display={{ base: mobileSearchMode ? "none" : "block", md: "block" }}>
         <SimpleGrid columns={{ base: 2, xl: 4 }} gap={3}>
           {summaryCards.map((card) => { const Icon = card.icon; return <Flex key={card.title} p={3} minH={{ base: "112px", md: "105px" }} border="1px solid" borderColor={card.border} borderRadius="8px" bg={card.bg} align="flex-start" gap={{ base: 2, md: 3 }}><Flex display={{ base: "none", sm: "flex" }} mt="1px" w="36px" h="36px" flex="0 0 36px" borderRadius="full" bg={card.fg} color="white" align="center" justify="center"><Icon size={18} /></Flex><Box minW={0}><Text color={card.fg} fontSize={{ base: "11px", md: "13px" }} fontWeight="600">{card.title}</Text><Text mt="3px" color={card.title === "Em atraso" ? "#b01218" : card.title === "Em aberto" ? "#754700" : "#073f39"} fontSize={{ base: "16px", md: "19px" }} lineHeight="1.2" fontWeight="800">{card.value}</Text><Text mt="5px" color="#60777c" fontSize="10px">{card.detail}</Text></Box></Flex>; })}
         </SimpleGrid>
       </Box>
+      )}
 
       <Box bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
         <Flex p={3} gap={2} align="end" wrap="wrap" borderBottom="1px solid" borderColor="#e9efee">
@@ -218,12 +227,26 @@ export default function MonthlyFees() {
         </Flex>
 
         <Flex px={3} py="10px" justify="space-between" align={{ base: "flex-start", md: "center" }} gap={2} wrap="wrap" bg="#fbfcfc" borderBottom="1px solid" borderColor="#e9efee">
-          <Box><Heading fontSize="15px" fontWeight="700" color="#062f2b">Mensalidades de {formatReference(reference)}</Heading><Text mt="2px" fontSize="11px" color="#71858a">{totals.expectedCount} mensalidades • {totals.receivedCount} pagas • {totals.pendingCount} pendentes / a vencer • {totals.overdueCount} em atraso</Text></Box>
-          <Text fontSize="11px" color="#607873">{filteredMonthlyFees.length} {filteredMonthlyFees.length === 1 ? "resultado" : "resultados"}</Text>
+          <Box><Heading fontSize="15px" fontWeight="700" color="#062f2b">Mensalidades de {formatReference(reference)}</Heading><Text mt="2px" fontSize="11px" color="#71858a">{displayReady ? `${totals.expectedCount} mensalidades • ${totals.receivedCount} pagas • ${totals.pendingCount} pendentes / a vencer • ${totals.overdueCount} em atraso` : isLoading ? "Carregando dados e status..." : "Não foi possível carregar as mensalidades."}</Text></Box>
+          <Text fontSize="11px" color="#607873">{displayReady ? `${filteredMonthlyFees.length} ${filteredMonthlyFees.length === 1 ? "resultado" : "resultados"}` : ""}</Text>
         </Flex>
 
-        {monthlyFeesLoading && <Box p={3} color="#607873">Carregando mensalidades...</Box>}
-        {monthlyFeesError && <Box p={3} color="red.600">{monthlyFeesError}</Box>}
+        {isLoading && (
+          <Flex minH="280px" py={10} align="center" justify="center" direction="column" gap={3} role="status" aria-live="polite">
+            <Box w="32px" h="32px" border="3px solid #dcebe7" borderTopColor="#0b6b5b" borderRadius="full"
+              animation="spin 0.8s linear infinite" css={{ "@keyframes spin": { to: { transform: "rotate(360deg)" } } }} />
+            <Text fontSize="13px" fontWeight="600" color="#174f4a">Carregando mensalidades de {formatReference(reference)}...</Text>
+            <Text fontSize="11px" color="#71858a">Atualizando dados financeiros e status.</Text>
+          </Flex>
+        )}
+        {!isLoading && monthlyFeesError && (
+          <Flex minH="180px" align="center" justify="center" direction="column" gap={3} p={4}>
+            <Text fontSize="12px" color="red.600">{monthlyFeesError}</Text>
+            <Button size="sm" variant="outline" color="#174f4a" onClick={resetTestData}>Tentar novamente</Button>
+          </Flex>
+        )}
+        {displayReady && (
+          <>
         <Box display={{ base: "none", md: "block" }} overflowX="auto">
 
           <Table.Root size="sm" variant="line" minW="760px">
@@ -290,6 +313,8 @@ export default function MonthlyFees() {
         </VStack>
 
         {filteredMonthlyFees.length === 0 && <Box py="55px" px={4} textAlign="center"><Flex mx="auto" mb={3} w="42px" h="42px" borderRadius="full" bg="#eef5f3" color="#52756f" align="center" justify="center"><FiCalendar size={20} /></Flex><Text fontWeight="700" color="#174f4a">Nenhuma mensalidade encontrada</Text><Text mt="4px" color="#71858a" fontSize="11px">Não há mensalidades para os filtros selecionados.</Text>{hasFilters && <Button mt={3} onClick={clearFilters} size="sm" variant="outline" borderColor="#d6e0df" color="#174f4a" fontSize="11px">Limpar filtros</Button>}</Box>}
+          </>
+        )}
       </Box>
     </VStack>
   );
