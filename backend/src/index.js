@@ -14,6 +14,7 @@ import monthlyFeesRouter from "./modules/monthlyFees/monthlyFeesRouter.js";
 import paymentsRouter from "./modules/payments/paymentsRouter.js";
 import expensesRouter from "./modules/expenses/expensesRouter.js";
 import financialRouter from "./modules/financial/financialRouter.js";
+import dashboardRouter from "./modules/dashboard/dashboardRouter.js";
 import Expense from "./models/Expense.js";
 import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
@@ -86,6 +87,7 @@ async function main() {
   app.use("/payments", paymentsRouter);
   app.use("/expenses", expensesRouter);
   app.use("/financial", financialRouter);
+  app.use("/dashboard", dashboardRouter);
 
   app.use((err, req, res, next) => {
     console.error("🚨 Erro Global Capturado:", err.message);
