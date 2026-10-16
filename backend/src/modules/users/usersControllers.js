@@ -67,6 +67,8 @@ export default class UsersControllers {
 
   async addUser(userData) {
     try {
+      if (userData?.user_situation != null && !["1", "2", "3", "4"].includes(String(userData.user_situation)))
+        return badRequest("Situação cadastral inválida. Use 1, 2, 3 ou 4.");
       const result = await this.dataAccess.addUser(userData);
       return ok(result);
     } catch (error) {
@@ -85,6 +87,8 @@ export default class UsersControllers {
 
   async updateUser(userId, userData) {
     try {
+      if (userData?.user_situation != null && !["1", "2", "3", "4"].includes(String(userData.user_situation)))
+        return badRequest("Situação cadastral inválida. Use 1, 2, 3 ou 4.");
       const result = await this.dataAccess.updateUser(userId, userData);
       return ok(result);
     } catch (error) {

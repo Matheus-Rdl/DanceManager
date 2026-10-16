@@ -35,7 +35,7 @@ export default function Home() {
   }, [retry]);
 
   const cards = [
-    { title: "Alunos ativos", value: summary?.metrics?.activeStudents ?? 0, detail: "Com contrato ativo", icon: FiUsers, tone: "#0b6b5b", to: "/PeopleManagement" },
+    { title: "Alunos ativos", value: summary?.metrics?.activeStudents ?? 0, detail: "Alunos e bolsistas com cadastro ativo", icon: FiUsers, tone: "#0b6b5b", to: "/PeopleManagement" },
     { title: "Turmas ativas", value: summary?.metrics?.activeClasses ?? 0, detail: "Atividades em andamento", icon: FiCalendar, tone: "#2865a2", to: "/ActivityManagement" },
     { title: "Recebido no mês", value: money(summary?.metrics?.received), detail: "Pagamentos efetivos", icon: FiCreditCard, tone: "#148443", to: "/financeiro" },
     { title: "Mensalidades atrasadas", value: summary?.metrics?.overdueFeesCount ?? 0, detail: `${money(summary?.metrics?.overdueFeesValue)} ainda em aberto`, icon: FiAlertCircle, tone: "#c13b3e", to: "/MonthlyFees" }

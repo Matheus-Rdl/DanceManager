@@ -12,7 +12,7 @@ export default function DashboardTodayClasses({ classes = [] }) {
       <VStack align="stretch" gap={0}>
         {classes.slice(0, 5).map((item,index)=><Flex key={item.id} justify="space-between" align="center" gap={3} py={3} borderTop={index ? "1px solid #eef2f1" : "none"}>
           <Box minW={0}><Text fontSize="12px" fontWeight="700" color="#164c43" truncate>{item.title}</Text><Text fontSize="10px" color="#738883" mt={1}>{item.teacher || "Professor não informado"}</Text>
-            <Flex gap={2} color="#738883" mt={1} align="center"><FiUsers size={11}/><Text fontSize="10px">{item.studentsCount} alunos vinculados</Text></Flex>
+            <Flex gap={2} color="#738883" mt={1} align="center"><FiUsers size={11}/><Text fontSize="10px">{item.studentsCount} alunos ativos{item.linkedCount > item.studentsCount ? ` · ${item.linkedCount} vínculos no total` : ""}</Text></Flex>
           </Box>
           <Flex flexShrink={0} align="center" gap={1} bg="#edf6f2" color="#0b6b5b" p={2} borderRadius="6px"><FiClock size={12}/><Text fontSize="11px" fontWeight="700">{item.start || "--:--"}</Text></Flex>
         </Flex>)}

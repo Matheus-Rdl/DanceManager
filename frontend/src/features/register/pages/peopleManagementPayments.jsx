@@ -145,22 +145,7 @@ export default function PeopleManagementPayments() {
         activeTab="Pagamentos"
       />
 
-      {/* Identificação do aluno e abas 
-      <Box bg="white" border="1px solid #e2e8e7" borderRadius="8px" overflow="hidden">
-        <Flex px={{ base: 3, md: 4 }} py={4} align="center" gap={4}>
-          <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
-            <Avatar.Fallback name={student.user_name || student.name || "Usuário"} />
-            {(student.user_photo || student.photo) && <Avatar.Image src={student.user_photo || student.photo} />}
-          </Avatar.Root>
-          <Box minW={0}>
-            <Heading fontSize="xl" lineHeight="1.2" color="#003b36">{formatName(student.user_name || student.name || "Usuário")}</Heading>
-            <Text mt={1} fontSize="12px" color="#60777c">Matrícula: {student.user_mat || student.id || "—"}</Text>
-            <Badge mt={2} bg="#dff5e6" color="#14833b" borderRadius="full"><FiCheck /> Aluno ativo</Badge>
-          </Box>
-        </Flex>
-        <StudentNavigation activeTab="Pagamentos" userId={studentId} userData={studentData} />
-      </Box>
-      */}
+      {/* Identificação e situação são exibidas por StudentProfileHeader. */}
       {!studentId && <Box p={4} bg="#fff2d8" borderRadius="8px"><Text fontSize="12px">Não foi possível identificar o aluno. Acesse esta aba pelo cadastro do aluno.</Text></Box>}
       {(monthlyFeesError || paymentsError) && <Box p={3} bg="#fff2d8" borderRadius="8px"><Text fontSize="12px" color="#8a5a00">{monthlyFeesError || paymentsError}</Text></Box>}
       {/* Conteúdo principal */}

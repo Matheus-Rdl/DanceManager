@@ -17,6 +17,7 @@ import {
   VStack,
   Text,
   Table,
+  Badge,
   Dialog,
   Portal,
   Grid,
@@ -45,6 +46,7 @@ import HeadingPage from "../../../components/headingPage";
 
 import usersServices from "../../../services/usersServices";
 import attendancesServices from "../../../services/attendancesServices";
+import { getUserSituation } from "../../../utils/userSituation";
 
 
 export default function ActivityAttendance() {
@@ -221,6 +223,8 @@ export default function ActivityAttendance() {
           id: user._id,
 
           name: user.user_name,
+
+          userSituation: user.user_situation,
 
           status: "undefined",
 
@@ -2248,6 +2252,9 @@ export default function ActivityAttendance() {
                             {student.name}
 
                           </Text>
+                          {getUserSituation(student.userSituation).code !== "1" && <Badge mt={1} fontSize="10px" borderRadius="full" bg={getUserSituation(student.userSituation).bg} color={getUserSituation(student.userSituation).color}>
+                            {getUserSituation(student.userSituation).label}
+                          </Badge>}
 
                         </Table.Cell>
 

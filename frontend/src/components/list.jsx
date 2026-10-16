@@ -1,4 +1,4 @@
-import { Table } from "@chakra-ui/react";
+import { Table, Badge } from "@chakra-ui/react";
 import {
   formatCPF,
   formatDate,
@@ -7,6 +7,7 @@ import {
   formatProperNoun,
 } from "../utils/formatters";
 import { selectOptions } from "../utils/userSelectOptions";
+import { getUserSituation } from "../utils/userSituation";
 import activitiesServices from "../services/activitiesServices";
 import { useEffect } from "react";
 
@@ -226,10 +227,10 @@ export default function List({
             whiteSpace="nowrap"
             verticalAlign="middle"
           >
-            {getFormattedValue(
-              field,
-              value
-            )}
+            {field.dataKey === "user_situation" ? (() => {
+              const status = getUserSituation(value);
+              return <Badge bg={status.bg} color={status.color} borderRadius="full" px={2} py="3px" fontSize="10px">{status.label}</Badge>;
+            })() : getFormattedValue(field, value)}
           </Table.Cell>
         );
       })}

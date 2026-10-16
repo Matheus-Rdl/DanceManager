@@ -94,6 +94,11 @@ export default function ActivityManagementUsers() {
       minWidth: field.minWidth || "120px",
       maxWidth: field.maxWidth || "400px",
     }));
+  /* Identifica pessoas afastadas/inativas sem removê-las da turma. */
+  if (!sortedFields.some(field => field.dataKey === "user_situation")) {
+    sortedFields.push({ text: "Situação", type: "select", input: 2,
+      dataKey: "user_situation", optionsKey: "user_situation", minWidth: "140px", maxWidth: "180px" });
+  }
 
   //Função principal que vai filtrar na tela
   // Aplica a regra de filtro em memória antes da renderização, mantendo a tabela desacoplada da lógica de busca.

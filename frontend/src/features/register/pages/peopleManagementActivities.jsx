@@ -70,33 +70,7 @@ export default function PeopleManagementActivities() {
         userId={userId}
         activeTab="Turmas"
       />
-      {/* NAVEGAÇÃO - DADOS DE USUÁRIO 
-      <Box bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
-        {/* DADOS DO ALUNO 
-        <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
-          <HStack gap={4} minW={0}>
-            <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
-              <Avatar.Fallback name={userData?.user_name || userData?.name || "Usuário"} />
-              {(userData?.user_photo || userData?.photo) && (
-                <Avatar.Image src={userData?.user_photo || userData?.photo} />
-              )}
-            </Avatar.Root>
-            <Box minW={0}>
-              <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
-                {formatName(userData?.user_name || userData?.name || "Usuário")}
-              </Heading>
-              <Text mt="5px" fontSize="12px" color="#60777c">
-                Matrícula: {userData?.user_mat || "-"}
-              </Text>
-              <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
-                <FiCheck /> Aluno ativo
-              </Badge>
-            </Box>
-          </HStack>
-        </Flex>
-        <StudentNavigation activeTab="Turmas" userId={userId || userData?._id} userData={userData} />
-      </Box>
-      */}
+      {/* Identificação e situação são exibidas por StudentProfileHeader. */}
       {/* Indicadores calculados com as turmas retornadas pelo serviço. */}
       <SimpleGrid columns={{ base: 1, sm: 3 }} gap={3}>
         {[{ title: "Turmas matriculadas", value: activities.length, icon: FiUsers }, { title: "Dias na semana", value: uniqueDays, icon: FiCalendar }, { title: "Carga semanal", value: `${Math.floor(totalMinutes / 60)}h${totalMinutes % 60 ? ` ${totalMinutes % 60}min` : ""}`, icon: FiClock }].map(({ title, value, icon: Icon }) => (

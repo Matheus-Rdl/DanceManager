@@ -39,9 +39,9 @@ export const selectOptions = {
   },
 
   user_situation: {
-    1: "1 - ATIVADO",
+    1: "1 - ATIVO",
     2: "2 - AFASTADO",
-    3: "3 - PRÉ-MATRICULA",
+    3: "3 - CADASTRO PENDENTE",
     4: "4 - INATIVO",
   },
 

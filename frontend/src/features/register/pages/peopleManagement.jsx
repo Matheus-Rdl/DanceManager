@@ -33,6 +33,8 @@ import activitiesServices from "../../../services/activitiesServices";
 import fieldsServices from "../../../services/fieldsServices";
 
 import contractsServices from "../../../services/contractsServices";
+import { getUserSituation } from "../../../utils/userSituation";
+import { selectOptions } from "../../../utils/userSelectOptions";
 
 //Components
 
@@ -203,6 +205,7 @@ export default function PeopleManagement() {
   const [quickBirthday, setQuickBirthday] = useState("all");
 
   const [quickContract, setQuickContract] = useState("all");
+  const [quickSituation, setQuickSituation] = useState("all");
 
   // Fecha o menu se clicar fora
 
@@ -378,22 +381,6 @@ export default function PeopleManagement() {
 
   const getUserActivityNames = (user) => getUserActivityIds(user).map((id) => { const activity = (activitiesList || []).find((a) => [a.activity_mat, a._id, a.activityMat].some((key) => String(key ?? "") === id)); return activity?.activity_title ?? activity?.activity_name ?? activity?.name ?? id; }).join(", ");
 
-  /* Traduz a situação cadastral do aluno para um rótulo e cores de identificação. */
-
-  const getUserSituation = (user) => {
-
-    const value = String(user.user_situation ?? "").toLowerCase().trim();
-
-    if (["ativo", "active"].includes(value)) return { label: "Ativo", bg: "#dff5e6", color: "#14833b" };
-
-    if (["pausado", "paused"].includes(value)) return { label: "Pausado", bg: "#fff2d8", color: "#a66b00" };
-
-    if (["inativo", "inactive"].includes(value)) return { label: "Inativo", bg: "#ffe2e3", color: "#c53030" };
-
-    return { label: "Não definida", bg: "#edf1f2", color: "#64748b" };
-
-  };
-
   /* Aniversário: utiliza o campo disponível no cadastro, sem calcular idade */
 
   /* Extrai dia e mês de nascimento dos campos disponíveis no cadastro. */
@@ -486,7 +473,9 @@ const matchesBirthdayFilter = (user) => {
 
       (quickActivity === "all" || userActivities.includes(quickActivity) || (activitiesList || []).some((a) => String(a.activity_mat) === quickActivity && userActivities.includes(String(a._id)))) &&
 
-      matchesBirthdayFilter(user) && (quickContract === "all" || getContractStatus(user).key === quickContract);
+      matchesBirthdayFilter(user) &&
+      (quickSituation === "all" || getUserSituation(user).code === quickSituation) &&
+      (quickContract === "all" || getContractStatus(user).key === quickContract);
 
   });
 
@@ -498,9 +487,9 @@ const matchesBirthdayFilter = (user) => {
 
   const openUserOverview = (user) => navigate("/PeopleManagementDetailed", { state: { userId: user._id, userData: user, currentMode: "E" } });
 
-  const hasQuickFilters = quickSearch || quickLink !== "all" || quickActivity !== "all" || quickBirthday !== "all" || quickContract !== "all";
+  const hasQuickFilters = quickSearch || quickLink !== "all" || quickActivity !== "all" || quickBirthday !== "all" || quickContract !== "all" || quickSituation !== "all";
 
-  const clearQuickFilters = () => { setQuickSearch(""); setQuickLink("all"); setQuickActivity("all"); setQuickBirthday("all"); setQuickContract("all"); };
+  const clearQuickFilters = () => { setQuickSearch(""); setQuickLink("all"); setQuickActivity("all"); setQuickBirthday("all"); setQuickContract("all"); setQuickSituation("all"); };
 
   //Ele carrega a pagina até encontrar os estudantes
 
@@ -887,6 +876,15 @@ const matchesBirthdayFilter = (user) => {
             </Box>
 
             <Box w={{ base: "calc(50% - 4px)", md: "155px" }}><Text mb="4px" fontSize="11px" color="#617980">Aniversário</Text><NativeSelect.Root><NativeSelect.Field value={quickBirthday} onChange={(e) => setQuickBirthday(e.target.value)} h="36px" borderColor="#d8e1e0" borderRadius="8px" fontSize="12px"><option value="all">Todos</option><option value="today">Hoje</option><option value="week">Próximos 7 dias</option><option value="month">Este mês</option><option value="unknown">Não informado</option></NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root></Box>
+
+            <Box w={{ base: "calc(50% - 4px)", md: "175px" }}>
+              <Text mb="4px" fontSize="11px" color="#617980">Situação</Text>
+              <NativeSelect.Root><NativeSelect.Field value={quickSituation} onChange={(e) => setQuickSituation(e.target.value)} h="36px" borderColor="#d8e1e0" borderRadius="8px" fontSize="12px" color="#173f3a">
+                <option value="all">Todas</option>
+                {Object.entries(selectOptions.user_situation).map(([code, label]) => <option key={code} value={code}>{label.replace(/^\d+\s*-\s*/, "")}</option>)}
+                <option value="">Não definida</option>
+              </NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root>
+            </Box>
 
             <Box w={{ base: "calc(50% - 4px)", md: "155px" }}><Text mb="4px" fontSize="11px" color="#617980">Contrato</Text><NativeSelect.Root><NativeSelect.Field value={quickContract} onChange={(e) => setQuickContract(e.target.value)} h="36px" borderColor="#d8e1e0" borderRadius="8px" fontSize="12px"><option value="all">Todos</option><option value="active">Vigente</option><option value="soon">A vencer</option><option value="expired">Vencido</option><option value="closed">Encerrado</option><option value="none">Sem contrato</option><option value="unknown">Não informado</option></NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root></Box>
 

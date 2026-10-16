@@ -36,7 +36,13 @@ export default class UsersDataAccess {
 
   // Busca usuários por atividade
   async getUsersByActivity(activityMat) {
-    return await User.find({ user_activities: String(activityMat) }).lean();
+    const mat = String(activityMat);
+    // Compatível com vínculos por matrícula simples ou por objeto (dados antigos).
+    return await User.find({ $or: [
+      { user_activities: mat },
+      { "user_activities.activity_mat": mat },
+      { "user_activities.activityMat": mat }
+    ] }).lean();
   }
 
   // Busca usuários por tipo

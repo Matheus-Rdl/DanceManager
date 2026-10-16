@@ -11,6 +11,7 @@ import useTableFilter from "../../../hooks/useTableFilter";
 import fieldsServices from "../../../services/fieldsServices";
 import activitiesServices from "../../../services/activitiesServices";
 import usersServices from "../../../services/usersServices";
+import { isActiveStudent } from "../../../utils/userSituation";
 import Loading from "../../../components/loading";
 import { FaThList } from "react-icons/fa";
 import { MdViewWeek } from "react-icons/md";
@@ -90,12 +91,17 @@ export default function ActivityManagement() {
     minWidth: field.minWidth || "120px", maxWidth: field.maxWidth || "400px"
   }));
   const filteredActivities = useTableFilter(activities, filters, sortedFields);
+  /* Quantidade de vínculos históricos, inclusive afastados e inativos. */
   const getStudentCount = (activity) => {
     const keys = activityKeys(activity);
-    const linked = users.filter((user) => studentKeys(user).some((key) => keys.includes(key)));
+    const linked = users.filter(user => studentKeys(user).some(key => keys.includes(key)));
     if (!usersLoading && Array.isArray(usersList)) return linked.length;
-    if (Array.isArray(activity.students)) return activity.students.length;
-    return null;
+    return Array.isArray(activity.students) ? activity.students.length : null;
+  };
+  /* Quantidade efetivamente ativa; não exclui vínculos nem históricos. */
+  const getActiveStudentCount = (activity) => {
+    const keys = activityKeys(activity);
+    return users.filter(user => isActiveStudent(user) && studentKeys(user).some(key => keys.includes(key))).length;
   };
   const teacherOptions = [...new Set(activities.map(getProfessor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const dayCodes = [...new Set(activities.map(getDayCode).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
@@ -123,13 +129,13 @@ export default function ActivityManagement() {
 
   const totalActivities = activities.length;
   const activeActivities = activities.filter((activity) => getSituation(activity).key === "active").length;
-  const totalStudents = activities.reduce((total, activity) => total + (getStudentCount(activity) ?? 0), 0);
-  const emptyActivities = activities.filter((activity) => getStudentCount(activity) === 0).length;
+  const totalStudents = activities.reduce((total, activity) => total + getActiveStudentCount(activity), 0);
+  const emptyActivities = activities.filter((activity) => getActiveStudentCount(activity) === 0).length;
   const cards = [
     { title: "Total de turmas", value: totalActivities, description: "turmas cadastradas", icon: FaThList, bg: "#f2fbf8", border: "#c8e8df", color: "#007565" },
     { title: "Turmas ativas", value: activeActivities, description: "em andamento", icon: FiCheck, bg: "#f1fbf5", border: "#bde6cf", color: "#16865f" },
-    { title: "Alunos vinculados", value: totalStudents, description: "vínculos com turmas", icon: PiUsersThree, bg: "#f0f4fc", border: "#a1b9e4", color: "#4267a9" },
-    { title: "Turmas sem alunos", value: emptyActivities, description: "sem alunos vinculados", icon: LuUserX, bg: "#fffaf0", border: "#eadfc3", color: "#b7791f" }
+    { title: "Alunos ativos nas turmas", value: totalStudents, description: "vínculos ativos com turmas", icon: PiUsersThree, bg: "#f0f4fc", border: "#a1b9e4", color: "#4267a9" },
+    { title: "Turmas sem alunos ativos", value: emptyActivities, description: "sem alunos ativos", icon: LuUserX, bg: "#fffaf0", border: "#eadfc3", color: "#b7791f" }
   ];
   if (activitiesLoading || fieldsLoading || usersLoading) return <Loading />;
 
@@ -183,14 +189,17 @@ export default function ActivityManagement() {
                 <Table.Header bg="#f4f7f7"><Table.Row>{[{ label: "Turma / Atividade", width: "28%" }, { label: "Alunos", width: "12%" }, { label: "Professor", width: "22%" }, { label: "Horários", width: "23%" }, { label: "Situação", width: "15%" }].map((col) => <Table.ColumnHeader key={col.label} width={col.width} h="37px" color="#174f4a" fontSize="11px" fontWeight="600" borderColor="#e2e8e7">{col.label}</Table.ColumnHeader>)}</Table.Row></Table.Header>
                 <Table.Body>{visibleActivities.map((activity) => { const selected = String(activityActive) === String(activity._id); const situation = getSituation(activity); const students = getStudentCount(activity); return <Table.Row key={String(activity._id ?? activity.activity_mat)} h="62px" bg={selected ? "#eaf7f2" : "white"} cursor="pointer" _hover={{ bg: "#e0f2ed" }} onClick={() => setActivityActive(activity._id)} onDoubleClick={() => openActivityEdit(activity)} title="Dois cliques para editar a turma">
                   <Table.Cell borderColor="#e7eceb"><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" truncate>{getTitle(activity)}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {firstValue(activity.activity_mat, activity.activityMat) ?? "—"}</Text></Box></Table.Cell>
-                  <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a">{students === null ? "Não informado" : students}</Table.Cell>
+                  <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a">
+                    <Text fontWeight="700">{getActiveStudentCount(activity)} ativos</Text>
+                    <Text fontSize="10px" color="#71858a">{students === null ? "—" : students} vínculos</Text>
+                  </Table.Cell>
                   <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a"><Text truncate>{getProfessor(activity) || "Não informado"}</Text></Table.Cell>
                   <Table.Cell borderColor="#e7eceb" fontSize="11px" color="#174f4a"><Text truncate>{getSchedule(activity) || "Não informado"}</Text></Table.Cell>
                   <Table.Cell borderColor="#e7eceb"><Badge px="10px" py="4px" borderRadius="full" bg={situation.bg} color={situation.color} fontSize="10px">{situation.label}</Badge></Table.Cell>
                 </Table.Row>; })}</Table.Body>
               </Table.Root>
             </Box>
-            <VStack display={{ base: "flex", md: "none" }} gap={0} align="stretch">{visibleActivities.map((activity) => { const situation = getSituation(activity); const students = getStudentCount(activity); return <Box key={String(activity._id ?? activity.activity_mat)} px={3} py={3} borderBottom="1px solid #e7eceb" bg={String(activityActive) === String(activity._id) ? "#eaf7f2" : "white"} onClick={() => setActivityActive(activity._id)}><Flex justify="space-between" align="center" gap={2}><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" truncate>{getTitle(activity)}</Text><Text fontSize="10px" color="#71858a">MAT: {firstValue(activity.activity_mat, activity.activityMat) ?? "—"}</Text></Box><Badge flexShrink={0} bg={situation.bg} color={situation.color} borderRadius="full" px={2} fontSize="9px">{situation.label}</Badge></Flex><Flex mt={2} gap={3} wrap="wrap"><Text fontSize="10px" color="#607873">Alunos: {students === null ? "Não informado" : students}</Text><Text fontSize="10px" color="#607873">Professor: {getProfessor(activity) || "Não informado"}</Text></Flex><Flex mt={2} justify="space-between" align="center" gap={2}><Text fontSize="10px" color="#607873" truncate>Horários: {getSchedule(activity) || "Não informado"}</Text><Button size="xs" variant="ghost" color="#0b6b5b" onClick={(e) => { e.stopPropagation(); openActivityEdit(activity); }}>Editar <LuArrowRight size={12} /></Button></Flex></Box>; })}</VStack>
+            <VStack display={{ base: "flex", md: "none" }} gap={0} align="stretch">{visibleActivities.map((activity) => { const situation = getSituation(activity); const students = getStudentCount(activity); return <Box key={String(activity._id ?? activity.activity_mat)} px={3} py={3} borderBottom="1px solid #e7eceb" bg={String(activityActive) === String(activity._id) ? "#eaf7f2" : "white"} onClick={() => setActivityActive(activity._id)}><Flex justify="space-between" align="center" gap={2}><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" truncate>{getTitle(activity)}</Text><Text fontSize="10px" color="#71858a">MAT: {firstValue(activity.activity_mat, activity.activityMat) ?? "—"}</Text></Box><Badge flexShrink={0} bg={situation.bg} color={situation.color} borderRadius="full" px={2} fontSize="9px">{situation.label}</Badge></Flex><Flex mt={2} gap={3} wrap="wrap"><Text fontSize="10px" color="#607873">Alunos ativos: {getActiveStudentCount(activity)} / {students === null ? "—" : students} vínculos</Text><Text fontSize="10px" color="#607873">Professor: {getProfessor(activity) || "Não informado"}</Text></Flex><Flex mt={2} justify="space-between" align="center" gap={2}><Text fontSize="10px" color="#607873" truncate>Horários: {getSchedule(activity) || "Não informado"}</Text><Button size="xs" variant="ghost" color="#0b6b5b" onClick={(e) => { e.stopPropagation(); openActivityEdit(activity); }}>Editar <LuArrowRight size={12} /></Button></Flex></Box>; })}</VStack>
           </>}
           {/* Cards com dados derivados dos vínculos de alunos */}
           {viewMode === "cards" && <Box p={3}>
@@ -201,7 +210,7 @@ export default function ActivityManagement() {
                 const selected = String(activityActive) === String(activity._id);
                 return <Box key={String(activity._id ?? activity.activity_mat)} flex="1 1 270px" maxW={{ base: "100%", lg: "calc(33.333% - 8px)" }} minW={{ base: "100%", sm: "260px" }} border="1px solid" borderColor={selected ? "#0b6b5b" : "#d7e2df"} bg={selected ? "#eaf7f2" : "white"} borderRadius="10px" p={4} cursor="pointer" _hover={{ borderColor: "#7ab6a8", bg: "#f6faf9" }} onClick={() => setActivityActive(activity._id)} onDoubleClick={() => openActivityEdit(activity)}>
                   <Flex align="start" justify="space-between" gap={2}><Box minW={0}><Text color="#164c47" fontSize="13px" fontWeight="700">{getTitle(activity)}</Text><Text fontSize="10px" color="#71858a">MAT: {activity.activity_mat ?? "—"}</Text></Box><Badge flexShrink={0} bg={situation.bg} color={situation.color} borderRadius="full" px={2}>{situation.label}</Badge></Flex>
-                  <Box mt={3} borderTop="1px solid #e7eceb" pt={3}><Text fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Professor: </Text>{getProfessor(activity) || "Não informado"}</Text><Text mt={1} fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Alunos: </Text>{students === null ? "Não informado" : students}</Text><Text mt={1} fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Dia e horário: </Text>{getSchedule(activity) || "Não informado"}</Text></Box>
+                  <Box mt={3} borderTop="1px solid #e7eceb" pt={3}><Text fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Professor: </Text>{getProfessor(activity) || "Não informado"}</Text><Text mt={1} fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Alunos ativos: </Text>{getActiveStudentCount(activity)} / {students === null ? "—" : students} vínculos</Text><Text mt={1} fontSize="12px" color="#174f4a"><Text as="span" fontWeight="700">Dia e horário: </Text>{getSchedule(activity) || "Não informado"}</Text></Box>
                   <Flex justify="flex-end" mt={3}><Button size="xs" variant="ghost" color="#0b6b5b" onClick={(e) => { e.stopPropagation(); openActivityEdit(activity); }}>Editar <LuArrowRight size={12} /></Button></Flex>
                 </Box>;
               })}

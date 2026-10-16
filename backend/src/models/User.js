@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema({
   
   // Informações de sistema
   user_registration_date: { type: String, required: false },
+  // Código da situação cadastral: 1=ATIVO, 2=AFASTADO, 3=CADASTRO PENDENTE, 4=INATIVO.
+  // Não representa status de contrato, mensalidade ou frequência.
+  user_situation: { type: String, enum: ["1", "2", "3", "4"], default: "3" },
   user_type: [{ type: Number, required: false }], 
   // user_type: [{ type: Number, required: true }], 
   

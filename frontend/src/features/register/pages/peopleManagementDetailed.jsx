@@ -76,8 +76,10 @@ export default function PeopleManagementDetailed() {
     fieldsList.forEach((field) => {
       switch (field.field) {
         case "user_mat":
-          initialData[field.field] =
-            userNextMat || "";
+          initialData[field.field] = userNextMat || "";
+          break;
+        case "user_situation":
+          initialData[field.field] = "3"; // Cadastro pendente
           break;
         default:
           initialData[field.field] = "";
@@ -435,33 +437,7 @@ export default function PeopleManagementDetailed() {
           overflow="hidden"
           width="100%"
         >
-          {/* DADOS DO ALUNO 
-          <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
-            <HStack gap={4} minW={0}>
-              <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
-                <Avatar.Fallback name={formData.user_name || formData.name || "Usuário"} />
-                {(formData.user_photo || formData.photo) && (
-                  <Avatar.Image src={formData.user_photo || formData.photo} />
-                )}
-              </Avatar.Root>
-              <Box minW={0}>
-                <Heading fontSize="xl" lineHeight="1.2" color="#003b36" fontWeight="700">
-                  {formatName(formData.user_name || formData.name || "Usuário")}
-                </Heading>
-                <Text mt="5px" fontSize="12px" color="#60777c">
-                  Matrícula: {formData.user_mat || "-"}
-                </Text>
-                <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
-                  <FiCheck /> Aluno ativo
-                </Badge>
-              </Box>
-            </HStack>
-          </Flex>
-          {/* ABAS 
-          <StudentNavigation activeTab="Visão geral" userId={userId} userData={formData} />
-        </Box>
-      )}
-      */}
+          {/* Identificação e situação são exibidas por StudentProfileHeader. */}
       {/* FORMULÁRIO - CONTEUDO PRINCIPAL */}
       <Box
         bg="white"

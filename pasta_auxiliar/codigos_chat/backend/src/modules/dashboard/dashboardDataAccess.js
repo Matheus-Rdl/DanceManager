@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import User from "../../models/User.js";
 import Activity from "../../models/Activity.js";
 import Contract from "../../models/Contract.js";
@@ -44,8 +43,9 @@ export default class DashboardDataAccess {
     const activeFilter = { activity_active: 1 };
     const todayFilter = { ...activeFilter, activity_days: dayCode(today) };
 
-    const [activeStudentIds, activeClasses, todayActivities, receivedRows, expenseRows, overdueRows, upcomingRows, expiringContractsCount] = await Promise.all([
-      Contract.distinct("userId", { active: true }),
+    const [activeStudents, activeClasses, todayActivities, receivedRows, expenseRows, overdueRows, upcomingRows, expiringContractsCount] = await Promise.all([
+      // Aluno ou bolsista com situação ATIVO; contrato é uma informação separada.
+      User.countDocuments({ user_situation: "1", user_type: { $in: [1, 2] } }),
       Activity.countDocuments(activeFilter),
       Activity.find(todayFilter)
         .select("activity_mat activity_title activity_time_start activity_time_end activity_teacher_name activity_teacher activity_professor teacher_name teacher professor")
@@ -72,16 +72,12 @@ export default class DashboardDataAccess {
       Contract.countDocuments({ active: true, plannedEndDate: { $gte: today, $lte: in30Days } })
     ]);
 
-    const validIds = activeStudentIds.filter(value => mongoose.isValidObjectId(value));
     const todayMats = todayActivities.map(activity => String(activity.activity_mat)).filter(Boolean);
-    const [activeStudents, linkedUsers] = await Promise.all([
-      User.countDocuments({ _id: { $in: validIds } }),
-      todayMats.length ? User.find({ $or: [
+    const linkedUsers = todayMats.length ? await User.find({ $or: [
         { user_activities: { $in: todayMats } },
         { "user_activities.activity_mat": { $in: todayMats } },
         { "user_activities.activityMat": { $in: todayMats } }
-      ] }).select("user_activities").lean() : Promise.resolve([])
-    ]);
+      ] }).select("user_activities user_situation user_type").lean() : [];
 
     const todayClasses = todayActivities.map(activity => ({
       id: String(activity._id),
@@ -89,7 +85,9 @@ export default class DashboardDataAccess {
       start: activity.activity_time_start || "",
       end: activity.activity_time_end || "",
       teacher: getTeacher(activity) || null,
-      studentsCount: linkedUsers.filter(user => studentsForActivity(user, String(activity.activity_mat))).length
+      studentsCount: linkedUsers.filter(user => studentsForActivity(user, String(activity.activity_mat)) &&
+        user.user_situation === "1" && [1, 2].some(type => (Array.isArray(user.user_type) ? user.user_type : [user.user_type]).some(t => Number(t) === type))).length,
+      linkedCount: linkedUsers.filter(user => studentsForActivity(user, String(activity.activity_mat))).length
     }));
 
     const received = cents(receivedRows[0]?.total);
