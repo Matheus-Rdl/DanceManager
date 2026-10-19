@@ -1,3 +1,4 @@
+import { getActivityTeacherLabel } from "../../../../utils/activityTeachers";
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Checkbox, Dialog, Flex, HStack, Input, NativeSelect, Portal, Text, VStack } from "@chakra-ui/react";
 import { FiCalendar, FiCheck, FiClock, FiSearch } from "react-icons/fi";
@@ -7,7 +8,7 @@ import usersServices from "../../../../services/usersServices";
 const TYPES = { "1": "Samba", "2": "Funkeado", "3": "Forró", "4": "Bolero" };
 const DAYS = { 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira", 4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado", 7: "Domingo" };
 const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const getTeacher = (activity) => activity.teacher_name || activity.activity_teacher_name || activity.professor?.name || "Não informado";
+const getTeacher = getActivityTeacherLabel;
 const getMinutes = (time) => { const parts = String(time || "").split(":").map(Number); return parts.length === 2 && parts.every(Number.isFinite) ? parts[0] * 60 + parts[1] : null; };
 /* Avisa quando duas turmas escolhidas ocupam o mesmo horário no mesmo dia. */
 const overlaps = (a, b) => {

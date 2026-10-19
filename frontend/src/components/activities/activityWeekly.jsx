@@ -1,3 +1,4 @@
+import { getActivityTeacherLabel } from "../../utils/activityTeachers";
 import {
   Box,
   Text,
@@ -321,6 +322,7 @@ export default function ActivityWeekly({
                       }
 
                     </Text>
+                    <Text fontSize="xs" color="#0b6b5b">{getActivityTeacherLabel(activity)}</Text>
 
 
                     {/* Horário */}
@@ -556,6 +558,7 @@ export default function ActivityWeekly({
                               }
 
                             </Text>
+                            <Text fontSize="xs" color="#0b6b5b">{getActivityTeacherLabel(activity)}</Text>
 
 
                             {/* Horário */}

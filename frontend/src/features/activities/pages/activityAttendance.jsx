@@ -1,3 +1,6 @@
+import { getActivityTeacherLabel } from "../../../utils/activityTeachers";
+import ActivityNavigation from "../../../components/ActivityNavigation";
+import useActivityContext from "../../../hooks/useActivityContext";
 /*
     Type: Page
     Name: ActivityAttendance
@@ -88,8 +91,7 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const activityData =
-    location.state?.activityData;
+  const { activityData, activityLoading, activityError } = useActivityContext();
 
 
   /*
@@ -1164,7 +1166,7 @@ export default function ActivityAttendance() {
         >
 
           <Text>
-            Nenhuma atividade foi selecionada.
+            {activityLoading ? "Carregando turma..." : activityError || "Nenhuma atividade foi selecionada."}
           </Text>
 
 
@@ -1364,6 +1366,7 @@ export default function ActivityAttendance() {
               {activityData.activity_mat}
 
             </Text>
+            <Text mt={1} fontSize="sm" color="#0b6b5b">Professores: {getActivityTeacherLabel(activityData)}</Text>
 
           </Box>
 
@@ -1405,6 +1408,10 @@ export default function ActivityAttendance() {
 
       </Box>
 
+
+      <Box overflow="hidden" border="1px solid #d7e2df" borderRadius="8px" bg="white">
+        <ActivityNavigation activeTab="Presenças" activityData={activityData} />
+      </Box>
 
       {/* ================================================= */}
       {/* NAVEGAÇÃO */}

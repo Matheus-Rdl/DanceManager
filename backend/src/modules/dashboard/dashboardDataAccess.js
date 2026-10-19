@@ -49,7 +49,7 @@ export default class DashboardDataAccess {
       User.countDocuments({ user_situation: "1", user_type: { $in: [1, 2] } }),
       Activity.countDocuments(activeFilter),
       Activity.find(todayFilter)
-        .select("activity_mat activity_title activity_time_start activity_time_end activity_teacher_name activity_teacher activity_professor teacher_name teacher professor")
+        .select("activity_mat activity_title activity_time_start activity_time_end activity_teachers activity_teacher_name activity_teacher activity_professor teacher_name teacher professor")
         .sort({ activity_time_start: 1 }).lean(),
       Payment.aggregate([
         { $match: { paidAt: { $gte: month, $lt: nextMonth } } },
@@ -73,6 +73,16 @@ export default class DashboardDataAccess {
       Contract.countDocuments({ active: true, plannedEndDate: { $gte: today, $lte: in30Days } })
     ]);
 
+    const teacherIds = [...new Set(todayActivities.flatMap(activity => Array.isArray(activity.activity_teachers) ? activity.activity_teachers.map(String) : []))]
+      .filter(id => mongoose.isValidObjectId(id));
+    const teacherUsers = teacherIds.length ? await User.find({ _id: { $in: teacherIds } })
+      .select("user_name").lean() : [];
+    const teacherById = new Map(teacherUsers.map(user => [String(user._id), user.user_name]));
+    const namesForActivity = activity => {
+      const ids = Array.isArray(activity.activity_teachers) ? activity.activity_teachers.map(String) : [];
+      return ids.length ? ids.map(id => teacherById.get(id) || "Professor não encontrado").join(", ") : getTeacher(activity);
+    };
+
     const todayMats = todayActivities.map(activity => String(activity.activity_mat)).filter(Boolean);
     const linkedUsers = todayMats.length ? await User.find({ $or: [
         { user_activities: { $in: todayMats } },
@@ -85,7 +95,7 @@ export default class DashboardDataAccess {
       title: activity.activity_title || "Turma sem nome",
       start: activity.activity_time_start || "",
       end: activity.activity_time_end || "",
-      teacher: getTeacher(activity) || null,
+      teacher: namesForActivity(activity) || null,
       studentsCount: linkedUsers.filter(user => studentsForActivity(user, String(activity.activity_mat)) &&
         user.user_situation === "1" && [1, 2].some(type => (Array.isArray(user.user_type) ? user.user_type : [user.user_type]).some(t => Number(t) === type))).length,
       linkedCount: linkedUsers.filter(user => studentsForActivity(user, String(activity.activity_mat))).length

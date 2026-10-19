@@ -10,28 +10,11 @@ export default function activitiesServices() {
 
   const url = `${import.meta.env.VITE_API_URL}/activities`;
 
-  const addActivity = (activityData) => {
-
-    fetch(`${url}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(activityData),
-    })
-      .then((response) => response.json())
-      .then((result) => {
-        //if (result.success) {
-        //  setTablesList(result.body);
-        //} else {
-        //console.log(result);
-        //}
-      })
-      .catch((error) => {
-        //console.log(error);
-      })
-      .finally(() => {
-      });
+  const addActivity = async (activityData) => {
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(activityData) });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(typeof result.body === "string" ? result.body : "Não foi possível cadastrar a turma.");
+    return result.body;
   };
 
   const getActivities = () => {
@@ -139,30 +122,11 @@ export default function activitiesServices() {
       });
   };
 
-  const updateActivity = (activityId, activityData) => {
-
-    console.log(activityData)
-    console.log(JSON.stringify(activityData))
-
-    fetch(`${url}/${activityId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(activityData)
-    })
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) {
-        } else {
-          //console.log(result);
-        }
-      })
-      .catch((error) => {
-        //console.log(error);
-      })
-      .finally(() => {
-      });
+  const updateActivity = async (activityId, activityData) => {
+    const response = await fetch(`${url}/${activityId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(activityData) });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(typeof result.body === "string" ? result.body : "Não foi possível atualizar a turma.");
+    return result.body;
   };
 
   const deleteActivity = async (activityId) => {

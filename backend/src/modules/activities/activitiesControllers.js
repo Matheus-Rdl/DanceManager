@@ -1,5 +1,5 @@
 import ActivitiesDataAccess from "./activitiesDataAccess.js";
-import { ok, serverError } from "../../helpers/httpResponse.js";
+import { ok, badRequest, serverError } from "../../helpers/httpResponse.js";
 
 export default class ActivitiesControllers {
   constructor() {
@@ -37,6 +37,11 @@ export default class ActivitiesControllers {
     }
   }
 
+  async getTeacherOptions() {
+    try { return ok(await this.dataAccess.getTeacherOptions()); }
+    catch (error) { return serverError(error); }
+  }
+
   async getNextActivityMat() {
     try {
       const nextMat = await this.dataAccess.getNextActivityMat();
@@ -51,7 +56,7 @@ export default class ActivitiesControllers {
       const result = await this.dataAccess.addActivity(activityData);
       return ok(result);
     } catch (error) {
-      return serverError(error);
+      return /professor|professores|Professor/i.test(error?.message || "") ? badRequest(error.message) : serverError(error);
     }
   }
 
@@ -72,7 +77,7 @@ export default class ActivitiesControllers {
       );
       return ok(result);
     } catch (error) {
-      return serverError(error);
+      return /professor|professores|Professor/i.test(error?.message || "") ? badRequest(error.message) : serverError(error);
     }
   }
 }

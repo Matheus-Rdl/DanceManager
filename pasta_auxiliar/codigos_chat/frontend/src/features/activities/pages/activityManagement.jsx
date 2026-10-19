@@ -12,6 +12,7 @@ import fieldsServices from "../../../services/fieldsServices";
 import activitiesServices from "../../../services/activitiesServices";
 import usersServices from "../../../services/usersServices";
 import { isActiveStudent } from "../../../utils/userSituation";
+import { getActivityTeacherLabel, getActivityTeacherNames } from "../../../utils/activityTeachers";
 import Loading from "../../../components/loading";
 import { FaThList } from "react-icons/fa";
 import { MdViewWeek } from "react-icons/md";
@@ -25,11 +26,7 @@ const firstValue = (...values) => values.find((value) => value !== undefined && 
 const activityKeys = (activity) => [activity.activity_mat, activity.activityMat, activity._id, activity.id].filter(Boolean).map(String);
 const studentKeys = (user) => (Array.isArray(user.user_activities) ? user.user_activities : []).map((item) => String(typeof item === "object" && item !== null ? firstValue(item.activity_mat, item.activityMat, item._id, item.id) ?? "" : item));
 const getTitle = (activity) => String(firstValue(activity.activity_title, activity.activity_name, activity.activityName, activity.name, activity.title) ?? "Sem nome");
-const getProfessor = (activity) => {
-  const value = firstValue(activity.activity_teacher_name, activity.activity_teacher, activity.activity_professor, activity.teacher_name, activity.teacher, activity.professor);
-  if (value && typeof value === "object") return String(firstValue(value.user_name, value.name, value.teacher_name) ?? "");
-  return String(value ?? "");
-};
+const getProfessor = (activity) => getActivityTeacherLabel(activity);
 /* Dias da semana: 1 = segunda-feira, 7 = domingo. */
 const DAY_NAMES = { 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira", 4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado", 7: "Domingo" };
 const getDayName = (code) => DAY_NAMES[Number(code)] || "Não informado";
@@ -103,22 +100,21 @@ export default function ActivityManagement() {
     const keys = activityKeys(activity);
     return users.filter(user => isActiveStudent(user) && studentKeys(user).some(key => keys.includes(key))).length;
   };
-  const teacherOptions = [...new Set(activities.map(getProfessor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const teacherOptions = [...new Set(activities.flatMap(activity => getActivityTeacherNames(activity)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const dayCodes = [...new Set(activities.map(getDayCode).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
   const visibleActivities = (filteredActivities || []).filter((activity) => {
     const search = normalize(quickSearch);
     const title = normalize(getTitle(activity));
     const mat = normalize(firstValue(activity.activity_mat, activity.activityMat, activity.id));
-    const teacher = getProfessor(activity);
     const dayCode = getDayCode(activity);
-    return (!search || title.includes(search) || mat.includes(search)) &&
-      (quickTeacher === "all" || (quickTeacher === "unknown" ? !teacher : teacher === quickTeacher)) &&
+    return (!search || title.includes(search) || mat.includes(search) || normalize(getProfessor(activity)).includes(search)) &&
+      (quickTeacher === "all" || (quickTeacher === "unknown" ? getActivityTeacherNames(activity).length === 0 : getActivityTeacherNames(activity).includes(quickTeacher))) &&
       (quickDay === "all" || (quickDay === "unknown" ? !dayCode : dayCode === quickDay)) &&
       (quickSituation === "all" || getSituation(activity).key === quickSituation);
   });
   const hasQuickFilters = Boolean(quickSearch || quickTeacher !== "all" || quickDay !== "all" || quickSituation !== "all");
   const clearQuickFilters = () => { setQuickSearch(""); setQuickTeacher("all"); setQuickDay("all"); setQuickSituation("all"); };
-  const openActivityEdit = (activity) => navigate("/ActivityManagementDetailed", { state: { activityId: activity._id, activityData: activity, currentMode: "E" } });
+  const openActivityEdit = (activity) => navigate(`/ActivityManagementDetailed?activityMat=${encodeURIComponent(activity.activity_mat)}`, { state: { activityId: activity._id, activityData: activity, currentMode: "E" } });
   const handleDeleteActivity = async () => {
     try {
       const result = await deleteActivity(activityActive);
@@ -154,12 +150,11 @@ export default function ActivityManagement() {
         {/* Ações e visualizações */}
         <Flex p={3} gap={2} align="center" justify="space-between" wrap="wrap" borderBottom="1px solid #e6ecea">
           <Flex gap={2} wrap="wrap">
-            <Link to="/ActivityManagementDetailed" state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "E" }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuPencil /> Dados da Turma</Button></Link>
-            <Link to="/ActivityAttendance" state={{ activityData: selectedActivity }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuUsers /> Presenças</Button></Link>
+            <Link to={selectedActivity ? `/ActivityManagementDetailed?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityManagementDetailed"} state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "E" }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuPencil /> Dados da Turma</Button></Link>
+            <Link to={selectedActivity ? `/ActivityManagementUsers?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityManagementUsers"} state={{ activityData: selectedActivity, activityId: activityActive }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuUsers /> Alunos</Button></Link>
             <Box ref={menuRef} position="relative">
               <Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity} onClick={() => setOpen((prev) => !prev)}><LuEllipsis /> Outras opções</Button>
               {open && <Box as="ul" listStyleType="none" position="absolute" top="100%" left={0} mt={1} py={1} minW="170px" borderRadius="8px" border="1px solid #d7e2df" bg="white" boxShadow="0 8px 24px rgba(0,0,0,.08)" zIndex={100} fontSize="12px" color="#173f3a">
-                <Link to="/ActivityManagementUsers" state={{ activityData: selectedActivity }}><Box as="li" cursor="pointer" py={2} px={3} _hover={{ bg: "#f1f7f5" }}>Alunos</Box></Link>
                 <Box as="li" cursor="pointer" py={2} px={3} color="#c53030" display="flex" alignItems="center" gap={2} _hover={{ bg: "#fff5f5" }} onClick={() => { setOpen(false); setDeleteDialogOpen(true); }}><LuTrash2 /> Excluir turma</Box>
               </Box>}
             </Box>

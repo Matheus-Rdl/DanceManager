@@ -18,6 +18,7 @@ import ActivityAttendance from "./features/activities/pages/activityAttendance.j
 import ActivityManagement from "./features/activities/pages/activityManagement.jsx";
 import ActivityManagementDetailed from "./features/activities/pages/activityManagementDetailed.jsx";
 import ActivityManagementUsers from "./features/activities/pages/activityManagementUsers.jsx";
+import ActivityMonthlyFees from "./features/activities/pages/ActivityMonthlyFees.jsx";
 
 import MonthlyFees from "./features/financial/monthlyFees/monthlyFees.jsx";
 import MonthlyFeesDetailed from "./features/financial/monthlyFees/monthlyFeesDetailed.jsx";
@@ -59,6 +60,7 @@ const pages = createHashRouter([
       },
 
       { path: "/ActivityAttendance", element: <ActivityAttendance /> },
+      { path: "/ActivityMonthlyFees", element: <ActivityMonthlyFees /> },
       { path: "/ActivityManagement", element: <ActivityManagement /> },
       {
         path: "/ActivityManagement/add",

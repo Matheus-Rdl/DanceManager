@@ -16,6 +16,10 @@ import HeadingPage from "../../../components/headingPage";
 
 //Utils
 import { validateField } from "../../../utils/fieldValidators";
+import ActivityTeachersField from "../components/ActivityTeachersField";
+import ActivityNavigation from "../../../components/ActivityNavigation";
+import useActivityContext from "../../../hooks/useActivityContext";
+import { getActivityTeacherLabel } from "../../../utils/activityTeachers";
 
 //React Icons
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
@@ -35,10 +39,14 @@ export default function ActivityManagementDetailed() {
   const [formData, setFormData] = useState({});
   const [listActive, setListActive] = useState(1);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { activityId, activityData, currentMode } = location.state || {};
+  const { activityData: selectedActivity, activityLoading, activityError } = useActivityContext();
+  const activityData = selectedActivity;
+  const currentMode = location.state?.currentMode ||
+    (location.pathname.endsWith("/add") ? "A" : location.pathname.endsWith("/view") ? "V" : selectedActivity ? "E" : undefined);
 
 
   const {
@@ -101,13 +109,9 @@ export default function ActivityManagementDetailed() {
     getFieldsByTitle("activities");
   }, []);
 
-  if (isAddMode) {
-    useEffect(() => {
-      if (refetchActivities) {
-        getActivityNextMat();
-      }
-    }, [refetchActivities]);
-  }
+  useEffect(() => {
+    if (isAddMode && refetchActivities) getActivityNextMat();
+  }, [isAddMode, refetchActivities]);
 
   useEffect(() => {
     if (!isAddMode && activityData) {
@@ -123,7 +127,9 @@ export default function ActivityManagementDetailed() {
 
     fieldsList.forEach((field) => {
       const value = formData[field.field];
-      const errors = validateField(field, value);
+      const errors = field.field === "activity_teachers"
+        ? (field.required && (!Array.isArray(value) || value.length === 0) ? ["Selecione ao menos um professor."] : [])
+        : validateField(field, value);
 
       if (errors.length > 0) {
         newErrors[field.field] = errors.join(", ");
@@ -157,7 +163,7 @@ export default function ActivityManagementDetailed() {
     navigate(-1);
   };
 
-  const handleSubmitForm = (e) => {
+  const handleSubmitForm = async (e) => {
     e.preventDefault();
 
     const validationErrors = validateFields(fieldsList, formData);
@@ -182,6 +188,8 @@ export default function ActivityManagementDetailed() {
 
     // Garante que todos os campos estejam presentes antes de enviar
     const completeFormData = { ...formData };
+    delete completeFormData.activity_teacher_names;
+    delete completeFormData.activity_teacher_details;
 
     // Verifica se algum campo da fieldsList está faltando e adiciona com valor vazio
     fieldsList.forEach((field) => {
@@ -190,30 +198,29 @@ export default function ActivityManagementDetailed() {
       }
     });
 
-    // Verifica se vai atualizar ou adicionar
-    if (currentMode === "A") {
-      setErrors({});
-      addActivity(completeFormData);
-      showSnackbar("Atividade adicionada com sucesso!", "success");
-      setTimeout(() => navigate(-1), 1500);
-    } else {
-      setErrors({});
-      let updateData = {};
-      for (const key in formData) {
-        if (!(formData[key] === activityData[key])) {
-          updateData[key] = formData[key];
-        }
-      }
-
-      //Verifica o tamanho do Objeto de atualização
-      if (!updateData || Object.keys(updateData).length === 0) {
-        showSnackbar("Nenhum dado foi atualizado", "error");
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (currentMode === "A") {
+        await addActivity(completeFormData);
+        showSnackbar("Atividade adicionada com sucesso!", "success");
       } else {
-        updateActivity(formData._id, updateData);
-        showSnackbar("Atividade atualizado com sucesso!", "success");
-        setTimeout(() => navigate(-1), 1500);
+        const updateData = {};
+        Object.keys(completeFormData).forEach(key => {
+          if (JSON.stringify(completeFormData[key]) !== JSON.stringify(activityData?.[key]))
+            updateData[key] = completeFormData[key];
+        });
+        if (Object.keys(updateData).length === 0) {
+          showSnackbar("Nenhum dado foi atualizado", "error"); return;
+        }
+        await updateActivity(formData._id, updateData);
+        showSnackbar("Atividade atualizada com sucesso!", "success");
       }
-    }
+      setErrors({});
+      navigate(-1);
+    } catch (error) {
+      showSnackbar(error.message || "Não foi possível salvar a atividade.", "error");
+    } finally { setSaving(false); }
   };
 
   const pageMenus = menusList
@@ -286,34 +293,19 @@ export default function ActivityManagementDetailed() {
                 <Text mt="5px" fontSize="12px" color="#60777c">
                   MAT: {formData.activity_mat || "-"}
                 </Text>
-                <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg="#dff5e6" color="#14833b" fontSize="10px">
-                  <FiCheck /> Turma ativa
+                <Text fontSize="11px" color="#60777c" mt={2}>Professores: {getActivityTeacherLabel(formData)}</Text>
+                <Badge mt="8px" px="9px" py="4px" borderRadius="999px" bg={Number(formData.activity_active) === 1 ? "#dff5e6" : "#edf1f2"} color={Number(formData.activity_active) === 1 ? "#14833b" : "#637673"} fontSize="10px">
+                  <FiCheck /> {Number(formData.activity_active) === 1 ? "Turma ativa" : "Turma inativa"}
                 </Badge>
               </Box>
             </HStack>
           </Flex>
         )}
 
-        {/* ABAS */} 
-        {!isAddMode && (
-          <Flex px={{ base: 2, md: 3 }} borderTop="1px solid #e7eceb" borderBottom="1px solid #e7eceb" overflowX="auto" bg="#fff">
-            {["Visão geral", "Presenças", "Mensalidades"].map((tab) =>
-              <Button
-                key={tab}
-                flexShrink={0}
-                h="44px" px="12px"
-                variant="ghost"
-                borderRadius="0"
-                color={tab === "Visão geral" ? "#063f39" : "#506a67"}
-                fontSize="12px"
-                fontWeight={tab === "Visão geral" ? "700" : "500"}
-                borderBottom={tab === "Visão geral" ? "3px solid #063f39" : "3px solid transparent"}>
-                {tab}
-              </Button>
-            )}
-          </Flex>
-        )}
-
+        {/* NAVEGAÇÃO ENTRE AS TELAS DA TURMA */}
+        {!isAddMode && <ActivityNavigation activeTab="Visão geral" activityData={activityData || formData} />}
+        {activityLoading && <Text px={4} py={2} color="#607873" fontSize="12px">Carregando dados da turma...</Text>}
+        {activityError && <Text px={4} py={2} color="red.600" fontSize="12px">{activityError}</Text>}
 
         {/* FORMULÁRIO */}
         <Box
@@ -424,7 +416,14 @@ export default function ActivityManagementDetailed() {
                           key={field._id}
                           w={{ base: "100%", md: "auto" }}
                         >
-                          <FormTextArea
+                          {field.field === "activity_teachers" ? <ActivityTeachersField
+                            field={field}
+                            value={formData.activity_teachers}
+                            details={formData.activity_teacher_details}
+                            mode={currentMode}
+                            onChange={handleChange}
+                            error={errors.activity_teachers}
+                          /> : <FormTextArea
                             field={field}
                             addMode={isAddMode}
                             viewMode={isViewMode}
@@ -434,7 +433,7 @@ export default function ActivityManagementDetailed() {
                             nextMat={activityNextMat}
                             errors={errors}
                             //dateRegister={formattedDate}
-                          />
+                          />}
                         </Box>
                       );
                     })}
@@ -453,7 +452,7 @@ export default function ActivityManagementDetailed() {
                   Cancelar
                 </Button>
               )}
-              <Button h="36px" px={7} bg="#0b6b5b" color="white" borderRadius="6px" fontSize="12px" fontWeight="600" type="submit" _hover={{ bg: "#08594c" }}>
+              <Button h="36px" px={7} bg="#0b6b5b" color="white" borderRadius="6px" fontSize="12px" fontWeight="600" type="submit" loading={saving} disabled={saving} _hover={{ bg: "#08594c" }}>
                 Salvar
               </Button>
             </HStack>

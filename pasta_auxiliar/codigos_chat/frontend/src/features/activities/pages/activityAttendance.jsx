@@ -1,3 +1,5 @@
+import ActivityNavigation from "../../../components/ActivityNavigation";
+import useActivityContext from "../../../hooks/useActivityContext";
 /*
     Type: Page
     Name: ActivityAttendance
@@ -88,8 +90,7 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const activityData =
-    location.state?.activityData;
+  const { activityData, activityMat, activityLoading, activityError } = useActivityContext();
 
 
   /*
@@ -1164,7 +1165,7 @@ export default function ActivityAttendance() {
         >
 
           <Text>
-            Nenhuma atividade foi selecionada.
+            {activityLoading ? "Carregando informações da turma..." : activityError || "Nenhuma atividade foi selecionada."}
           </Text>
 
 
@@ -1405,6 +1406,9 @@ export default function ActivityAttendance() {
 
       </Box>
 
+
+      {/* Menus da turma: Visão geral e Alunos > Lista / Presenças / Mensalidades. */}
+      <ActivityNavigation activeTab="Presenças" activityData={activityData} activityMat={activityMat} />
 
       {/* ================================================= */}
       {/* NAVEGAÇÃO */}

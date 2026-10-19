@@ -41,6 +41,11 @@ const activitySchema = new mongoose.Schema(
     activity_days: {
       type: Number,
       required: true
+    },
+    /* IDs MongoDB dos usuários cujo user_type inclui 3 = PROFESSOR(A). */
+    activity_teachers: { 
+      type: [String],
+      default: [] 
     }
   },
   {

@@ -1,3 +1,4 @@
+import { getActivityTeacherLabel } from "../../../utils/activityTeachers";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Flex, Heading, SimpleGrid, Text, VStack, HStack } from "@chakra-ui/react";
@@ -20,7 +21,7 @@ import {
 const DAYS = { 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira", 4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado", 7: "Domingo" };
 const dayLabel = (day) => DAYS[Number(day)] || "Dia não informado";
 const getMat = (activity) => String(activity?.activity_mat || "");
-const getTeacher = (activity) => activity?.teacher_name || activity?.activity_teacher_name || activity?.professor?.name || "Não informado";
+const getTeacher = getActivityTeacherLabel;
 const timeLabel = (activity) => `${activity.activity_time_start || "--:--"} às ${activity.activity_time_end || "--:--"}`;
 /* Converte o horário em minutos para calcular a carga semanal. */
 const duration = (activity) => {

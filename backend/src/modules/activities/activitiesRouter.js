@@ -30,6 +30,11 @@ activitiesRouter.post("/activitiesByType", async (req, res) => {
   res.status(statusCode).send({ success, statusCode, body });
 });
 
+activitiesRouter.get("/teachers", async (req, res) => {
+  const { success, statusCode, body } = await activitiesControllers.getTeacherOptions();
+  res.status(statusCode).send({ success, statusCode, body });
+});
+
 activitiesRouter.get("/nextMat", async (req, res) => {
   const { success, statusCode, body } =
     await activitiesControllers.getNextActivityMat();

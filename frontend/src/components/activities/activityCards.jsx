@@ -1,3 +1,4 @@
+import { getActivityTeacherLabel } from "../../utils/activityTeachers";
 import {
   Box,
   SimpleGrid,
@@ -101,6 +102,7 @@ export default function ActivityCards({
                 </Heading>
 
 
+                <Text fontSize="xs" color="#0b6b5b">Professores: {getActivityTeacherLabel(activity)}</Text>
                 {/* Matrícula */}
 
                 {activity.activity_mat && (

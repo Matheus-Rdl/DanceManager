@@ -1,3 +1,4 @@
+import { getActivityTeacherLabel } from "../../utils/activityTeachers";
 import { useEffect } from "react";
 import { Box, Heading, Text } from "@chakra-ui/react";
 import { selectOptions } from "../../utils/userSelectOptions";
@@ -33,6 +34,7 @@ export default function CardActivitySelect({ data }) {
       <Heading as="h1" size="md" pb="1px" mb={2}>
         {data.activity_title}
       </Heading>
+      <Text fontSize="sm" color="#0b6b5b" mb={1}>Professores: {getActivityTeacherLabel(data)}</Text>
       <Text fontSize="md" mb={1}>
         Quantidade de usuários: <strong>{userListActivies.length}</strong>
       </Text>

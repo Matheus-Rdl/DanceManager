@@ -1,36 +1,32 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import ActivityNavigation from "../../../components/ActivityNavigation";
+import useActivityContext from "../../../hooks/useActivityContext";
+import { getActivityTeacherLabel } from "../../../utils/activityTeachers";
 import { formatProperNoun } from "../../../utils/formatters";
-import CardActivity from "../../../components/cards/cardActivity";
 import usersServices from "../../../services/usersServices";
-import { useEffect, useRef, useState } from "react";
 import List from "../../../components/list";
-import ActivityManagementUserActivity from "./activityManagementUserActivity";
 import HeaderFilter from "../../../components/headerFilter";
-import { peopleManagementTR } from "../../../utils/HeaderList.json";
 import useTableFilter from "../../../hooks/useTableFilter";
-import HandleBack from "../../../components/handleBack";
-import { generateExcelPresences } from "../../../services/reports/presences/excelPresences";
-//import DialogPresence from "./dialog/dialogPresence";
 import { Table, Box, Button, Flex, Heading, HStack, Text } from "@chakra-ui/react";
 import HeadingPage from "../../../components/headingPage";
 import fieldsServices from "../../../services/fieldsServices";
 
 export default function ActivityManagementUsers() {
-  const location = useLocation();
-  const { activityData } = location.state || {};
+  const { activityData, activityMat, activityLoading, activityError } = useActivityContext();
+  const navigate = useNavigate();
   const { getUsersByActivity, userListActivies, refetchUsers, } =
     usersServices();
   const [userActivityActive, setUserActivityActive] = useState(null);
   const [filters, setFilters] = useState({});
   const selectedUser = userListActivies?.find((u) => u._id === userActivityActive);
-  const menuRef = useRef(null);
 
   useEffect(() => {
-    if (refetchUsers && activityData?.activity_mat) {
+    if (refetchUsers && activityMat) {
       //console.log("Buscando atividade:", activityData.activity_mat);
-      getUsersByActivity(activityData.activity_mat);
+      getUsersByActivity(activityMat);
     }
-  }, [refetchUsers, activityData]);
+  }, [refetchUsers, activityMat]);
 
   //Função para atualizar filtros
   const handleFilterChange = (field, value) => {
@@ -39,23 +35,6 @@ export default function ActivityManagementUsers() {
       [field]: value
     }));
   };
-
-  // Fecha o menu se clicar fora
-  useEffect(() => {
-    // Função de evento "handleClickOutside". Normalmente é acionada por clique, submit ou interação do usuário.
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const [open, setOpen] = useState(false);
-  // Função utilitária "toggleMenu" usada para alternar estados booleanos na interface.
-  const toggleMenu = () => setOpen((prev) => !prev);
-
 
   //Inicializa a busca de campos do banco de dados
   const {
@@ -108,21 +87,25 @@ export default function ActivityManagementUsers() {
     sortedFields
   );
 
-  const [presence, setPresence] = useState(null);
-  // function that open the dialog of presences
-  const handlePresence = () => {
-    setPresence(true)
-  }
+  if (!activityMat) return <Box p={4} bg="white" border="1px solid #d7e2df" borderRadius="8px">
+    <Text fontSize="13px">Selecione uma turma na Gestão de Atividades para ver seus alunos.</Text>
+    <Button mt={3} size="sm" variant="outline" onClick={() => navigate("/ActivityManagement")}>Voltar às atividades</Button>
+  </Box>;
 
   return (
-    <Flex>
+    <Flex w="100%" minW={0} gap={3} direction={{ base: "column", xl: "row" }} align="stretch">
       <Box flex="1" minW={0}>
-
-        <HeadingPage content={formatProperNoun(activityData.activity_title)} />
-
-        <Text color="gray.500" fontSize="md" mt={1}>Informações da atividade:</Text>
-
-        <CardActivity data={activityData} />
+        <HeadingPage content={activityData?.activity_title ? formatProperNoun(activityData.activity_title) : "Alunos da turma"} />
+        {activityLoading && <Text color="gray.500" fontSize="xs" mt={1}>Carregando informações da turma...</Text>}
+        {activityError && <Text color="red.600" fontSize="xs" mt={1}>{activityError}</Text>}
+        <Box mt={3} border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
+          <Box px={3} py={3} bg="white">
+            <Text color="#063f39" fontWeight="700" fontSize="13px">{activityData?.activity_title || "Turma selecionada"}</Text>
+            <Text color="gray.500" fontSize="11px">MAT: {activityMat} {activityData ? `• Professores: ${getActivityTeacherLabel(activityData)}` : ""}</Text>
+          </Box>
+          <ActivityNavigation activeTab="Lista de alunos" activityData={activityData} activityMat={activityMat} />
+        </Box>
+        <Text mt={3} fontSize="12px" color="#607873">Alunos vinculados a esta turma</Text>
 
         <HStack gap={2} mt={2}>
           <Link
@@ -148,40 +131,6 @@ export default function ActivityManagementUsers() {
           >
             <Button size="xs" variant="surface" disabled={userActivityActive === null}>Alterar</Button>
           </Link>
-
-          <Box ref={menuRef} position="relative">
-            <Button size="xs" variant="surface" onClick={toggleMenu}>
-              Relatórios ▼
-            </Button>
-
-            {/* Renderização condicional: esse bloco só aparece quando o estado correspondente estiver ativo. */}
-            {open && (
-              <Box
-                as="ul"
-                listStyleType="none"
-                position="absolute"
-                top="100%"
-                left={0}
-                mt={1}
-                py={2}
-                px={3}
-                borderRadius="md"
-                border="1px solid"
-                borderColor="brand.primary"
-                bg="brand.secondary"
-                zIndex={100}
-                fontSize="xs"
-                color="black"
-                whiteSpace="nowrap"
-              >
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}>Geral da turma</Box>
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}>Lista de alunos</Box>
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}>Frequência</Box>
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }} onClick={handlePresence}>Presenças</Box>
-                <Box as="li" cursor="pointer" py={1} px={2} borderRadius="sm" _hover={{ filter: "brightness(0.92)" }}>Prestação de contas</Box>
-              </Box>
-            )}
-          </Box>
 
         </HStack>
 
@@ -221,21 +170,7 @@ export default function ActivityManagementUsers() {
         </Box>
 
       </Box>
-      <Box w="50%" ml={4} mt="-65px" mr="-1em">
-        <ActivityManagementUserActivity />
-      </Box>
 
-{/*
-      <DialogPresence
-        open={presence}
-        onClose={() => setPresence(null)}
-        activityData={activityData}
-        usersList={userListActivies.map((user) => ({
-          matricula: user.user_mat,
-          nome: user.user_name,
-        }))}
-      />
-*/}
     </Flex>
   );
 }

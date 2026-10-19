@@ -33,6 +33,28 @@ export default class MonthlyFeesDataAccess {
     if (filters.userId) query.userId = filters.userId;
     if (filters.contractId) query.contractId = filters.contractId;
 
+    /* Filtra mensalidades pelos usuários vinculados à turma.
+       As cobranças continuam sendo do CONTRATO do aluno, não da atividade. */
+    if (filters.activityMat) {
+      const mat = String(filters.activityMat).trim();
+      const enrolledUsers = await User.find({ $or: [
+        { user_activities: mat },
+        { "user_activities.activity_mat": mat },
+        { "user_activities.activityMat": mat }
+      ] }).select("_id user_type").lean();
+      /* O cadastro pode conter professores: limita o financeiro aos alunos/bolsistas. */
+      const allowedIds = enrolledUsers.filter(user => {
+        const types = Array.isArray(user.user_type) ? user.user_type : [user.user_type];
+        const valid = types.filter(type => type !== undefined && type !== null);
+        return valid.length === 0 || valid.some(type => [1, 2].includes(Number(type)));
+      }).map(user => String(user._id));
+      if (filters.userId) {
+        query.userId = allowedIds.includes(String(filters.userId)) ? String(filters.userId) : { $in: [] };
+      } else {
+        query.userId = { $in: allowedIds };
+      }
+    }
+
     const fees = await MonthlyFee.find(query)
       .sort({ dueDate: 1, number: 1 })
       .lean();
