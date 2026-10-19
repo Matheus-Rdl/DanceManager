@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function attendancesServices() {
 
@@ -14,6 +14,8 @@ export default function attendancesServices() {
 
   const url =
     `${import.meta.env.VITE_API_URL}/attendances`;
+  /* Evita que a resposta de outra semana sobrescreva a chamada atual. */
+  const requestVersion = useRef(0);
 
 
   /*
@@ -25,83 +27,27 @@ export default function attendancesServices() {
     em uma determinada data.
   */
 
-  const getAttendance = (
-    activityMat,
-    date
-  ) => {
-
-    /*
-    console.log(
-      "BUSCANDO CHAMADA:",
-      {
-        activityMat,
-        date,
-      }
-    );
-    */
-
+  const getAttendance = async (activityMat, date) => {
+    const version = ++requestVersion.current;
     setAttendanceLoading(true);
-
-    fetch(
-      `${url}/${activityMat}/${date}`,
-      {
-        method: "GET",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-      }
-    )
-
-      .then((response) =>
-        response.json()
-      )
-
-      .then((result) => {
-
-        /*
-          console.log(
-            "RESPOSTA DA CHAMADA:",
-            result
-          );
-        */
-
-        if (result.success) {
-
-          setAttendanceList(
-            result.body || null
-          );
-
-        } else {
-
-          setAttendanceList(null);
-
-          console.log(result);
-
-        }
-
-      })
-
-      .catch((error) => {
-
-        console.log(
-          "Erro ao buscar presenças:",
-          error
-        );
-
-      })
-
-      .finally(() => {
-
+    setAttendanceList(null);
+    try {
+      const response = await fetch(`${url}/${encodeURIComponent(activityMat)}/${encodeURIComponent(date)}`);
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result.body || "Erro ao buscar presenças.");
+      if (version === requestVersion.current) setAttendanceList(result.body || null);
+      return result.body || null;
+    } catch (error) {
+      if (version === requestVersion.current) setAttendanceList(null);
+      console.error("Erro ao buscar presenças:", error);
+      throw error;
+    } finally {
+      if (version === requestVersion.current) {
         setAttendanceLoading(false);
-
         setRefetchAttendance(false);
-
-      });
-
+      }
+    }
   };
-
 
   /*
     -------------------------------------------------------
@@ -132,20 +78,12 @@ export default function attendancesServices() {
       }
     )
 
-      .then((response) =>
-        response.json()
-      )
-
-      .then((result) => {
-
-        if (!result.success) {
-
-          console.log(result);
-
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(typeof result.body === "string" ? result.body : "Não foi possível salvar a chamada.");
         }
-
         return result;
-
       })
 
       .catch((error) => {

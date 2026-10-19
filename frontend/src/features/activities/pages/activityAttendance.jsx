@@ -1,4 +1,3 @@
-import { getActivityTeacherLabel } from "../../../utils/activityTeachers";
 import ActivityNavigation from "../../../components/ActivityNavigation";
 import useActivityContext from "../../../hooks/useActivityContext";
 /*
@@ -91,7 +90,7 @@ export default function ActivityAttendance() {
     -------------------------------------------------------
   */
 
-  const { activityData, activityLoading, activityError } = useActivityContext();
+  const { activityData, activityMat, activityLoading, activityError } = useActivityContext();
 
 
   /*
@@ -205,39 +204,30 @@ export default function ActivityAttendance() {
   ]);
 
 
-  /*
-    -------------------------------------------------------
-    TRANSFORMAR USUÁRIOS EM ALUNOS
-    -------------------------------------------------------
-  */
-
+  /* Monta a chamada preservando os alunos históricos do registro daquela data.
+     Em chamadas já salvas, não insere retroativamente alunos que entraram depois. */
   useEffect(() => {
+    const current = (userListActivies || []).map(user => ({
+      id: String(user._id), name: user.user_name, userSituation: user.user_situation,
+      status: "undefined", archived: false
+    }));
+    const currentMap = new Map(current.map(student => [student.id, student]));
+    if (!attendanceList) { setStudents(current); return; }
 
-    if (!userListActivies) {
-      return;
-    }
-
-
-    setStudents(
-      userListActivies.map(
-        (user) => ({
-
-          id: user._id,
-
-          name: user.user_name,
-
-          userSituation: user.user_situation,
-
-          status: "undefined",
-
-        })
-      )
-    );
-
-  }, [
-    userListActivies,
-  ]);
-
+    const existing = (attendanceList.students || []).map(saved => {
+      const id = String(saved.userId);
+      const active = currentMap.get(id);
+      const known = attendanceList.studentLookup?.[id] || {};
+      return {
+        ...(active || {
+          id, name: known.name || `Aluno ${id.slice(-6)}`,
+          userSituation: known.situation, archived: true
+        }),
+        status: saved.status || "undefined"
+      };
+    });
+    setStudents(existing);
+  }, [userListActivies, attendanceList]);
 
   /*
     -------------------------------------------------------
@@ -552,7 +542,7 @@ export default function ActivityAttendance() {
   useEffect(() => {
 
     if (
-      !activityData?.activity_mat
+      !activityData?.activity_mat || attendanceLoading
     ) {
       return;
     }
@@ -567,80 +557,11 @@ export default function ActivityAttendance() {
     getAttendance(
       activityData.activity_mat,
       date
-    );
+    ).catch(() => {});
 
   }, [
     activityDate.getTime(),
     activityData?.activity_mat,
-  ]);
-
-
-  /*
-    -------------------------------------------------------
-    APLICAR CHAMADA DO BACKEND
-    -------------------------------------------------------
-  */
-
-  useEffect(() => {
-
-    console.log(
-      "APLICANDO CHAMADA PARA:",
-      formatApiDate(activityDate)
-    );
-
-    console.log(
-      "ATTENDANCE:",
-      attendanceList
-    );
-
-
-    if (!attendanceList) {
-
-      setStudents(
-        prev =>
-          prev.map(
-            student => ({
-              ...student,
-              status: "undefined",
-            })
-          )
-      );
-
-      return;
-
-    }
-
-
-    setStudents(
-      prev =>
-        prev.map(
-          student => {
-
-            const savedStudent =
-              attendanceList.students?.find(
-                saved =>
-                  String(saved.userId) ===
-                  String(student.id)
-              );
-
-
-            return {
-
-              ...student,
-
-              status:
-                savedStudent?.status ||
-                "undefined",
-
-            };
-
-          }
-        )
-    );
-
-  }, [
-    attendanceList,
-    activityDate.getTime(),
   ]);
 
 
@@ -753,7 +674,7 @@ export default function ActivityAttendance() {
     id
   ) => {
 
-    if (isFutureClass) {
+    if (attendanceLoading || isFutureClass || students.some(student => student.id === id && student.archived)) {
       return;
     }
 
@@ -854,7 +775,7 @@ export default function ActivityAttendance() {
 
     const updatedStudents =
       students.map(
-        student => ({
+        student => student.archived ? student : ({
 
           ...student,
 
@@ -900,7 +821,7 @@ export default function ActivityAttendance() {
 
     const updatedStudents =
       students.map(
-        student => ({
+        student => student.archived ? student : ({
 
           ...student,
 
@@ -1166,7 +1087,7 @@ export default function ActivityAttendance() {
         >
 
           <Text>
-            {activityLoading ? "Carregando turma..." : activityError || "Nenhuma atividade foi selecionada."}
+            {activityLoading ? "Carregando informações da turma..." : activityError || "Nenhuma atividade foi selecionada."}
           </Text>
 
 
@@ -1366,7 +1287,6 @@ export default function ActivityAttendance() {
               {activityData.activity_mat}
 
             </Text>
-            <Text mt={1} fontSize="sm" color="#0b6b5b">Professores: {getActivityTeacherLabel(activityData)}</Text>
 
           </Box>
 
@@ -1409,9 +1329,8 @@ export default function ActivityAttendance() {
       </Box>
 
 
-      <Box overflow="hidden" border="1px solid #d7e2df" borderRadius="8px" bg="white">
-        <ActivityNavigation activeTab="Presenças" activityData={activityData} />
-      </Box>
+      {/* Menus da turma: Visão geral e Alunos > Lista / Presenças / Mensalidades. */}
+      <ActivityNavigation activeTab="Presenças" activityData={activityData} activityMat={activityMat} />
 
       {/* ================================================= */}
       {/* NAVEGAÇÃO */}
@@ -2207,6 +2126,8 @@ export default function ActivityAttendance() {
                   (student) => {
 
                     const isDisabled =
+                      student.archived ||
+                      attendanceLoading ||
                       isFutureClass ||
                       (
                         classAlreadyHappened &&
@@ -2259,7 +2180,8 @@ export default function ActivityAttendance() {
                             {student.name}
 
                           </Text>
-                          {getUserSituation(student.userSituation).code !== "1" && <Badge mt={1} fontSize="10px" borderRadius="full" bg={getUserSituation(student.userSituation).bg} color={getUserSituation(student.userSituation).color}>
+                          {student.archived && <Badge ml={2} fontSize="10px" bg="#edf1f2" color="#637673">Fora da turma • histórico</Badge>}
+                          {!student.archived && getUserSituation(student.userSituation).code !== "1" && <Badge mt={1} fontSize="10px" borderRadius="full" bg={getUserSituation(student.userSituation).bg} color={getUserSituation(student.userSituation).color}>
                             {getUserSituation(student.userSituation).label}
                           </Badge>}
 

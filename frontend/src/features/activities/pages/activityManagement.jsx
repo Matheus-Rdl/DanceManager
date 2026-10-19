@@ -151,12 +151,10 @@ export default function ActivityManagement() {
         <Flex p={3} gap={2} align="center" justify="space-between" wrap="wrap" borderBottom="1px solid #e6ecea">
           <Flex gap={2} wrap="wrap">
             <Link to={selectedActivity ? `/ActivityManagementDetailed?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityManagementDetailed"} state={{ activityId: activityActive, activityData: selectedActivity, currentMode: "E" }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuPencil /> Dados da Turma</Button></Link>
-            <Link to={selectedActivity ? `/ActivityAttendance?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityAttendance"} state={{ activityData: selectedActivity }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuUsers /> Presenças</Button></Link>
-            <Link to={selectedActivity ? `/ActivityMonthlyFees?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityMonthlyFees"} state={{ activityData: selectedActivity }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}>Mensalidades</Button></Link>
+            <Link to={selectedActivity ? `/ActivityManagementUsers?activityMat=${encodeURIComponent(selectedActivity.activity_mat)}` : "/ActivityManagementUsers"} state={{ activityData: selectedActivity, activityId: activityActive }}><Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity}><LuUsers /> Alunos</Button></Link>
             <Box ref={menuRef} position="relative">
               <Button size="sm" variant="outline" borderColor="#d2dfdc" color="#174c45" disabled={!selectedActivity} onClick={() => setOpen((prev) => !prev)}><LuEllipsis /> Outras opções</Button>
               {open && <Box as="ul" listStyleType="none" position="absolute" top="100%" left={0} mt={1} py={1} minW="170px" borderRadius="8px" border="1px solid #d7e2df" bg="white" boxShadow="0 8px 24px rgba(0,0,0,.08)" zIndex={100} fontSize="12px" color="#173f3a">
-                <Link to="/ActivityManagementUsers" state={{ activityData: selectedActivity }}><Box as="li" cursor="pointer" py={2} px={3} _hover={{ bg: "#f1f7f5" }}>Alunos</Box></Link>
                 <Box as="li" cursor="pointer" py={2} px={3} color="#c53030" display="flex" alignItems="center" gap={2} _hover={{ bg: "#fff5f5" }} onClick={() => { setOpen(false); setDeleteDialogOpen(true); }}><LuTrash2 /> Excluir turma</Box>
               </Box>}
             </Box>

@@ -1,5 +1,6 @@
 import User from '../../models/User.js';
 import Activity from '../../models/Activity.js';
+import { activityMats, isEnrolled, isStudent } from './activityStudentRules.js';
 
 export default class UsersDataAccess {
   // Pega todos os usuários
@@ -43,6 +44,68 @@ export default class UsersDataAccess {
       { "user_activities.activity_mat": mat },
       { "user_activities.activityMat": mat }
     ] }).lean();
+  }
+
+  /* Candidatos já cadastrados; consulta limitada e apenas dados usados na seleção. */
+  async getActivityStudentCandidates(mat, search = "") {
+    const filter = {
+      user_type: { $in: [1, 2, "1", "2"] },
+      $nor: [
+        { user_activities: mat },
+        { "user_activities.activity_mat": mat },
+        { "user_activities.activityMat": mat }
+      ]
+    };
+    const query = String(search || "").trim().slice(0, 80);
+    if (query) {
+      const safe = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.$or = [
+        { user_name: { $regex: safe, $options: "i" } },
+        { user_mat: { $regex: safe, $options: "i" } }
+      ];
+    }
+    const users = await User.find(filter)
+      .select("_id user_name user_mat user_situation user_type user_activities user_photo")
+      .sort({ user_name: 1 }).limit(100).lean();
+    return users.filter(user => !isEnrolled(user, mat));
+  }
+
+  /* Recalcula o campo derivado após uma alteração do vínculo, sem tocar contratos. */
+  async syncUserActivityTypes(userId) {
+    const user = await User.findById(userId).select("user_activities").lean();
+    if (!user) return;
+    const mats = activityMats(user);
+    const activities = mats.length ? await Activity.find({ activity_mat: { $in: mats } })
+      .select("activity_type").lean() : [];
+    const types = [...new Set(activities.map(activity => activity.activity_type).filter(v => v != null))];
+    await User.updateOne({ _id: userId }, { $set: { user_activity_types: types } });
+  }
+
+  /* Vínculo atual atômico por aluno. IDs repetidos e vínculos existentes são ignorados. */
+  async addStudentsToActivity(mat, users) {
+    let added = 0;
+    let skipped = 0;
+    for (const user of users) {
+      if (!isStudent(user)) throw new Error("Somente alunos ou bolsistas podem entrar na turma.");
+      if (isEnrolled(user, mat)) { skipped++; continue; }
+      const result = await User.updateOne({ _id: user._id }, { $addToSet: { user_activities: mat } });
+      if (result.modifiedCount) { added++; await this.syncUserActivityTypes(user._id); }
+    }
+    return { added, skipped };
+  }
+
+  /* Retira SOMENTE o vínculo atual, inclusive formatos legados por objeto.
+     Não altera attendances, monthlyFees, payments, contratos ou user_situation. */
+  async removeStudentFromActivity(mat, user) {
+    if (!isEnrolled(user, mat)) return false;
+    const current = await User.findById(user._id).select("user_activities").lean();
+    if (!current || !isEnrolled(current, mat)) return false;
+    // Usa atualização condicional para evitar substituir edições paralelas do array.
+    await User.updateOne({ _id: user._id }, { $pull: { user_activities: mat } });
+    await User.updateOne({ _id: user._id }, { $pull: { user_activities: { activity_mat: mat } } });
+    await User.updateOne({ _id: user._id }, { $pull: { user_activities: { activityMat: mat } } });
+    await this.syncUserActivityTypes(user._id);
+    return true;
   }
 
   // Busca usuários por tipo

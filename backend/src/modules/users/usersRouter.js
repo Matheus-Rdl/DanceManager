@@ -24,6 +24,24 @@ usersRouter.get('/activity/:mat', async (req, res) => {
   res.status(statusCode).send({ success, statusCode, body });
 });
 
+/* Rotas específicas devem preceder GET /:id. */
+usersRouter.get('/activity/:mat/candidates', async (req, res) => {
+  const result = await usersControllers.getActivityStudentCandidates(req.params.mat, req.query.search);
+  res.status(result.statusCode).send(result);
+});
+
+usersRouter.post('/activity/:mat/students', async (req, res) => {
+  const result = await usersControllers.addStudentsToActivity(
+    req.params.mat, req.body?.userIds, req.body?.confirmNonActive === true
+  );
+  res.status(result.statusCode).send(result);
+});
+
+usersRouter.delete('/activity/:mat/students/:userId', async (req, res) => {
+  const result = await usersControllers.removeStudentFromActivity(req.params.mat, req.params.userId);
+  res.status(result.statusCode).send(result);
+});
+
 usersRouter.get('/type', async (req, res) => {
   const { types } = req.query;
 
