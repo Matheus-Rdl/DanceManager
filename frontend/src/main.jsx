@@ -25,6 +25,7 @@ import MonthlyFeesDetailed from "./features/financial/monthlyFees/monthlyFeesDet
 import FinancialGeneral from "./features/financial/general/FinancialGeneral.jsx";
 
 import UnderConstruction from "./components/underConstruction.jsx";
+import SettingsPage from "./features/settings/SettingsPage.jsx";
 import PeopleManagementActivities from "./features/register/pages/peopleManagementActivities.jsx";
 
 document.documentElement.setAttribute(
@@ -99,7 +100,7 @@ const pages = createHashRouter([
       },
       {
         path: "/configuracoes",
-        element: <UnderConstruction title="Configurações" />,
+        element: <SettingsPage />,
       },
     ],
   },

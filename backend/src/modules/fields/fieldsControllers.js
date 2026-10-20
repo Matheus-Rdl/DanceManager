@@ -47,25 +47,30 @@ export default class FieldsControllers {
   }
 
   async updateField(fieldId, fieldData) {
-    try {
-      const result = await this.dataAccess.updateField(fieldId, fieldData);
-      return ok(result);
-    } catch (error) {
-      return serverError(error);
-    }
+    /* Compatibilidade com PUT antigo, sem deixar contornar os limites do PATCH. */
+    return this.updateFieldSettings(fieldId, fieldData);
   }
 
   async updateFieldsOrder(fields) {
+    /* A rota de atualização em massa era irrestrita e contornava editableProperties.
+       A ordem agora deve ser modificada pelo PATCH individual do campo autorizado. */
+    return { success: false, statusCode: 403,
+      body: "Use a edição individual em Configurações para alterar a ordem." };
+  }
+
+  async moveField(fieldId, payload) {
     try {
-      const result = await this.dataAccess.updateFieldsOrder(fields);
-
+      const result = await this.dataAccess.moveField(fieldId, payload);
+      if (result.status) return { success: false, statusCode: result.status, body: result.message };
       return ok(result);
+    } catch (error) { return serverError(error); }
+  }
 
-    } catch (error) {
-      console.error("ERRO UPDATE ORDER:");
-      console.error(error);
-
-      return serverError(error);
-    }
+  async updateFieldSettings(fieldId, payload) {
+    try {
+      const result = await this.dataAccess.updateFieldSettings(fieldId, payload);
+      if (result.status) return { success: false, statusCode: result.status, body: result.message };
+      return ok(result.field);
+    } catch (error) { return serverError(error); }
   }
 }

@@ -6,6 +6,7 @@ import { config } from "dotenv"; // Import dotenv to load environment variables
 import { Mongo } from "./database/mongo.js"; // Import custom MongoDB connection module
 import usersRouter from "./modules/users/usersRouter.js";
 import fieldsRouter from "./modules/fields/fieldsRouter.js";
+import fieldOptionsRouter from "./modules/fieldOptions/fieldOptionsRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
 import contractsRouter from "./modules/contracts/contractsRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
@@ -79,6 +80,7 @@ async function main() {
   // Routes
   app.use("/users", usersRouter);
   app.use("/fields", fieldsRouter);
+  app.use("/field-options", fieldOptionsRouter);
   app.use("/activities", activitiesRouter);
   app.use("/menus", menusRouter);
   app.use("/contracts", contractsRouter);

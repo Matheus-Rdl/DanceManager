@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Select from "react-select";
-import { Badge, Box, Field, Text, Wrap } from "@chakra-ui/react";
+import { Badge, Field, Text, Wrap } from "@chakra-ui/react";
+import FormFieldLabel from "../../../components/FormFieldLabel";
+import { formSelectStyles } from "../../../components/formFieldStyles";
 
 const API = `${import.meta.env.VITE_API_URL}/activities/teachers`;
 
@@ -34,14 +36,54 @@ export default function ActivityTeachersField({ field, value, details = [], mode
   const allOptions = [...options, ...selected.filter(option => !byId.has(option.value))];
   const editable = mode === "E" || mode === "A";
   return <Field.Root invalid={Boolean(error)} width={{ base: "100%", md: "min(520px, 100%)" }}>
-    <Field.Label fontWeight="bold" color="#163b37">{field.title || "Professores"}{field.required && <Text as="span" color="#d14343" ml={1}>*</Text>}</Field.Label>
+
+    <FormFieldLabel field={field} />
+
     {mode === "V" ? <Wrap gap={2}>{selected.length ? selected.map(option => <Badge key={option.value} bg="#dff5e6" color="#14833b" px={2} py={1}>{option.label}</Badge>) : <Text color="#71858a" fontSize="12px">Não informado</Text>}</Wrap> :
-      <Select isMulti isClearable isLoading={loading} isDisabled={!editable} options={allOptions} value={selected}
-        onChange={choices => onChange({ target: { name: "activity_teachers", value: (choices || []).map(item => item.value) } })}
-        placeholder="Selecione um ou mais professores..." noOptionsMessage={() => "Nenhum professor ativo cadastrado"}
-        styles={{ control: base => ({ ...base, minHeight: 38, borderColor: error ? "#c53030" : "#cfd9d7", borderRadius: 6 }), menu: base => ({ ...base, zIndex: 15 }) }} />}
+
+      <Select
+        isMulti
+        isClearable
+        isLoading={loading}
+        isDisabled={!editable}
+        options={allOptions}
+        value={selected}
+        onChange={choices =>
+          onChange({
+            target: {
+              name: "activity_teachers",
+              value: (choices || []).map(item => item.value)
+            }
+          })
+        }
+        placeholder="Selecione um ou mais professores..."
+        noOptionsMessage={() => "Nenhum professor cadastrado"}
+
+        /* Ajusta a abertura conforme o espaço disponível */
+        menuPlacement="auto"
+        menuPosition="fixed"
+        menuPortalTarget={document.body}
+        maxMenuHeight={220}
+
+        styles={{
+          control: base => ({
+            ...base,
+            minHeight: 38,
+            borderColor: error ? "#c53030" : "#cfd9d7",
+            borderRadius: 6
+          }),
+          menuPortal: base => ({
+            ...base,
+            zIndex: 9999
+          }),
+          menu: base => ({
+            ...base,
+            zIndex: 9999
+          })
+        }}
+      />
+    }
     {requestError && <Text fontSize="11px" color="#c53030">{requestError}</Text>}
     {error && <Field.ErrorText fontSize="11px">{error}</Field.ErrorText>}
-    <Text mt={1} fontSize="10px" color="#60777c">A lista inclui usuários do tipo PROFESSOR(A), indicando também situações como afastado ou inativo.</Text>
   </Field.Root>;
 }

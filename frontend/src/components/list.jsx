@@ -1,3 +1,4 @@
+import { useFieldOptions } from "../utils/userSelectOptions";
 import { Table, Badge } from "@chakra-ui/react";
 import {
   formatCPF,
@@ -17,6 +18,7 @@ export default function List({
   ativo,
   onClick,
 }) {
+  useFieldOptions();
   const {
     getActivitiesByMat,
     userActivitiesList,

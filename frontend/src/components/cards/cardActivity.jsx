@@ -1,3 +1,4 @@
+import { useFieldOptions } from "../../utils/userSelectOptions";
 import { getActivityTeacherLabel } from "../../utils/activityTeachers";
 import { useEffect } from "react";
 import { Box, Heading, Text } from "@chakra-ui/react";
@@ -5,6 +6,7 @@ import { selectOptions } from "../../utils/userSelectOptions";
 import usersServices from "../../services/usersServices";
 
 export default function CardActivitySelect({ data }) {
+  useFieldOptions();
   const { getUsersByActivity, userListActivies, refetchUsers } = usersServices();
 
   useEffect(() => {

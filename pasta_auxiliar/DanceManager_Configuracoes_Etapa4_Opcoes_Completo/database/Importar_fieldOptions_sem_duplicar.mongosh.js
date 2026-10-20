@@ -1,0 +1,586 @@
+/* MongoDB Compass (Playground) ou mongosh: importação segura de fieldOptions.
+   Cria listas que não existem; NÃO substitui listas já personalizadas. */
+const initialCatalog = [
+  {
+    "optionsKey": "user_gender",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "MASCULINO",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "FEMININO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "OUTRO",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "PREFIRO NÃO INFORMAR",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_civil_status",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SOLTEIRO(A)",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "CASADO(A)",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "DIVORCIADO(A)",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "VIÚVO(A)",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "SEPARADO(A)",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "UNIÃO ESTÁVEL",
+        "order": 5,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_education",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SEM INSTRUÇÃO",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "FUNDAMENTAL INCOMPLETO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "FUNDAMENTAL COMPLETO",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "MÉDIO INCOMPLETO",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "MÉDIO COMPLETO",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "SUPERIOR INCOMPLETO",
+        "order": 5,
+        "active": true
+      },
+      {
+        "value": "7",
+        "label": "SUPERIOR COMPLETO",
+        "order": 6,
+        "active": true
+      },
+      {
+        "value": "8",
+        "label": "PÓS-GRADUAÇÃO",
+        "order": 7,
+        "active": true
+      },
+      {
+        "value": "9",
+        "label": "MESTRADO",
+        "order": 8,
+        "active": true
+      },
+      {
+        "value": "10",
+        "label": "DOUTORADO",
+        "order": 9,
+        "active": true
+      },
+      {
+        "value": "11",
+        "label": "PÓS-DOUTORADO",
+        "order": 10,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_color",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "BRANCA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "PRETA",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "PARDA",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "AMARELA / ASIÁTICA",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "INDÍGENA",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "PREFIRO NÃO INFORMAR",
+        "order": 5,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_situation",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "ATIVO",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "AFASTADO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "CADASTRO PENDENTE",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "INATIVO",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_type",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "ALUNO",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "BOLSISTA",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "PROFESSOR(A)",
+        "order": 2,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_free_period",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "NENHUM",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "MANHÃ",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "TARDE",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "NOITE",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_physically_disabled",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SIM",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "NÃO",
+        "order": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_type_physically_disabled",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "FISICA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "AUDITIVA",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "VISUAL",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "INTELECTUAL (MENTAL)",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "MULTIPLA",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "REABILITADO",
+        "order": 5,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_minor",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SIM",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "NÃO",
+        "order": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_activities_desired",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SAMBA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "FUNKEADO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "FORRO",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "BOLERO",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_document_missing",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SIM",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "NÃO",
+        "order": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_documents_missing",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "RG",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "CPF",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "DOCUMENTO RESPONSÁVEL",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "COMPROVANTE DE ENDEREÇO",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "DECLARAÇÃO ESCOLAR",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "AUTORIZAÇÃO DO USO DE IMAGEM",
+        "order": 5,
+        "active": true
+      },
+      {
+        "value": "7",
+        "label": "AUTOR IZAÇÃO DO MANUAL DO ALUNO (INGLÊS)",
+        "order": 6,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "activity_type",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SAMBA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "FUNKEADO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "FORRO",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "BOLERO",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "user_activity_types",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SAMBA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "FUNKEADO",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "FORRO",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "BOLERO",
+        "order": 3,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "activity_active",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SIM",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "NÃO",
+        "order": 1,
+        "active": true
+      }
+    ]
+  },
+  {
+    "optionsKey": "activity_days",
+    "revision": 0,
+    "options": [
+      {
+        "value": "1",
+        "label": "SEGUNDA",
+        "order": 0,
+        "active": true
+      },
+      {
+        "value": "2",
+        "label": "TERÇA",
+        "order": 1,
+        "active": true
+      },
+      {
+        "value": "3",
+        "label": "QUARTA",
+        "order": 2,
+        "active": true
+      },
+      {
+        "value": "4",
+        "label": "QUINTA",
+        "order": 3,
+        "active": true
+      },
+      {
+        "value": "5",
+        "label": "SEXTA",
+        "order": 4,
+        "active": true
+      },
+      {
+        "value": "6",
+        "label": "SÁBADO",
+        "order": 5,
+        "active": true
+      },
+      {
+        "value": "7",
+        "label": "DOMINGO",
+        "order": 6,
+        "active": true
+      }
+    ]
+  }
+];
+let inserted = 0;
+let existing = 0;
+for (const doc of initialCatalog) {
+  const result = db.fieldOptions.updateOne(
+    { optionsKey: doc.optionsKey },
+    { $setOnInsert: doc },
+    { upsert: true }
+  );
+  if (result.upsertedCount) inserted += 1;
+  else existing += 1;
+}
+print(`fieldOptions: ${inserted} listas inseridas, ${existing} já existentes (não modificadas).`);

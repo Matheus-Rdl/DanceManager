@@ -1,3 +1,4 @@
+import { useFieldOptions } from "../utils/userSelectOptions";
 /*
   Type: Componente
   User: Matheus Rodrigues
@@ -14,7 +15,7 @@ import {
   IconButton,
   NativeSelect,
 } from "@chakra-ui/react";
-import { selectOptions as UserSelectOptions } from "../utils/userSelectOptions";
+import { selectOptions as UserSelectOptions, getSelectableFieldOptions } from "../utils/userSelectOptions";
 
 export default function HeaderFilter({
   fields,
@@ -22,6 +23,7 @@ export default function HeaderFilter({
   onFilterChange,
   activities = [],
 }) {
+  useFieldOptions();
   const [openFilters, setOpenFilters] = useState({});
   const [openMultiselect, setOpenMultiselect] = useState(null);
   const multiSelectRef = useRef(null);
@@ -165,6 +167,12 @@ export default function HeaderFilter({
 
     return UserSelectOptions[col.optionsKey] || {};
   };
+
+  /* Mantém a ordem gravada no MongoDB também nos filtros de tabela. */
+  const getFieldOptionsEntries = col => col.dataKey === "user_activities"
+    ? Object.entries(getFieldOptions(col))
+    : getSelectableFieldOptions(col.optionsKey || col.dataKey, filters[col.dataKey])
+        .map(o => [o.value, `${o.value} - ${o.label}`]);
 
   /*
     ============================================================
@@ -323,9 +331,7 @@ export default function HeaderFilter({
                           zIndex={200}
                           py={1}
                         >
-                          {Object.entries(
-                            getFieldOptions(col)
-                          ).map(
+                          {getFieldOptionsEntries(col).map(
                             ([key, value]) => {
                               const selectedValues =
                                 Array.isArray(
@@ -433,9 +439,7 @@ export default function HeaderFilter({
                           Selecione uma opção
                         </option>
 
-                        {Object.entries(
-                          getFieldOptions(col)
-                        ).map(
+                        {getFieldOptionsEntries(col).map(
                           ([key, value]) => (
                             <option
                               key={key}

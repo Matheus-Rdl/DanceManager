@@ -1,157 +1,65 @@
-export const selectOptions = {
-  user_gender: {
-    1: "1 - MASCULINO",
-    2: "2 - FEMININO",
-    3: "3 - OUTRO",
-    4: "4 - PREFIRO NÃO INFORMAR",
-  },
+/* Catálogo reativo: MongoDB é a fonte principal. Legado fica disponível apenas até carregar
+   ou em caso de falha, evitando sumir opções durante a migração. */
+import { useEffect, useState } from "react";
+import { selectOptions as legacy } from "./legacySelectOptions.js";
 
-  user_civil_status: {
-    1: "1 - SOLTEIRO(A)",
-    2: "2 - CASADO(A)",
-    3: "3 - DIVORCIADO(A)",
-    4: "4 - VIÚVO(A)",
-    5: "5 - SEPARADO(A)",
-    6: "6 - UNIÃO ESTÁVEL",
-  },
+export const selectOptions = Object.fromEntries(Object.entries(legacy).map(([k, v]) => [k, { ...v }]));
+let catalog = {};
+let pending = null;
+let loadError = "";
+let version = 0;
+const subscribers = new Set();
+const inform = () => { version += 1; subscribers.forEach(fn => fn(version)); };
+const normalize = entry => ({
+  value: String(entry.value), label: String(entry.label), order: Number(entry.order), active: entry.active !== false
+});
+const byOrder = (a, b) => a.order - b.order;
+const legacyItems = key => Object.entries(legacy[key] || {}).map(([value, label], order) => ({
+  value: String(value), label: String(label).replace(/^\d+\s*-\s*/, ""), order, active: true
+}));
 
-  user_education: {
-    1: "1 - SEM INSTRUÇÃO",
-    2: "2 - FUNDAMENTAL INCOMPLETO",
-    3: "3 - FUNDAMENTAL COMPLETO",
-    4: "4 - MÉDIO INCOMPLETO",
-    5: "5 - MÉDIO COMPLETO",
-    6: "6 - SUPERIOR INCOMPLETO",
-    7: "7 - SUPERIOR COMPLETO",
-    8: "8 - PÓS-GRADUAÇÃO",
-    9: "9 - MESTRADO",
-    10: "10 - DOUTORADO",
-    11: "11 - PÓS-DOUTORADO",
-  },
-
-  user_color: {
-    1: "1 - BRANCA",
-    2: "2 - PRETA",
-    3: "3 - PARDA",
-    4: "4 - AMARELA / ASIÁTICA",
-    5: "5 - INDÍGENA",
-    6: "6 - PREFIRO NÃO INFORMAR",
-  },
-
-  user_situation: {
-    1: "1 - ATIVO",
-    2: "2 - AFASTADO",
-    3: "3 - CADASTRO PENDENTE",
-    4: "4 - INATIVO",
-  },
-
-  user_type: {
-    1: "1 - ALUNO",
-    2: "2 - BOLSISTA",
-    3: "3 - PROFESSOR(A)",
-  },
-
-  user_free_period: {
-    1: "1 - NENHUM",
-    2: "2 - MANHÃ",
-    3: "3 - TARDE",
-    4: "4 - NOITE",
-  },
-
-  user_activities: {
-    "000001": "1 - Teste",
-    "000002": "2 - Teste",
-    "000003": "3 - Teste",
-    "000004": "4 - Teste",
-    "000005": "5 - Teste",
-    "000006": "6 - Teste",
-    "000007": "7 - Teste",
-    "000008": "8 - Teste",
-  },
-
-  user_physically_disabled: {
-    1: "1 - SIM",
-    2: "2 - NÃO",
-  },
-
-  user_type_physically_disabled: {
-    1: "1 - FISICA",
-    2: "2 - AUDITIVA",
-    3: "3 - VISUAL",
-    4: "4 - INTELECTUAL (MENTAL)",
-    5: "5 - MULTIPLA",
-    6: "6 - REABILITADO",
-  },
-
-  user_minor: {
-    1: "1 - SIM",
-    2: "2 - NÃO",
-  },
-
-  user_activities_desired: {
-    1: "1 - SAMBA",
-    2: "2 - FUNKEADO",
-    3: "3 - FORRO",
-    4: "4 - BOLERO",
-  },
-
-  user_document_missing: {
-    1: "1 - SIM",
-    2: "2 - NÃO",
-  },
-
-  user_documents_missing: {
-    1: "1 - RG",
-    2: "2 - CPF",
-    3: "3 - DOCUMENTO RESPONSÁVEL",
-    4: "4 - COMPROVANTE DE ENDEREÇO",
-    5: "5 - DECLARAÇÃO ESCOLAR",
-    6: "6 - AUTORIZAÇÃO DO USO DE IMAGEM",
-    7: "7 - AUTOR IZAÇÃO DO MANUAL DO ALUNO (INGLÊS)",
-  },
-
-  activity_type: {
-    "1": "1 - SAMBA",
-    "2": "2 - FUNKEADO",
-    "3": "3 - FORRO",
-    "4": "4 - BOLERO",
-  },
-
-  user_activity_types: {
-    "1": "1 - SAMBA",
-    "2": "2 - FUNKEADO",
-    "3": "3 - FORRO",
-    "4": "4 - BOLERO",
-  },
-
-  activity_active: {
-    1: "1 - SIM",
-    2: "2 - NÃO",
-  },
-
-  activity_days: {
-    1: "1 - SEGUNDA",
-    2: "2 - TERÇA",
-    3: "3 - QUARTA",
-    4: "4 - QUINTA",
-    5: "5 - SEXTA",
-    6: "6 - SÁBADO",
-    7: "7 - DOMINGO",
-  },
-
-  type: {
-    "text": "TEXTO",
-    "number": "NUMERO",
-    "select": "SELEÇÃO",
-    "multiselect": "MULTIPLA SELEÇÃO",
-    "date": "DATA",
-    "rg": "RG",
-    "cpf": "CPF",
-  },
-
-  required: {
-    true: "SIM",
-    false: "NÃO",
-  },
-
-};
+function applyCatalog(data) {
+  catalog = Object.fromEntries(Object.entries(data || {}).map(([key, values]) => [key,
+    Array.isArray(values) ? values.map(normalize).sort(byOrder) : []]));
+  for (const [key, items] of Object.entries(catalog)) {
+    // Mutação de objeto compartilhado mantém compatibilidade com listagens e relatórios antigos.
+    selectOptions[key] = Object.fromEntries(items.map(o => [o.value, `${o.value} - ${o.label}`]));
+  }
+  loadError = "";
+  inform();
+}
+export function getFieldOptionItems(key) { return catalog[key] || legacyItems(key); }
+export function getSelectableFieldOptions(key, selected = []) {
+  const keep = new Set((Array.isArray(selected) ? selected : [selected]).map(String));
+  return getFieldOptionItems(key).filter(option => option.active || keep.has(option.value));
+}
+export function getOptionsError() { return loadError; }
+export function getOptionsVersion() { return version; }
+export function subscribeFieldOptions(fn) { subscribers.add(fn); return () => subscribers.delete(fn); }
+export async function loadFieldOptions(force = false) {
+  if (pending) return pending;
+  if (version && !force && !loadError) return catalog;
+  pending = (async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/field-options/catalog`);
+      const result = await response.json();
+      if (!response.ok || result.success === false) throw new Error(result?.body || "Falha ao carregar opções.");
+      applyCatalog(result.body || {});
+      return catalog;
+    } catch (e) {
+      loadError = String(e?.message || e);
+      inform();
+      return catalog;
+    } finally { pending = null; }
+  })();
+  return pending;
+}
+export function useFieldOptions() {
+  const [tick, setTick] = useState(version);
+  useEffect(() => {
+    const unsubscribe = subscribeFieldOptions(setTick);
+    loadFieldOptions();
+    return unsubscribe;
+  }, []);
+  return { version: tick, error: loadError, getItems: getFieldOptionItems };
+}

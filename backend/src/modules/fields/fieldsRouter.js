@@ -30,9 +30,21 @@ fieldsRouter.delete('/:id', async (req, res) => {
     res.status(statusCode).send({ success, statusCode, body })
 })
 
+/* A posição enviada começa em zero. O backend valida menu e permissões. */
+fieldsRouter.patch('/:id/placement', async (req, res) => {
+    const { success, statusCode, body } = await fieldsControllers.moveField(req.params.id, req.body);
+    res.status(statusCode).send({ success, statusCode, body });
+});
+
 fieldsRouter.put('/order', async (req, res) => {
     const { success, statusCode, body } = await fieldsControllers.updateFieldsOrder(req.body);
 
+    res.status(statusCode).send({ success, statusCode, body });
+});
+
+/* Edição controlada para a tela de Configurações (etapa 2). */
+fieldsRouter.patch('/:id/settings', async (req, res) => {
+    const { success, statusCode, body } = await fieldsControllers.updateFieldSettings(req.params.id, req.body);
     res.status(statusCode).send({ success, statusCode, body });
 });
 

@@ -1,4 +1,4 @@
-import { selectOptions } from "../utils/userSelectOptions";
+import { selectOptions, useFieldOptions, getSelectableFieldOptions } from "../utils/userSelectOptions";
 
 import Select from "react-select";
 
@@ -79,6 +79,8 @@ export default function FormTextArea({
   //
 
   // O ?. evita erro caso selectOptions ou o campo não exista.
+
+  useFieldOptions(); // Atualiza campos ao receber o catálogo do banco.
 
   const getSelectOptions = (fieldName) => {
 
@@ -613,13 +615,9 @@ export default function FormTextArea({
 
                   </option>
 
-                  {Object.entries(
+                  {getSelectableFieldOptions(field.optionsKey || field.field, data?.[field.field]).map(
 
-                    getSelectOptions(field?.field)
-
-                  ).map(
-
-                    ([key, value]) => (
+                    ({ value: key, label: value, active }) => (
 
 
 
@@ -628,7 +626,7 @@ export default function FormTextArea({
                         key={key}
 
                         value={key}
-
+                        disabled={!active && String(data?.[field.field] ?? "") !== String(key)}
                       >
 
                         {removeCode(value)}
@@ -789,7 +787,7 @@ export default function FormTextArea({
 
                         // Ordena os IDs.
 
-                        .sort((a, b) => a - b)
+                        .slice().sort((a, b) => String(a).localeCompare(String(b), "pt-BR", {numeric:true}))
 
                         // Converte os IDs para o formato
 
@@ -853,7 +851,7 @@ export default function FormTextArea({
 
                         (option) =>
 
-                          Number(option.value)
+                          /^\d+$/.test(String(option.value)) && !/^0\d/.test(String(option.value)) ? Number(option.value) : String(option.value)
 
                       )
 
@@ -893,35 +891,8 @@ export default function FormTextArea({
 
                   // Opções disponíveis no Select.
 
-                  options={Object.entries(
-
-                    getSelectOptions(field.field)
-
-                  )
-
-                    // Ordena pelo código.
-
-                    .sort(([a], [b]) =>
-
-                      Number(a) - Number(b)
-
-                    )
-
-                    // Converte para o formato do react-select.
-
-                    .map(
-
-                      ([value, label]) => ({
-
-                        value: String(value),
-
-                        label: removeCode(label),
-
-                      })
-
-                    )
-
-                  }
+                  options={getSelectableFieldOptions(field.optionsKey || field.field, data?.[field.field] || [])
+                    .map(({value, label}) => ({value: String(value), label: removeCode(label)}))}
 
                   // Desabilita o campo dependendo
 

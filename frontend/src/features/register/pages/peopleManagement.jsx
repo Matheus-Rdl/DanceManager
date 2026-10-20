@@ -1,3 +1,4 @@
+import { useFieldOptions } from "../../../utils/userSelectOptions";
 /*
 
     Type: Page
@@ -34,7 +35,7 @@ import fieldsServices from "../../../services/fieldsServices";
 
 import contractsServices from "../../../services/contractsServices";
 import { getUserSituation } from "../../../utils/userSituation";
-import { selectOptions } from "../../../utils/userSelectOptions";
+import { getSelectableFieldOptions } from "../../../utils/userSelectOptions";
 
 //Components
 
@@ -53,6 +54,7 @@ import List from "../../../components/list";
 /* Componente principal: concentra a consulta de dados, os filtros e a renderização da gestão de pessoas. */
 
 export default function PeopleManagement() {
+  useFieldOptions();
 
   const navigate = useNavigate();
 
@@ -881,7 +883,7 @@ const matchesBirthdayFilter = (user) => {
               <Text mb="4px" fontSize="11px" color="#617980">Situação</Text>
               <NativeSelect.Root><NativeSelect.Field value={quickSituation} onChange={(e) => setQuickSituation(e.target.value)} h="36px" borderColor="#d8e1e0" borderRadius="8px" fontSize="12px" color="#173f3a">
                 <option value="all">Todas</option>
-                {Object.entries(selectOptions.user_situation).map(([code, label]) => <option key={code} value={code}>{label.replace(/^\d+\s*-\s*/, "")}</option>)}
+                {getSelectableFieldOptions("user_situation", quickSituation).map(({value, label}) => <option key={value} value={value}>{label}</option>)}
                 <option value="">Não definida</option>
               </NativeSelect.Field><NativeSelect.Indicator /></NativeSelect.Root>
             </Box>
