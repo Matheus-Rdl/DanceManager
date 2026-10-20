@@ -32,6 +32,13 @@ export default class MonthlyFeesDataAccess {
     if (filters.reference) query.reference = filters.reference;
     if (filters.userId) query.userId = filters.userId;
     if (filters.contractId) query.contractId = filters.contractId;
+    if (filters.overdueOnly === true) {
+      /* Mesmo critério do Dashboard: não cancelada, vencimento passado e saldo positivo.
+         Inclui mensalidades parcialmente pagas que continuam vencidas. */
+      query.status = { $ne: "cancelled" };
+      query.dueDate = { $lt: todayInBrazil() };
+      query.$expr = { $gt: ["$amount", { $ifNull: ["$paidAmount", 0] }] };
+    }
 
     /* Filtra mensalidades pelos usuários vinculados à turma.
        As cobranças continuam sendo do CONTRATO do aluno, não da atividade. */
@@ -56,7 +63,7 @@ export default class MonthlyFeesDataAccess {
     }
 
     const fees = await MonthlyFee.find(query)
-      .sort({ dueDate: 1, number: 1 })
+      .sort(filters.overdueOnly === true ? { dueDate: -1, number: 1 } : { dueDate: 1, number: 1 })
       .lean();
 
     const userIds = [...new Set(fees.map(fee => fee.userId))]
@@ -84,6 +91,10 @@ export default class MonthlyFeesDataAccess {
       return {
         ...fee,
         status: this.getStatus(fee),
+        ...(filters.overdueOnly === true ? {
+          remainingAmount: Math.round(Math.max(0, Number(fee.amount || 0) - Number(fee.paidAmount || 0)) * 100) / 100,
+          daysOverdue: Math.max(0, Math.round((Date.parse(`${todayInBrazil()}T00:00:00Z`) - Date.parse(`${String(fee.dueDate).slice(0, 10)}T00:00:00Z`)) / 86400000))
+        } : {}),
         student: {
           id: user?.user_mat || "",
           userId: fee.userId,
@@ -98,6 +109,11 @@ export default class MonthlyFeesDataAccess {
         }
       };
     });
+  }
+
+  /* Não depende de uma competência: recupera os atrasos de todos os anos. */
+  async getOverdueMonthlyFees() {
+    return this.getMonthlyFees({ overdueOnly: true });
   }
 
   /* Busca mensalidade específica */

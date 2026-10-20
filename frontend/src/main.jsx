@@ -22,6 +22,7 @@ import ActivityMonthlyFees from "./features/activities/pages/ActivityMonthlyFees
 
 import MonthlyFees from "./features/financial/monthlyFees/monthlyFees.jsx";
 import MonthlyFeesDetailed from "./features/financial/monthlyFees/monthlyFeesDetailed.jsx";
+import MonthlyFeesOverdue from "./features/financial/monthlyFees/monthlyFeesOverdue.jsx";
 import FinancialGeneral from "./features/financial/general/FinancialGeneral.jsx";
 
 import UnderConstruction from "./components/underConstruction.jsx";
@@ -62,6 +63,7 @@ const pages = createHashRouter([
 
       { path: "/ActivityAttendance", element: <ActivityAttendance /> },
       { path: "/ActivityMonthlyFees", element: <ActivityMonthlyFees /> },
+      { path: "/MonthlyFeesOverdue", element: <MonthlyFeesOverdue /> },
       { path: "/ActivityManagement", element: <ActivityManagement /> },
       {
         path: "/ActivityManagement/add",

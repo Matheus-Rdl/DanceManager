@@ -13,6 +13,12 @@ monthlyFeesRouter.get("/", async (req, res) => {
   res.status(statusCode).send({ success, statusCode, body });
 });
 
+/* Saldos vencidos de todos os períodos; declarar antes da rota dinâmica /:id. */
+monthlyFeesRouter.get("/overdue", async (req, res) => {
+  const { success, statusCode, body } = await monthlyFeesControllers.getOverdueMonthlyFees();
+  res.status(statusCode).send({ success, statusCode, body });
+});
+
 /* Buscar mensalidade específica */
 monthlyFeesRouter.get("/:id", async (req, res) => {
   const { success, statusCode, body } =

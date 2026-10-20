@@ -9,6 +9,14 @@ const readResponse = async (response) => {
   return { success: true, body: result?.body ?? result };
 };
 
+/* Consulta separada da lista mensal, com suporte a cancelamento da requisição. */
+export async function fetchOverdueMonthlyFees({ signal } = {}) {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/monthly-fees/overdue`, { signal });
+  const result = await readResponse(response);
+  if (!Array.isArray(result.body)) throw new Error("A API não retornou uma lista válida de mensalidades atrasadas.");
+  return result.body;
+}
+
 export default function monthlyFeesServices() {
   const [monthlyFeesList, setMonthlyFeesList] = useState([]);
   const [monthlyFeesLoading, setMonthlyFeesLoading] = useState(false);

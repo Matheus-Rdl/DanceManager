@@ -197,6 +197,10 @@ export default function MonthlyFees() {
         </Flex>
         <HStack gap={2}>
           {displayReady && totals.overdueCount > 0 && <Badge display={{ base: "none", md: "inline-flex" }} alignItems="center" gap="6px" px="12px" py="7px" borderRadius="999px" bg="#fff0f0" color="#c72e34" fontSize="11px" fontWeight="600"><FiAlertCircle size={14} />{totals.overdueCount} {totals.overdueCount === 1 ? "mensalidade em atraso" : "mensalidades em atraso"}</Badge>}
+          <Button size="sm" variant="outline" borderColor="#f1bec0" color="#b9252c" bg="#fff7f7"
+            fontSize="11px" onClick={() => navigate("/MonthlyFeesOverdue")}>
+            <FiAlertCircle /> Ver todos os atrasos
+          </Button>
           <Button display={{ base: "none", md: "inline-flex" }} onClick={resetTestData} h="34px" variant="outline" borderColor="#d6e0df" color="#174f4a" bg="white" fontSize="10px">Atualizar</Button>
         </HStack>
       </Flex>

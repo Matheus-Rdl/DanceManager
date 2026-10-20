@@ -21,6 +21,16 @@ export default class MonthlyFeesControllers {
     }
   }
 
+  /* Todos os atrasos, sem filtro por mês ou ano. */
+  async getOverdueMonthlyFees() {
+    try {
+      const fees = await this.dataAccess.getOverdueMonthlyFees();
+      return ok(fees);
+    } catch (error) {
+      return serverError(error);
+    }
+  }
+
   /* Buscar mensalidade específica */
   async getMonthlyFee(feeId) {
     try {

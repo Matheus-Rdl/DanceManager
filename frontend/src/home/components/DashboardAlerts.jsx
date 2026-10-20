@@ -5,7 +5,7 @@ import { FiAlertCircle, FiArrowRight, FiCheckCircle, FiClock, FiFileText } from 
 const money = amount => new Intl.NumberFormat("pt-BR", {style:"currency",currency:"BRL"}).format(Number(amount)||0);
 export default function DashboardAlerts({ alerts }) {
   const items = [
-    { label: "Mensalidades atrasadas", count: alerts?.overdueFeesCount || 0, detail: `${money(alerts?.overdueFeesValue)} a receber`, icon: FiAlertCircle, to: "/MonthlyFees", tone: "#bc3c40" },
+    { label: "Mensalidades atrasadas", count: alerts?.overdueFeesCount || 0, detail: `${money(alerts?.overdueFeesValue)} a receber`, icon: FiAlertCircle, to: "/MonthlyFeesOverdue", tone: "#bc3c40" },
     { label: "Despesas vencidas ou até 7 dias", count: alerts?.pendingExpensesCount || 0, detail: `${money(alerts?.pendingExpensesValue)} pendentes`, icon: FiClock, to: "/financeiro", tone: "#a56d1e" },
     { label: "Contratos encerrando em 30 dias", count: alerts?.expiringContractsCount || 0, detail: "Conferir possíveis renovações", icon: FiFileText, to: "/PeopleManagement", tone: "#23679a" }
   ];
