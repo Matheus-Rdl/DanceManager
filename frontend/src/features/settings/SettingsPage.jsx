@@ -8,6 +8,7 @@ import {
   FiRefreshCw, FiSearch, FiSettings, FiUsers, FiX, FiEdit2, FiCheck, FiArrowUp, FiArrowDown, FiMove, FiFolder, FiMinus
 } from "react-icons/fi";
 import FieldOptionsPanel from "./FieldOptionsPanel.jsx";
+import PlansPanel from "./PlansPanel.jsx";
 import { useFieldOptions } from "../../utils/userSelectOptions.js";
 
 /* Configurações, etapa 2: consulta e edição das propriedades permitidas.
@@ -383,10 +384,7 @@ export default function SettingsPage() {
       <TabButton active={mainTab === "plans"} onClick={() => setMainTab("plans")} icon={FiLayers}>Planos</TabButton>
     </Flex>
 
-    {mainTab === "plans" ? <Box bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={{base:5,md:8}}>
-      <Flex align="center" gap={2} mb={2} color="#0b6b5b"><FiLayers size={20}/><Heading fontSize="16px" color="#103c35">Planos</Heading></Flex>
-      <Text fontSize="13px" color="#607873">Aba reservada para uma próxima etapa. Nenhuma configuração de planos está disponível nesta versão.</Text>
-    </Box> : <>
+    {mainTab === "plans" ? <PlansPanel/> : <>
       <Box bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={3} mb={4}>
         <Flex direction={{base:"column",md:"row"}} justify="space-between" gap={2} align={{base:"stretch",md:"center"}}>
           <Flex gap={1} flexWrap="wrap">

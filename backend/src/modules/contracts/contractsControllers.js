@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Contract from "../../models/Contract.js";
 import MonthlyFee from "../../models/MonthlyFee.js";
 import Payment from "../../models/Payment.js";
+import { resolveNewContractPlanPrice } from "../plans/plansDataAccess.js";
 import {
   buildMonthlyFees, ensureMonthlyFeesForContract, getContractType, todayInBrazil
 } from "../monthlyFees/monthlyFeeGeneration.js";
@@ -77,7 +78,16 @@ export const createContract = async (req, res) => {
   try {
     if (!req.body.userId) return failure(res, 400, "Aluno não informado.");
     let payload;
-    try { payload = normalizePayload(req.body); }
+    try {
+      let submitted = req.body;
+      if (req.body.contractType === "Plano") {
+        /* O backend determina o preço do novo contrato; ignora valores enviados pelo frontend. */
+        const selected = await resolveNewContractPlanPrice(req.body.plan, req.body.periodicity);
+        submitted = { ...req.body, plan: selected.planName,
+          baseValue: selected.monthlyValue, contractedValue: selected.monthlyValue };
+      }
+      payload = normalizePayload(submitted);
+    }
     catch (error) { return failure(res, 400, error.message); }
     if (await Contract.exists({ userId: req.body.userId, active: true })) {
       return failure(res, 409, "O aluno já possui um contrato ativo.");
@@ -106,8 +116,17 @@ export const updateContract = async (req, res) => {
     const contract = await Contract.findOne({ id: req.params.id });
     if (!contract) return failure(res, 404, "Contrato não encontrado.");
     if (!contract.active) return failure(res, 409, "Não é possível editar um contrato encerrado.");
+    if (getContractType(contract) === "Plano" &&
+        (req.body.plan !== contract.plan || req.body.periodicity !== contract.periodicity)) {
+      return failure(res, 409, "Não é possível trocar o plano ou duração de um contrato existente. Cadastre um novo contrato.");
+    }
     let payload;
-    try { payload = normalizePayload(req.body, contract); }
+    try {
+      const submitted = getContractType(contract) === "Plano"
+        ? { ...req.body, baseValue: contract.baseValue, contractedValue: contract.contractedValue }
+        : req.body;
+      payload = normalizePayload(submitted, contract);
+    }
     catch (error) { return failure(res, 400, error.message); }
     /* Mantém a regra atual: não reescrever histórico de contratos que já receberam pagamentos. */
     if (await hasPayments(contract.id)) {

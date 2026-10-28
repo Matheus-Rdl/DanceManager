@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Flex, Heading, HStack, Input, NativeSelect, SimpleGrid, Text, VStack, Table } from "@chakra-ui/react";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
+import { listPlans } from "../../../services/plansServices.js";
+import { getContractColor } from "../../../utils/planColors.js";
 import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown, FiClock, FiDollarSign, FiSearch, FiX } from "react-icons/fi";
 
 const pad = (value) => String(value).padStart(2, "0");
@@ -54,13 +56,6 @@ const compareNullable = (a, b, comparator) => {
   return comparator(a, b);
 };
 
-const contractConfig = {
-  Balanço: { fg: "#08715c", bg: "#d8f2eb" },
-  Raiz: { fg: "#5947c7", bg: "#e8e3ff" },
-  Imersão: { fg: "#0865c6", bg: "#dcecff" },
-  Beco: { fg: "#7b461c", bg: "#eee2d6" },
-};
-
 function SortHeader({ label, column, sort, onSort }) {
     const active = sort.key === column || (column === "aluno" && sort.key === "matricula");
     const direction = active ? sort.direction : null;
@@ -86,6 +81,9 @@ function SortHeader({ label, column, sort, onSort }) {
 
 export default function MonthlyFees() {
   const navigate = useNavigate();
+  const [planCatalog, setPlanCatalog] = useState([]);
+  useEffect(() => { let active = true; listPlans().then(rows => { if (active) setPlanCatalog(rows); })
+    .catch(() => {}); return () => { active = false; }; }, []);
   const { getMonthlyFees, monthlyFeesList, monthlyFeesLoading, monthlyFeesReference, refetchMonthlyFees, monthlyFeesError } = monthlyFeesServices();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -269,7 +267,7 @@ export default function MonthlyFees() {
 
                 const student = fee.student;
                 const status = statusConfig[fee.status] || statusConfig.pending;
-                const contract = contractConfig[student.contract] || contractConfig.Balanço;
+                const contract = getContractColor(student.contract, planCatalog);
                 const StatusIcon = status.icon;
                 return <Table.Row key={fee.id} h="62px" cursor="pointer" transition="background .15s ease" _hover={{ bg: "#f8fbfa" }} onClick={() => handleView(fee)}>
                   {/* Dados do aluno */ }
@@ -312,7 +310,7 @@ export default function MonthlyFees() {
 
         <VStack display={{ base: "flex", md: "none" }} align="stretch" gap={0}>
 
-          {sortedMonthlyFees.map((fee) => { const student = fee.student; const status = statusConfig[fee.status] || statusConfig.pending; const contract = contractConfig[student.contract] || contractConfig.Balanço; const StatusIcon = status.icon; return <Box key={fee.id} px={3} py={3} borderBottom="1px solid #e7eceb" cursor="pointer" onClick={() => handleView(fee)} _active={{ bg: "#f6faf9" }}><Flex justify="space-between" align="flex-start" gap={3}><HStack gap="10px" minW={0}><Avatar.Root size="sm" flexShrink={0}><Avatar.Image src={student.avatar} /><Avatar.Fallback name={student.name} /></Avatar.Root><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{student.name}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id}</Text></Box></HStack><Text fontSize="13px" fontWeight="800" color="#073f39" flexShrink={0}>{formatCurrency(fee.amount)}</Text></Flex><Flex mt={3} align="center" justify="space-between" gap={2} wrap="wrap"><HStack gap="6px" wrap="wrap"><Badge px="9px" py="3px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="9px">{student.contract}</Badge><Badge display="inline-flex" alignItems="center" gap="4px" px="8px" py="3px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="9px"><StatusIcon size={9} />{status.label}</Badge></HStack><Text fontSize="10px" color="#607873">Venc. {fee.dueDate}</Text></Flex><Flex mt="9px" justify="space-between" align="center"><Text fontSize="10px" color="#71858a">{student.activity}</Text><Flex align="center" gap="4px" fontSize="10px" fontWeight="600" color="#0b6b5b">Ver detalhes<FiArrowRight size={12} /></Flex></Flex></Box>; })}
+          {sortedMonthlyFees.map((fee) => { const student = fee.student; const status = statusConfig[fee.status] || statusConfig.pending; const contract = getContractColor(student.contract, planCatalog); const StatusIcon = status.icon; return <Box key={fee.id} px={3} py={3} borderBottom="1px solid #e7eceb" cursor="pointer" onClick={() => handleView(fee)} _active={{ bg: "#f6faf9" }}><Flex justify="space-between" align="flex-start" gap={3}><HStack gap="10px" minW={0}><Avatar.Root size="sm" flexShrink={0}><Avatar.Image src={student.avatar} /><Avatar.Fallback name={student.name} /></Avatar.Root><Box minW={0}><Text fontWeight="700" fontSize="12px" color="#164c47" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">{student.name}</Text><Text mt="2px" fontSize="10px" color="#71858a">MAT: {student.id}</Text></Box></HStack><Text fontSize="13px" fontWeight="800" color="#073f39" flexShrink={0}>{formatCurrency(fee.amount)}</Text></Flex><Flex mt={3} align="center" justify="space-between" gap={2} wrap="wrap"><HStack gap="6px" wrap="wrap"><Badge px="9px" py="3px" borderRadius="999px" bg={contract.bg} color={contract.fg} fontWeight="500" fontSize="9px">{student.contract}</Badge><Badge display="inline-flex" alignItems="center" gap="4px" px="8px" py="3px" borderRadius="999px" bg={status.bg} color={status.fg} fontWeight="500" fontSize="9px"><StatusIcon size={9} />{status.label}</Badge></HStack><Text fontSize="10px" color="#607873">Venc. {fee.dueDate}</Text></Flex><Flex mt="9px" justify="space-between" align="center"><Text fontSize="10px" color="#71858a">{student.activity}</Text><Flex align="center" gap="4px" fontSize="10px" fontWeight="600" color="#0b6b5b">Ver detalhes<FiArrowRight size={12} /></Flex></Flex></Box>; })}
 
         </VStack>
 

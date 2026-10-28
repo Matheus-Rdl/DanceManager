@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { listPlans } from "../../services/plansServices.js";
 
 import {
   Box,
@@ -18,40 +19,19 @@ export default function Contracts() {
   // PLANOS
   // ============================================================
 
-  const plans = {
-
-    Raiz: {
-      mensal: 190,
-      semestral: 170,
-      anual: 150,
-    },
-
-    Balanço: {
-      mensal: 270,
-      semestral: 240,
-      anual: 220,
-    },
-
-    Imersão: {
-      mensal: 320,
-      semestral: 290,
-      anual: 260,
-    },
-
-    Beco: {
-      mensal: 430,
-      semestral: 390,
-      anual: 350,
-    },
-
-  };
-
+  const [catalog, setCatalog] = useState([]);
+  useEffect(() => { let alive = true; listPlans().then(rows => { if (alive) setCatalog(rows.filter(item => item.active)); })
+    .catch(() => {}); return () => { alive = false; }; }, []);
+  const plans = Object.fromEntries(catalog.map(item => [item.name, Object.fromEntries(
+    Object.entries({mensal:"Mensal",semestral:"Semestral",anual:"Anual"}).map(([id,key]) =>
+      [id, item.modalities?.[key]?.active ? Number(item.modalities[key].monthlyValue) : 0])
+  )]));
 
   // ============================================================
   // ESTADOS
   // ============================================================
 
-  const [plan, setPlan] = useState("Beco");
+  const [plan, setPlan] = useState("");
 
   const [periodicity, setPeriodicity] =
     useState("mensal");
@@ -92,8 +72,8 @@ export default function Contracts() {
   // VALOR DO PLANO
   // ============================================================
 
-  const baseValue =
-    plans[plan]?.[periodicity] || 0;
+  const baseValue = plans[plan]?.[periodicity] || 0;
+  useEffect(() => { if (catalog.length && !catalog.some(item => item.name === plan)) setPlan(catalog[0].name); }, [catalog, plan]);
 
 
   // ============================================================
@@ -524,22 +504,7 @@ export default function Contracts() {
             }
           >
 
-            <option value="Raiz">
-              Raiz
-            </option>
-
-            <option value="Balanço">
-              Balanço
-            </option>
-
-            <option value="Imersão">
-              Imersão
-            </option>
-
-            <option value="Beco">
-              Beco
-            </option>
-
+            {catalog.map(item => <option key={item._id} value={item.name}>{item.name}</option>)}
           </NativeSelect.Field>
 
         </NativeSelect.Root>
@@ -573,6 +538,7 @@ export default function Contracts() {
 
           <Button
             type="button"
+            disabled={!plans[plan]?.mensal}
             variant={
               periodicity === "mensal"
                 ? "solid"
@@ -589,7 +555,7 @@ export default function Contracts() {
 
             <Text ml={2}>
               {formatMoney(
-                plans[plan].mensal
+                plans[plan]?.mensal || 0
               )}
             </Text>
 
@@ -602,6 +568,7 @@ export default function Contracts() {
 
           <Button
             type="button"
+            disabled={!plans[plan]?.semestral}
             variant={
               periodicity === "semestral"
                 ? "solid"
@@ -618,7 +585,7 @@ export default function Contracts() {
 
             <Text ml={2}>
               {formatMoney(
-                plans[plan].semestral
+                plans[plan]?.semestral || 0
               )}
             </Text>
 
@@ -631,6 +598,7 @@ export default function Contracts() {
 
           <Button
             type="button"
+            disabled={!plans[plan]?.anual}
             variant={
               periodicity === "anual"
                 ? "solid"
@@ -647,7 +615,7 @@ export default function Contracts() {
 
             <Text ml={2}>
               {formatMoney(
-                plans[plan].anual
+                plans[plan]?.anual || 0
               )}
             </Text>
 

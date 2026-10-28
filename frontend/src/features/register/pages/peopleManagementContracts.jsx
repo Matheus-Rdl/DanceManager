@@ -27,6 +27,8 @@ import HeadingPage from "../../../components/headingPage";
 import { LuArrowLeft, LuPlus, LuFileText, LuEye, LuPencil, LuCircleX } from "react-icons/lu";
 import { TbUserSquareRounded } from "react-icons/tb";
 import contractsServices from "../../../services/contractsServices";
+import { listPlans } from "../../../services/plansServices.js";
+import { PLAN_DURATIONS, getContractColor } from "../../../utils/planColors.js";
 //Formatters
 import {
   formatCPF,
@@ -35,31 +37,6 @@ import {
   formatProperNoun,
 } from "../../../utils/formatters";
 import { FiArrowLeft, FiCalendar, FiCheck, FiFileText } from "react-icons/fi";
-// ============================================================
-// PLANOS
-// ============================================================
-const PLANS = {
-  Raiz: {
-    mensal: 190,
-    semestral: 170,
-    anual: 150,
-  },
-  Balanço: {
-    mensal: 270,
-    semestral: 240,
-    anual: 220,
-  },
-  Imersão: {
-    mensal: 320,
-    semestral: 290,
-    anual: 260,
-  },
-  Beco: {
-    mensal: 430,
-    semestral: 390,
-    anual: 350,
-  },
-};
 // ============================================================
 // COMPONENTE
 // ============================================================
@@ -118,6 +95,17 @@ export default function PeopleManagementContracts() {
     setContractToEnd,
   ] = useState(null);
   const [saveError, setSaveError] = useState("");
+  const [plansList, setPlansList] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState("");
+  useEffect(() => {
+    let alive = true;
+    listPlans().then(rows => { if (alive) setPlansList(rows); })
+      .catch(e => { if (alive) setPlansError(e.message || "Erro ao carregar planos."); })
+      .finally(() => { if (alive) setPlansLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
   // ============================================================
   // FORMULÁRIO
   // ============================================================
@@ -297,23 +285,16 @@ export default function PeopleManagementContracts() {
   // ============================================================
   // VALOR DO PLANO
   // ============================================================
-  const getPlanValue = (
-    plan,
-    periodicity
-  ) => {
-    if (
-      !plan ||
-      !periodicity
-    ) {
-      return 0;
-    }
-    const key =
-      periodicity.toLowerCase();
-    return (
-      PLANS?.[plan]?.[key] ||
-      0
-    );
+  const getPlanValue = (planName, periodicity) => {
+    const selected = plansList.find(item => item.name === planName && item.active);
+    const modality = selected?.modalities?.[periodicity];
+    return modality?.active ? Number(modality.monthlyValue) || 0 : 0;
   };
+  const activePlans = plansList.filter(item => item.active);
+  const selectedPlan = plansList.find(item => item.name === formData.plan);
+  const currentModalities = selectedPlan?.modalities || {};
+  const canSelectPlan = dialogMode === "new";
+  const planColor = name => getContractColor(name, plansList);
   // ============================================================
   // ALTERAR FORMULÁRIO
   // ============================================================
@@ -321,7 +302,7 @@ export default function PeopleManagementContracts() {
     field,
     value
   ) => {
-    if (dialogMode === "view" || (dialogMode === "edit" && field === "contractType")) return;
+    if (dialogMode === "view" || (dialogMode === "edit" && ["contractType", "plan", "periodicity"].includes(field))) return;
     setSaveError("");
     setFormData((prev) => {
       const updated = {
@@ -381,10 +362,13 @@ export default function PeopleManagementContracts() {
       if (
         field === "plan"
       ) {
+        if (!plansList.find(item => item.name === value)?.modalities?.[prev.periodicity]?.active) {
+          updated.periodicity = "";
+        }
         const planValue =
           getPlanValue(
             value,
-            prev.periodicity
+            updated.periodicity
           );
         updated.baseValue =
           planValue;
@@ -666,6 +650,7 @@ export default function PeopleManagementContracts() {
       "Plano"
     ) {
       if (
+        (dialogMode === "new" && (plansLoading || Boolean(plansError) || !getPlanValue(formData.plan, formData.periodicity))) ||
         !formData.plan ||
         !formData.periodicity
       ) {
@@ -1060,7 +1045,7 @@ export default function PeopleManagementContracts() {
                     <Badge bg={isContractActive(contract) ? "#e5f5ed" : "#f0f2f2"} color={isContractActive(contract) ? "#167347" : "#637673"} borderRadius="full" px={2}>{isContractActive(contract) ? "Ativo" : "Encerrado"}</Badge>
                   </Flex>
                   <Flex justify="space-between" align="start" gap={3} mb={3}>
-                    <Box minW={0}><Text fontSize="11px" color="#607873">Plano</Text><Text fontSize="14px" fontWeight="700" color="#062f2b">{contract.plan || getContractType(contract)}</Text><Text fontSize="12px" color="#607873">{contract.periodicity || "Sem periodicidade"}</Text></Box>
+                    <Box minW={0}><Text fontSize="11px" color="#607873">Plano</Text><Badge px={2} py={1} bg={planColor(contract.plan || getContractType(contract)).bg} color={planColor(contract.plan || getContractType(contract)).fg} borderRadius="full">{contract.plan || getContractType(contract)}</Badge><Text fontSize="12px" color="#607873">{contract.periodicity || "Sem periodicidade"}</Text></Box>
                     <Box textAlign="right"><Text fontSize="11px" color="#607873">Valor mensal</Text><Text fontSize="18px" fontWeight="800" color="#063f37">{formatMoney(contract.contractedValue)}</Text></Box>
                   </Flex>
                   <Box borderTop="1px solid #e6ecea" pt={3}>
@@ -1085,7 +1070,8 @@ export default function PeopleManagementContracts() {
                 <Table.Body>{sortedContracts.map(contract => (
                   <Table.Row key={contract.id} _hover={{ bg: "#f7faf9" }}>
                     <Table.Cell><Badge bg="#e8f2ef" color="#0b6b5b" borderRadius="full" px={2}>{getContractType(contract)}</Badge></Table.Cell>
-                    <Table.Cell>{contract.plan || "-"}</Table.Cell><Table.Cell>{contract.periodicity || "-"}</Table.Cell>
+                    <Table.Cell><Badge px={2} py={1} borderRadius="full" bg={planColor(contract.plan || getContractType(contract)).bg}
+                       color={planColor(contract.plan || getContractType(contract)).fg}>{contract.plan || getContractType(contract)}</Badge></Table.Cell><Table.Cell>{contract.periodicity || "-"}</Table.Cell>
                     <Table.Cell fontWeight="700" color="#063f37">{formatMoney(contract.contractedValue)}</Table.Cell>
                     <Table.Cell>{formatDate(contract.startDate)}</Table.Cell>
                     <Table.Cell>{contract.indefinite ? "Indeterminado" : formatDate(contract.plannedEndDate)}</Table.Cell>
@@ -1228,10 +1214,7 @@ export default function PeopleManagementContracts() {
                               value={
                                 formData.plan
                               }
-                              disabled={
-                                dialogMode ===
-                                "view"
-                              }
+                              disabled={!canSelectPlan || plansLoading || Boolean(plansError)}
                               onChange={(e) =>
                                 handleChange(
                                   "plan",
@@ -1242,18 +1225,9 @@ export default function PeopleManagementContracts() {
                               <option value="">
                                 Selecione um plano
                               </option>
-                              <option value="Raiz">
-                                Raiz
-                              </option>
-                              <option value="Balanço">
-                                Balanço
-                              </option>
-                              <option value="Imersão">
-                                Imersão
-                              </option>
-                              <option value="Beco">
-                                Beco
-                              </option>
+                              {activePlans.map(item => <option key={item._id} value={item.name}>{item.name}</option>)}
+                              {formData.plan && !activePlans.some(item => item.name === formData.plan) &&
+                                <option value={formData.plan}>{formData.plan} (plano antigo ou inativo)</option>}
                             </NativeSelect.Field>
                           </NativeSelect.Root>
                         </Field.Root>
@@ -1272,10 +1246,7 @@ export default function PeopleManagementContracts() {
                                 value={
                                   formData.periodicity
                                 }
-                                disabled={
-                                  dialogMode ===
-                                  "view"
-                                }
+                                disabled={!canSelectPlan || !formData.plan || plansLoading || Boolean(plansError)}
                                 onChange={(e) =>
                                   handleChange(
                                     "periodicity",
@@ -1286,15 +1257,10 @@ export default function PeopleManagementContracts() {
                                 <option value="">
                                   Selecione
                                 </option>
-                                <option value="Mensal">
-                                  Mensal
-                                </option>
-                                <option value="Semestral">
-                                  Semestral
-                                </option>
-                                <option value="Anual">
-                                  Anual
-                                </option>
+                                {Object.keys(PLAN_DURATIONS).filter(name => currentModalities[name]?.active)
+                                   .map(name => <option key={name} value={name}>{name}</option>)}
+                                {formData.periodicity && !currentModalities[formData.periodicity]?.active &&
+                                  <option value={formData.periodicity}>{formData.periodicity} (modalidade antiga ou desativada)</option>}
                               </NativeSelect.Field>
                             </NativeSelect.Root>
                           </Field.Root>
@@ -1316,6 +1282,14 @@ export default function PeopleManagementContracts() {
                             />
                           </Field.Root>
                         </HStack>
+                        {formData.periodicity && Number(formData.baseValue) > 0 &&
+                          <Text mt={2} fontSize="12px" color="#607873">
+                            Total do período: <Text as="span" fontWeight="700" color="#0b6b5b">
+                              {formatMoney(Number(formData.baseValue) * (PLAN_DURATIONS[formData.periodicity] || 1))}
+                            </Text>
+                          </Text>}
+                        {plansError && <Text fontSize="12px" color="#c53030">{plansError}</Text>}
+                        {plansLoading && <Text fontSize="12px" color="#607873">Carregando planos...</Text>}
                       </>
                     )}
                   {/* ==================================================

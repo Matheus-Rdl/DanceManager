@@ -9,6 +9,7 @@ import fieldsRouter from "./modules/fields/fieldsRouter.js";
 import fieldOptionsRouter from "./modules/fieldOptions/fieldOptionsRouter.js";
 import activitiesRouter from "./modules/activities/activitiesRouter.js";
 import contractsRouter from "./modules/contracts/contractsRouter.js";
+import plansRouter from "./modules/plans/plansRouter.js";
 import menusRouter from "./modules/menus/menusRouter.js";
 import attendancesRouter from "./modules/attendances/attendancesRouter.js";
 import monthlyFeesRouter from "./modules/monthlyFees/monthlyFeesRouter.js";
@@ -84,6 +85,7 @@ async function main() {
   app.use("/activities", activitiesRouter);
   app.use("/menus", menusRouter);
   app.use("/contracts", contractsRouter);
+  app.use("/plans", plansRouter);
   app.use("/attendances", attendancesRouter);
   app.use("/monthly-fees", monthlyFeesRouter);
   app.use("/payments", paymentsRouter);
