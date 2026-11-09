@@ -45,6 +45,17 @@ export default class FinancialControllers {
     }
   }
 
+  async getMovements(filters = {}) {
+    try {
+      return ok(await this.dataAccess.getMovements(filters));
+    } catch (error) {
+      console.error("[Financeiro - Movimentações]", error);
+      const statusCode = error.statusCode || 500;
+      return { success: false, statusCode,
+        body: statusCode === 500 ? "Erro interno ao consultar movimentações." : error.message };
+    }
+  }
+
   async getReceipts(filters = {}) {
     try {
       return ok(await this.dataAccess.getReceipts(filters));

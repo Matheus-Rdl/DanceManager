@@ -3,6 +3,7 @@ import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import Expense from "../../models/Expense.js";
 import ExpenseRecurrence from "../../models/ExpenseRecurrence.js";
 import { ensureAllExpenses, ensureExpensesForRecurrence } from "./expenseGeneration.js";
+import { initiatorFields } from "../financial/financialInitiators.js";
 import {
   schoolId, monthNow, addMonths, isMonth, isDate, CATEGORIES, validation,
   cleanText, amountValue, expenseFields, dueDateFor, visibleExpense
@@ -16,7 +17,8 @@ const snapshot = item => ({
   description: item.description, category: item.category, amount: item.amount,
   dueDate: item.dueDate, reference: item.reference, status: item.status,
   paidAmount: item.paidAmount, paidAt: item.paidAt,
-  method: item.method, notes: item.notes
+  method: item.method, notes: item.notes,
+  initiator: item.initiator ? { key: item.initiator.key, name: item.initiator.name } : null
 });
 const reasonText = body => cleanText(body?.reason, "Justificativa", 500);
 const correctionPayment = body => {
@@ -54,7 +56,7 @@ const recurrenceFields = (body) => {
   const amount = amountValue(body.amount);
   const dueDay = Number(body.dueDay);
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) throw validation("Dia de vencimento inválido (1 a 31).");
-  return { description, category: body.category, amount, dueDay };
+  return { description, category: body.category, amount, dueDay, ...initiatorFields(body) };
 };
 
 export default class ExpensesDataAccess {
@@ -86,12 +88,25 @@ export default class ExpensesDataAccess {
   }
 
   async create(body) {
-    const fields = expenseFields(body);
+    if (body.alreadyPaid != null && typeof body.alreadyPaid !== "boolean") {
+      throw validation("Informe corretamente se a despesa já foi paga.");
+    }
+    const fields = { ...expenseFields(body), ...initiatorFields(body, { required: true }) };
+    /* Validate and persist the payment in the same insert when already paid.
+       Valida e registra o pagamento no mesmo insert, sem criar pendência intermediária. */
+    const paidOnCreate = body.alreadyPaid === true;
+    const payment = paidOnCreate ? correctionPayment(body) : null;
     const time = moment();
     const item = await Expense.create({
       ...fields, id: crypto.randomUUID(), schoolId: schoolId(), recurrenceId: null,
-      status: "pending", paidAmount: null, paidAt: null, method: null,
-      history: [log("created", "Despesa avulsa cadastrada")], createdAt: time, updatedAt: time
+      status: paidOnCreate ? "paid" : "pending",
+      paidAmount: payment?.paidAmount ?? null, paidAt: payment?.paidAt ?? null,
+      method: payment?.method ?? null,
+      history: [
+        log("created", paidOnCreate ? "Despesa avulsa cadastrada já paga" : "Despesa avulsa cadastrada"),
+        ...(paidOnCreate ? [log("paid", `Pagamento de ${payment.paidAmount} em ${payment.paidAt} por ${payment.method}; responsável: ${fields.initiator.name}. Registrado no cadastro.`)] : [])
+      ],
+      createdAt: time, updatedAt: time
     });
     return visibleExpense(item.toObject());
   }
@@ -120,10 +135,11 @@ export default class ExpensesDataAccess {
     if (paidAt > todayInBrazil()) throw validation("Não é possível registrar um pagamento futuro.");
     const method = cleanText(body.method, "Forma de pagamento", 70);
     const notes = String(body.notes || "").slice(0, 500);
+    const responsible = initiatorFields(body);
     const paid = await Expense.findOneAndUpdate(
       { schoolId: schoolId(), id, status: "pending" },
-      { $set: { status: "paid", paidAmount, paidAt, method, notes, updatedAt: moment() },
-        $push: { history: log("paid", `Pagamento de ${paidAmount} em ${paidAt} por ${method}`) } },
+      { $set: { status: "paid", paidAmount, paidAt, method, notes, ...responsible, updatedAt: moment() },
+        $push: { history: log("paid", `Pagamento de ${paidAmount} em ${paidAt} por ${method}; responsável: ${responsible.initiator?.name || "não informado"}`) } },
       { new: true, runValidators: true }
     );
     if (!paid) throw validation("Despesa inexistente, cancelada ou já paga.", 409);
@@ -162,7 +178,7 @@ export default class ExpensesDataAccess {
   }
 
   async createRecurrence(body) {
-    const fields = recurrenceFields(body);
+    const fields = { ...recurrenceFields(body), ...initiatorFields(body, { required: true }) };
     const startMonth = body.startMonth || monthNow();
     if (!isMonth(startMonth)) throw validation("Mês inicial inválido.");
     if (startMonth < "1900-01") throw validation("Mês inicial inválido.");
@@ -189,7 +205,7 @@ export default class ExpensesDataAccess {
     }
     const existing = await Expense.find({ schoolId: schoolId(), recurrenceId: id, reference: { $gte: effectiveFrom }, status: "pending" });
     /* Evita reescrever despesa já paga. Edição afeta somente competências ainda abertas. */
-    const old = { description: recurrence.description, category: recurrence.category, amount: recurrence.amount, dueDay: recurrence.dueDay };
+    const old = { description: recurrence.description, category: recurrence.category, amount: recurrence.amount, dueDay: recurrence.dueDay, initiator: recurrence.initiator };
     Object.assign(recurrence, fields);
     recurrence.updatedAt = moment();
     recurrence.history.push(log("edited", `A partir de ${effectiveFrom}: ${JSON.stringify(old)} -> ${JSON.stringify(fields)}`));
@@ -197,6 +213,7 @@ export default class ExpensesDataAccess {
     for (const item of existing) {
       item.description = fields.description;
       item.category = fields.category;
+      if (fields.initiator) item.initiator = fields.initiator;
       item.amount = fields.amount;
       item.dueDate = dueDateFor(item.reference, fields.dueDay);
       item.updatedAt = moment();

@@ -15,6 +15,7 @@ const financialServices = {
   getSummary: month => get("summary", month),
   getPeriodSummary: range => get("period-summary", range),
   getReceipts: range => get("receipts", range),
+  getMovements: filters => get("movements", filters),
   getTimeline: options => get("timeline", options)
 };
 export default financialServices;

@@ -9,11 +9,12 @@ import {
 } from "@chakra-ui/react";
 import {
   FiAlertCircle, FiArrowLeft, FiCalendar, FiCheck,
-  FiClock, FiCreditCard, FiFileText, FiPlus, FiX
+  FiClock, FiCreditCard, FiFileText, FiPlus, FiX, FiEdit2, FiRotateCcw, FiList
 } from "react-icons/fi";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
 import contractsServices from "../../../services/contractsServices";
 import paymentsServices from "../../../services/paymentsServices";
+import PaymentManagementDialog from "../../../components/financial/PaymentManagementDialog";
 const money = (value) => new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "BRL"
 }).format(Number(value) || 0);
@@ -73,6 +74,8 @@ export default function MonthlyFeesDetailed() {
   const requestedFeeId = location.state?.feeId;
   const [selectedId, setSelectedId] = useState(requestedFeeId || "");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [managedPayment, setManagedPayment] = useState(null);
+  const [managedMode, setManagedMode] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(() => currentReference().slice(0, 4));
   const currentMonth = currentReference();
@@ -230,6 +233,33 @@ export default function MonthlyFeesDetailed() {
       setSaving(false);
     }
   };
+  /* Payment corrections always refresh the fee balance and payment records.
+     As correções atualizam o saldo e os registros de pagamento. */
+  const openPaymentManagement = (payment, mode) => {
+    setDetailsOpen(false);
+    setManagedPayment(payment);
+    setManagedMode(mode);
+  };
+  const afterPaymentChange = async () => {
+    await getMonthlyFees({ userId: studentId });
+    if (selected?.id) await getPaymentsByFee(selected.id);
+  };
+  const paymentRow = payment => (
+    <Box key={payment.id} mt={2} p={3} border="1px solid #e2e8e7" borderRadius="8px">
+      <Flex justify="space-between" align="center" gap={2}>
+        <Text fontWeight="700" fontSize="12px" color="#174f4a">{money(payment.amount)}</Text>
+        <Badge colorPalette={payment.status === "reversed" ? "gray" : "green"} size="sm">{payment.status === "reversed" ? "Estornado" : "Recebido"}</Badge>
+      </Flex>
+      <Text mt={1} fontSize="10px" color="#60777c">{payment.method} • {dateBR(payment.paidAt)}</Text>
+      <Flex mt={2} gap={1} flexWrap="wrap">
+        {payment.status !== "reversed" && <>
+          <Button size="xs" variant="outline" onClick={() => openPaymentManagement(payment, "edit")}><FiEdit2 /> Editar</Button>
+          <Button size="xs" variant="outline" colorPalette="red" onClick={() => openPaymentManagement(payment, "reverse")}><FiRotateCcw /> Estornar</Button>
+        </>}
+        <Button size="xs" variant="ghost" onClick={() => openPaymentManagement(payment, "history")}><FiList /> Histórico</Button>
+      </Flex>
+    </Box>
+  );
   /* Mantém o cabeçalho e a navegação visíveis mesmo sem mensalidades. */
   const paidAmount = Number(selected?.paidAmount || 0);
   const balance = selected ? Math.max(Number(selected.amount) - paidAmount, 0) : 0;
@@ -449,28 +479,7 @@ export default function MonthlyFeesDetailed() {
                 </Text>
               </Box>
             )}
-            {selectedPayments.map((payment) => (
-              <Box key={payment.id} mt={3} p={3}
-                border="1px solid #e2e8e7" borderRadius="8px">
-                <Flex justify="space-between" align="center">
-                  <HStack gap={2}>
-                    <FiCheck color="#14833b" />
-                    <Text fontWeight="700" fontSize="12px" color="#174f4a">
-                      {money(payment.amount)}
-                    </Text>
-                  </HStack>
-                  <Badge colorPalette="green" size="sm">Recebido</Badge>
-                </Flex>
-                <Text mt={2} fontSize="10px" color="#60777c">
-                  {payment.method} • {dateBR(payment.paidAt)}
-                </Text>
-                {payment.receipt && (
-                  <Text mt={2} fontSize="10px" color="#174f4a">
-                    <FiFileText style={{ display: "inline" }} /> Comprovante disponível
-                  </Text>
-                )}
-              </Box>
-            ))}
+            {selectedPayments.map(paymentRow)}
             <Button mt={4} w="100%" bg="#003f36" color="white"
               fontSize="11px" borderRadius="8px"
               disabled={balance <= 0 || selected.status === "cancelled"}
@@ -506,12 +515,7 @@ export default function MonthlyFeesDetailed() {
                     <Heading fontSize="13px" color="#174f4a">Pagamentos registrados</Heading>
                     {paymentsLoading && <Text fontSize="11px">Carregando pagamentos...</Text>}
                     {!paymentsLoading && selectedPayments.length === 0 && <Text fontSize="11px" color="#60777c">Nenhum pagamento registrado.</Text>}
-                    {selectedPayments.map((payment) => (
-                      <Box key={payment.id} p={2} border="1px solid #e2e8e7" borderRadius="8px">
-                        <Text fontSize="12px" fontWeight="700">{money(payment.amount)}</Text>
-                        <Text fontSize="10px" color="#60777c">{payment.method} • {dateBR(payment.paidAt)}</Text>
-                      </Box>
-                    ))}
+                    {selectedPayments.map(paymentRow)}
                   </VStack>
                 </Dialog.Body>
                 <Dialog.Footer>
@@ -599,6 +603,11 @@ export default function MonthlyFeesDetailed() {
           </Dialog.Root>
         </>
       )}
+      <PaymentManagementDialog
+        payment={managedPayment} mode={managedMode}
+        onClose={() => { setManagedPayment(null); setManagedMode(""); }}
+        onSaved={afterPaymentChange}
+      />
     </VStack>
   );
 }

@@ -30,17 +30,20 @@ export default function FinancialOverview({ period, refreshKey=0 }) {
     {error && <Box bg="#fff1f1" p={3} borderRadius="8px"><Text fontSize="12px" color="#b32f32">{error}</Text><Button size="xs" mt={2} onClick={()=>setRetry(v=>v+1)}>Tentar novamente</Button></Box>}
     {!loading && !error && <>
       <SimpleGrid columns={{base:2,lg:4}} gap={3}>
-        <StatCard icon={FiCreditCard} title="Recebimentos realizados" value={money(summary?.received)} caption="Por data de pagamento" tone="#147c3b"/>
+        <StatCard icon={FiCreditCard} title="Entradas recebidas" value={money(summary?.received)} caption="Mensalidades + proventos, por data" tone="#147c3b"/>
         <StatCard icon={FiDollarSign} title="Despesas pagas" value={money(summary?.expensesPaid)} caption="Por data de pagamento" tone={COLORS.red}/>
         <StatCard icon={FiTrendingUp} title="Resultado realizado" value={money(summary?.result)} caption="Recebido − despesas pagas" tone={(summary?.result||0)>=0?COLORS.green:COLORS.red}/>
         <StatCard icon={FiAlertCircle} title="Mensalidades em atraso" value={summary?.overdueFeesCount??0} caption={money(summary?.overdueFeesValue)} tone="#b83a3a"/>
       </SimpleGrid>
-      <SimpleGrid columns={{base:2,lg:3}} gap={3}>
+      <SimpleGrid columns={{base:2,lg:4}} gap={3}>
+        <StatCard icon={FiCreditCard} title="Mensalidades recebidas" value={money(summary?.monthlyFeesReceived)} caption="Pagamentos das mensalidades"/>
+        <StatCard icon={FiTrendingUp} title="Proventos recebidos" value={money(summary?.otherRevenuesReceived)} caption="Recebimentos de outras origens"/>
         <StatCard icon={FiCalendar} title="Mensalidades previstas" value={money(summary?.expectedFees)} caption="Cobranças das competências do período"/>
         <StatCard icon={FiClock} title="Mensalidades em aberto" value={money(summary?.openFees)} caption="Saldo ainda não pago" tone="#996500"/>
         <StatCard icon={FiRepeat} title="Despesas pendentes" value={summary?.pendingExpensesCount??0} caption={money(summary?.pendingExpensesValue)} tone="#996500"/>
+        <StatCard icon={FiClock} title="Proventos pendentes" value={summary?.pendingRevenuesCount??0} caption={money(summary?.pendingRevenuesValue)} tone="#996500"/>
       </SimpleGrid>
-      <Text fontSize="11px" color={COLORS.gray}>Resultado realizado = pagamentos recebidos − despesas efetivamente pagas no período. Não é saldo bancário.</Text>
+      <Text fontSize="11px" color={COLORS.gray}>Resultado realizado = mensalidades recebidas + proventos recebidos − despesas pagas no período. Valores pendentes não entram no resultado. Não é saldo bancário.</Text>
     </>}
   </VStack>;
 }

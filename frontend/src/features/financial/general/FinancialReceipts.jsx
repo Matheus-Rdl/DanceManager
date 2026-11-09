@@ -29,7 +29,7 @@ export default function FinancialReceipts({ period, refreshKey=0 }) {
   const methods=[...new Set(receipts.map(item=>item.method).filter(Boolean))].sort();
   return <Box bg="white" border="1px solid #d7e2df" borderRadius="9px" overflow="hidden">
     <Flex align="center" justify="space-between" p={3} borderBottom="1px solid #e6ecea" gap={2} wrap="wrap">
-      <Box><Heading fontSize="15px" color={COLORS.green}>Histórico de recebimentos</Heading><Text fontSize="11px" color={COLORS.gray}>{filtered.length} pagamento(s) • Total exibido: {money(total)}</Text></Box>
+      <Box><Heading fontSize="15px" color={COLORS.green}>Histórico de pagamentos de mensalidades</Heading><Text fontSize="11px" color={COLORS.gray}>{filtered.length} pagamento(s) • Total exibido: {money(total)}</Text></Box>
     </Flex>
     <Flex p={3} gap={2} wrap="wrap">
       <Input aria-label="Pesquisar recebimentos" size="sm" maxW={{base:"100%",md:"290px"}} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar aluno, matrícula ou competência..."/>
@@ -37,7 +37,7 @@ export default function FinancialReceipts({ period, refreshKey=0 }) {
     </Flex>
     {loading && <Text p={4} fontSize="12px" color={COLORS.gray}>Carregando recebimentos...</Text>}
     {error && <Box p={4}><Text fontSize="12px" color={COLORS.red}>{error}</Text><Button size="xs" mt={2} onClick={()=>setRetry(v=>v+1)}>Tentar novamente</Button></Box>}
-    {!loading && !error && filtered.length===0 && <Box textAlign="center" p={9}><FiCreditCard color="#97aaa7" size={26} style={{margin:"0 auto 8px"}}/><Text fontSize="12px" color={COLORS.green} fontWeight="700">Nenhum recebimento encontrado</Text><Text fontSize="11px" color={COLORS.gray}>Confira os filtros ou selecione outro período.</Text></Box>}
+    {!loading && !error && filtered.length===0 && <Box textAlign="center" p={9}><FiCreditCard color="#97aaa7" size={26} style={{margin:"0 auto 8px"}}/><Text fontSize="12px" color={COLORS.green} fontWeight="700">Nenhum pagamento de mensalidade encontrado</Text><Text fontSize="11px" color={COLORS.gray}>Confira os filtros ou selecione outro período.</Text></Box>}
     {!loading && !error && filtered.length>0 && <>
       <Box display={{base:"none",md:"block"}} overflowX="auto"><Table.Root size="sm" minW="720px"><Table.Header bg="#f4f8f7"><Table.Row>{["Pagamento", "Aluno", "Matrícula", "Mensalidade", "Forma", "Valor recebido"].map(label=><Table.ColumnHeader key={label} fontSize="11px" color={COLORS.green}>{label}</Table.ColumnHeader>)}</Table.Row></Table.Header>
       <Table.Body>{filtered.map(item=><Table.Row key={item.id}><Table.Cell fontSize="11px">{formatDate(item.paidAt)}</Table.Cell><Table.Cell fontWeight="600" fontSize="11px">{item.student?.name||"—"}</Table.Cell><Table.Cell fontSize="11px">{item.student?.mat||"—"}</Table.Cell><Table.Cell fontSize="11px">{formatMonth(item.monthlyFee?.reference)}</Table.Cell><Table.Cell fontSize="11px">{item.method}</Table.Cell><Table.Cell fontSize="11px" color="#147c3b" fontWeight="700">{money(item.amount)}</Table.Cell></Table.Row>)}</Table.Body></Table.Root></Box>

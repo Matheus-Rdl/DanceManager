@@ -4,7 +4,7 @@ import { FiCalendar, FiChevronDown, FiChevronLeft, FiChevronRight, FiRotateCcw }
 import { COLORS, MONTHS, PERIOD_MODES, formatMonth, nowReference, periodRange, shiftMonth } from "./financialPeriod";
 
 /* O período pertence à aba atual. Este componente altera apenas a seleção recebida por props. */
-export default function FinancialPeriodSelector({ period, onChange }) {
+export default function FinancialPeriodSelector({ period, onChange, cashOnly = false }) {
   const [open, setOpen] = useState(false);
   const [draftMonth, setDraftMonth] = useState(period.reference.slice(5));
   const [draftYear, setDraftYear] = useState(period.year);
@@ -14,7 +14,7 @@ export default function FinancialPeriodSelector({ period, onChange }) {
   const currentReference = nowReference();
   const currentYear = currentReference.slice(0, 4);
   const periodLabel = isYear ? `${period.year}` : formatMonth(period.reference);
-  const periodHint = isYear ? "Ano selecionado" : isMonth ? "Competência selecionada" : `Mês final dos últimos ${period.mode} meses`;
+  const periodHint = isYear ? "Ano selecionado" : isMonth ? (cashOnly ? "Mês da movimentação" : "Competência selecionada") : `Mês final dos últimos ${period.mode} meses`;
   /* Informação visível em todas as abas, sempre baseada no filtro realmente aplicado. */
   const { from, to } = periodRange(period);
   const periodDescription = isYear
@@ -25,7 +25,7 @@ export default function FinancialPeriodSelector({ period, onChange }) {
   const periodDetails = isYear
     ? `Janeiro a dezembro de ${period.year}`
     : isMonth
-      ? "Competência selecionada"
+      ? (cashOnly ? "Pagamentos e recebimentos realizados" : "Competência selecionada")
       : `${formatMonth(from)} a ${formatMonth(to)}`;
   const years = Array.from(new Set([
     Number(year), Number(period.year), Number(draftYear),

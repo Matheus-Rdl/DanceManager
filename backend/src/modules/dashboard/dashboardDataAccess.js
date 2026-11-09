@@ -52,7 +52,7 @@ export default class DashboardDataAccess {
         .select("activity_mat activity_title activity_time_start activity_time_end activity_teachers activity_teacher_name activity_teacher activity_professor teacher_name teacher professor")
         .sort({ activity_time_start: 1 }).lean(),
       Payment.aggregate([
-        { $match: { paidAt: { $gte: month, $lt: nextMonth } } },
+        { $match: { status: { $ne: "reversed" }, paidAt: { $gte: month, $lt: nextMonth } } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
       Expense.aggregate([

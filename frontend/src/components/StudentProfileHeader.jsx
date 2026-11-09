@@ -36,10 +36,27 @@ export default function StudentProfileHeader({
   const situation = getUserSituation(user);
 
   return (
-    <Box bg="white" borderWidth="1px" borderColor="gray.200" borderRadius="8px" overflow="hidden" width="100%">
+    <Box 
+      bg="white" 
+      borderWidth="1px" 
+      borderColor="gray.200" 
+      borderRadius="8px" 
+      overflow="hidden" 
+      width="100%"
+    >
       {/* DADOS DO ALUNO */}
-      <Flex px={{ base: 3, md: 4 }} py={4} gap={4} justify="flex-start" align={{ base: "flex-start", lg: "center" }} direction={{ base: "column", lg: "row" }}>
-        <HStack gap={4} minW={0}>
+      <Flex 
+        px={{ base: 3, md: 4 }} 
+        py={4} 
+        gap={4} 
+        justify="flex-start" 
+        align={{ base: "flex-start", lg: "center" }} 
+        direction={{ base: "column", lg: "row" }}
+      >
+        <HStack 
+          gap={4} 
+          minW={0}
+        >
           <Avatar.Root w={{ base: "64px", md: "76px" }} h={{ base: "64px", md: "76px" }} flexShrink={0}>
             <Avatar.Fallback name={name} />
             {photo && <Avatar.Image src={photo} />}

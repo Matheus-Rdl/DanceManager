@@ -18,6 +18,7 @@ export const ensureExpensesForRecurrence = async (recurrence, { currentMonth = m
     const record = {
       id: crypto.randomUUID(), schoolId: recurrence.schoolId, recurrenceId: recurrence.id,
       description: recurrence.description, category: recurrence.category,
+      initiator: recurrence.initiator || null,
       amount: recurrence.amount, reference: month, dueDate: dueDateFor(month, recurrence.dueDay),
       status: "pending", paidAt: null, paidAmount: null, method: null, notes: "",
       createdAt: now, updatedAt: now,

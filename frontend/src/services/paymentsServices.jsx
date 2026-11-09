@@ -60,5 +60,28 @@ export default function paymentsServices() {
     } finally { setPaymentSaving(false); }
   };
 
-  return { getPayments, getPaymentsByUser, getPaymentsByContract, getPaymentsByFee, addPayment, paymentsList, paymentsLoading, paymentsError, paymentSaving };
+  /* Financial correction endpoints. They never delete a payment.
+     Operações de correção financeira sem excluir o histórico. */
+  const changePayment = async (paymentId, body, action = "edit") => {
+    setPaymentSaving(true);
+    setPaymentsError("");
+    try {
+      const response = await fetch(`${url}/${encodeURIComponent(paymentId)}${action === "reverse" ? "/reverse" : ""}`, {
+        method: action === "reverse" ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!response.ok || result?.success === false) {
+        throw new Error(typeof result?.body === "string" ? result.body : result?.message || "Não foi possível atualizar o pagamento.");
+      }
+      return { success: true, body: result?.body ?? result };
+    } catch (error) {
+      setPaymentsError(error.message);
+      return { success: false, message: error.message };
+    } finally { setPaymentSaving(false); }
+  };
+  const editPayment = (paymentId, body) => changePayment(paymentId, body, "edit");
+  const reversePayment = (paymentId, body) => changePayment(paymentId, body, "reverse");
+
+  return { getPayments, getPaymentsByUser, getPaymentsByContract, getPaymentsByFee, addPayment, editPayment, reversePayment, paymentsList, paymentsLoading, paymentsError, paymentSaving };
 }

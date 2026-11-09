@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Avatar, Badge, Box, Button, Dialog, Flex, Heading, HStack, NativeSelect, Portal, SimpleGrid, Table, Text, VStack } from "@chakra-ui/react";
-import { FiArrowLeft, FiCalendar, FiCheck, FiCreditCard, FiDollarSign, FiEye, FiFileText, FiX } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiCheck, FiCreditCard, FiDollarSign, FiEye, FiFileText, FiX, FiEdit2, FiRotateCcw, FiList } from "react-icons/fi";
 
 //Components
 import StudentProfileHeader from "../../../components/StudentProfileHeader";
 import StudentNavigation from "../../../components/StudentNavigation";
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
 import paymentsServices from "../../../services/paymentsServices";
+import PaymentManagementDialog from "../../../components/financial/PaymentManagementDialog";
 import { formatName } from "../../../utils/formatters";
 
 /* Formatação e identificação da referência */
@@ -45,6 +46,8 @@ export default function PeopleManagementPayments() {
   const [selectedMethod, setSelectedMethod] = useState("all");
   const [selectedId, setSelectedId] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [managedPayment, setManagedPayment] = useState(null);
+  const [managedMode, setManagedMode] = useState("");
   /* Busca mensalidades para exibir referência e vencimento de cada pagamento. */
   useEffect(() => { if (studentId) getMonthlyFeesByUser(studentId); }, [studentId]);
   /* Busca todo o histórico do aluno em uma única requisição ao módulo payments. */
@@ -83,7 +86,7 @@ export default function PeopleManagementPayments() {
       (selectedMethod === "all" || paymentMethod(record) === selectedMethod);
   }), [records, selectedYear, selectedMonth, selectedMethod]);
   const selected = visibleRecords.find((record) => record._key === selectedId) || visibleRecords[0];
-  const yearlyRecords = records.filter((record) => String(paymentDate(record)).startsWith(selectedYear));
+  const yearlyRecords = records.filter((record) => record.status !== "reversed" && String(paymentDate(record)).startsWith(selectedYear));
   const monthRecords = yearlyRecords.filter((record) => String(paymentDate(record)).slice(5, 7) === currentMonth && selectedYear === currentYear);
   const totalReceived = yearlyRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
   const monthReceived = monthRecords.reduce((sum, record) => sum + Number(record.amount || 0), 0);
@@ -95,11 +98,20 @@ export default function PeopleManagementPayments() {
     { title: "Último pagamento no ano", value: lastPayment ? dateBR(paymentDate(lastPayment)) : "—", detail: lastPayment ? paymentMethod(lastPayment) : "Nenhum registro", icon: FiCreditCard, color: "#174f4a", bg: "#f6f9f8" }
   ];
   const openDetails = (record) => { setSelectedId(record._key); setDetailsOpen(true); };
+  const managePayment = (payment, mode) => {
+    setDetailsOpen(false);
+    setManagedPayment(payment);
+    setManagedMode(mode);
+  };
+  const afterPaymentChange = async () => {
+    await getMonthlyFeesByUser(studentId);
+    await getPaymentsByUser(studentId);
+  };
   const detailContent = selected ? (
     <VStack align="stretch" gap={3}>
       <Flex align="center" justify="space-between" gap={2}>
         <Text fontSize="15px" fontWeight="700" color="#174f4a">{money(selected.amount)}</Text>
-        <Badge bg="#dff5e6" color="#14833b" borderRadius="full" px={3}>Recebido</Badge>
+        <Badge bg={selected.status === "reversed" ? "#edf1f2" : "#dff5e6"} color={selected.status === "reversed" ? "#718096" : "#14833b"} borderRadius="full" px={3}>{selected.status === "reversed" ? "Estornado" : "Recebido"}</Badge>
       </Flex>
       <Box p={3} bg="#f3f6f5" borderRadius="8px">
         <Text fontSize="10px" color="#60777c">Mensalidade de referência</Text>
@@ -115,6 +127,13 @@ export default function PeopleManagementPayments() {
         <Text fontSize="11px" color="#60777c">{label}</Text><Text fontSize="11px" fontWeight="700" textAlign="right">{value}</Text>
       </Flex>)}
       {selected.receipt && <Text fontSize="11px" color="#174f4a"><FiFileText style={{ display: "inline" }} /> Comprovante informado no registro</Text>}
+      <Flex gap={2} flexWrap="wrap">
+        {selected.status !== "reversed" && <>
+          <Button size="xs" variant="outline" onClick={() => managePayment(selected, "edit")}><FiEdit2 /> Editar</Button>
+          <Button size="xs" variant="outline" colorPalette="red" onClick={() => managePayment(selected, "reverse")}><FiRotateCcw /> Estornar</Button>
+        </>}
+        <Button size="xs" variant="ghost" onClick={() => managePayment(selected, "history")}><FiList /> Histórico</Button>
+      </Flex>
     </VStack>
   ) : <Text fontSize="12px" color="#60777c">Selecione um pagamento.</Text>;
 
@@ -182,14 +201,14 @@ export default function PeopleManagementPayments() {
               <Table.Body>{visibleRecords.map((record) => <Table.Row key={record._key} cursor="pointer" bg={selected?._key === record._key ? "#f2faf7" : "white"} _hover={{ bg: "#f7fbfa" }} onClick={() => setSelectedId(record._key)}>
                 <Table.Cell fontSize="11px">{dateBR(paymentDate(record))}</Table.Cell><Table.Cell fontSize="11px" fontWeight="700">{referenceBR(record._reference)}</Table.Cell>
                 <Table.Cell fontSize="11px">{money(record.amount)}</Table.Cell><Table.Cell fontSize="11px">{paymentMethod(record)}</Table.Cell>
-                <Table.Cell><Badge bg="#dff5e6" color="#14833b" borderRadius="full" fontSize="10px">Recebido</Badge></Table.Cell>
+                <Table.Cell><Badge bg={record.status === "reversed" ? "#edf1f2" : "#dff5e6"} color={record.status === "reversed" ? "#718096" : "#14833b"} borderRadius="full" fontSize="10px">{record.status === "reversed" ? "Estornado" : "Recebido"}</Badge></Table.Cell>
               </Table.Row>)}</Table.Body>
             </Table.Root>
           </Box>
           {/* Mobile: cards com detalhes em Dialog */}
           <VStack align="stretch" gap={2} display={{ base: "flex", md: "none" }}>
             {visibleRecords.map((record) => <Box key={record._key} as="button" type="button" textAlign="left" p={3} bg="white" border="1px solid #d7e2df" borderRadius="8px" onClick={() => openDetails(record)}>
-              <Flex justify="space-between" align="center" gap={2}><Text fontWeight="700" fontSize="13px" color="#174f4a">{referenceBR(record._reference)}</Text><Badge bg="#dff5e6" color="#14833b" borderRadius="full">Recebido</Badge></Flex>
+              <Flex justify="space-between" align="center" gap={2}><Text fontWeight="700" fontSize="13px" color="#174f4a">{referenceBR(record._reference)}</Text><Badge bg={record.status === "reversed" ? "#edf1f2" : "#dff5e6"} color={record.status === "reversed" ? "#718096" : "#14833b"} borderRadius="full">{record.status === "reversed" ? "Estornado" : "Recebido"}</Badge></Flex>
               <Text mt={2} fontSize="11px" color="#60777c">{dateBR(paymentDate(record))} · {paymentMethod(record)}</Text>
               <Flex mt={2} justify="space-between"><Text fontSize="13px" fontWeight="700">{money(record.amount)}</Text><Text fontSize="11px" color="#174f4a"><FiEye style={{ display: "inline" }} /> Ver detalhes</Text></Flex>
             </Box>)}
@@ -210,6 +229,11 @@ export default function PeopleManagementPayments() {
           <Dialog.CloseTrigger asChild><Button position="absolute" top="10px" right="10px" variant="ghost" size="sm" aria-label="Fechar"><FiX /></Button></Dialog.CloseTrigger>
         </Dialog.Content></Dialog.Positioner></Portal>
       </Dialog.Root>
+      <PaymentManagementDialog
+        payment={managedPayment} mode={managedMode}
+        onClose={() => { setManagedPayment(null); setManagedMode(""); }}
+        onSaved={afterPaymentChange}
+      />
     </VStack>
   );
 }

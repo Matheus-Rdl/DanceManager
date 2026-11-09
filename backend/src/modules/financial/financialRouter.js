@@ -9,5 +9,6 @@ router.get("/summary", async (req, res) => respond(res, await controller.getSumm
 router.get("/period-summary", async (req, res) => respond(res, await controller.getPeriodSummary(req.query)));
 router.get("/timeline", async (req, res) => respond(res, await controller.getTimeline(req.query)));
 router.get("/receipts", async (req, res) => respond(res, await controller.getReceipts(req.query)));
+router.get("/movements", async (req, res) => respond(res, await controller.getMovements(req.query)));
 
 export default router;

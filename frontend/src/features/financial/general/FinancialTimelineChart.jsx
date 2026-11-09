@@ -107,10 +107,10 @@ export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
     <Flex align="start" justify="space-between" gap={3} wrap="wrap">
       <Box>
         <HStack gap={2}><FiBarChart2 color={DARK}/><Heading fontSize="15px" color={DARK}>Evolução financeira</Heading></HStack>
-        <Text fontSize="10px" color={MUTED} mt={1}>Entradas e saídas efetivamente pagas · {dateLabel}</Text>
+        <Text fontSize="10px" color={MUTED} mt={1}>Mensalidades e proventos recebidos, menos despesas pagas · {dateLabel}</Text>
       </Box>
       <HStack gap={3} flexShrink={0}>
-        <HStack gap={1}><Box w="9px" h="9px" bg={GREEN} borderRadius="2px"/><Text fontSize="10px" color={MUTED}>Recebimentos</Text></HStack>
+        <HStack gap={1}><Box w="9px" h="9px" bg={GREEN} borderRadius="2px"/><Text fontSize="10px" color={MUTED}>Entradas</Text></HStack>
         <HStack gap={1}><Box w="9px" h="9px" bg={RED} borderRadius="2px"/><Text fontSize="10px" color={MUTED}>Despesas</Text></HStack>
       </HStack>
     </Flex>
@@ -119,7 +119,7 @@ export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
       {loading && <Flex align="center" gap={2} py={3} color={MUTED}><FiRefreshCw/><Text fontSize="12px">Carregando gráfico...</Text></Flex>}
       {!loading && error && <Flex p={3} borderRadius="7px" bg="#fff4f4" color="#b02f36" align="center" gap={2} wrap="wrap"><FiAlertCircle/><Text fontSize="12px" flex="1">{error}</Text><Button size="xs" onClick={() => setRetry(v => v + 1)} variant="outline">Tentar novamente</Button></Flex>}
       {!loading && !error && <>
-        <Box ref={chartScroller} overflowX="auto" w="100%" pb={2} scrollbarWidth="thin" aria-label="Gráfico de recebimentos e despesas por mês">
+        <Box ref={chartScroller} overflowX="auto" w="100%" pb={2} scrollbarWidth="thin" aria-label="Gráfico de entradas e despesas por mês">
           <Flex mt={6} gap={2} minW={{ base: minChartWidth, md: mode === "12" || mode === "year" ? "800px" : "100%" }}>
             {/* Escala comum entre meses e séries: mantém as alturas comparáveis. */}
             <Box w="54px" flexShrink={0} h="232px" position="sticky" left={0} zIndex={2} bg="white" color={MUTED} fontSize="9px" aria-hidden="true">

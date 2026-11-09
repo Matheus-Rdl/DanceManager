@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import financialInitiatorSchema from "./FinancialInitiator.js";
 
 const historySchema = new mongoose.Schema({
   action: { type: String, required: true },
@@ -15,6 +16,7 @@ const expenseSchema = new mongoose.Schema({
   recurrenceId: { type: String, default: null, index: true },
   description: { type: String, required: true },
   category: { type: String, required: true },
+  initiator: { type: financialInitiatorSchema, default: null },
   amount: { type: Number, required: true, min: 0 },
   reference: { type: String, required: true, index: true },
   dueDate: { type: String, required: true },

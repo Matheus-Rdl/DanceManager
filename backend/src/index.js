@@ -15,9 +15,11 @@ import attendancesRouter from "./modules/attendances/attendancesRouter.js";
 import monthlyFeesRouter from "./modules/monthlyFees/monthlyFeesRouter.js";
 import paymentsRouter from "./modules/payments/paymentsRouter.js";
 import expensesRouter from "./modules/expenses/expensesRouter.js";
+import revenuesRouter from "./modules/revenues/revenuesRouter.js";
 import financialRouter from "./modules/financial/financialRouter.js";
 import dashboardRouter from "./modules/dashboard/dashboardRouter.js";
 import Expense from "./models/Expense.js";
+import Revenue from "./models/Revenue.js";
 import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
 import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
@@ -90,6 +92,7 @@ async function main() {
   app.use("/monthly-fees", monthlyFeesRouter);
   app.use("/payments", paymentsRouter);
   app.use("/expenses", expensesRouter);
+  app.use("/revenues", revenuesRouter);
   app.use("/financial", financialRouter);
   app.use("/dashboard", dashboardRouter);
 
@@ -116,6 +119,7 @@ async function main() {
   };
   await runFeeGeneration();
   await Expense.init(); // Índice único para despesas recorrentes.
+  await Revenue.init(); // Índice único para futuras integrações de proventos.
   const runExpenseGeneration = async () => {
     try {
       const count = await ensureAllExpenses();

@@ -7,7 +7,7 @@ const money = amount => new Intl.NumberFormat("pt-BR", { style: "currency", curr
 export default function DashboardFinancialSummary({ data }) {
   const result = Number(data?.result ?? 0);
   const entries = [
-    { title: "Recebimentos", value: data?.received, icon: FiCreditCard, tone: "#148443" },
+    { title: "Entradas recebidas", value: data?.received, icon: FiCreditCard, tone: "#148443" },
     { title: "Despesas pagas", value: data?.expensesPaid, icon: FiDollarSign, tone: "#be343b" },
     { title: "Resultado realizado", value: result, icon: FiTrendingUp, tone: result >= 0 ? "#0b6b5b" : "#be343b" }
   ];
@@ -22,6 +22,6 @@ export default function DashboardFinancialSummary({ data }) {
         <Box minW={0}><Text fontSize="10px" color="#627874">{title}</Text><Text fontSize={{base:"17px",md:"19px"}} color={tone} fontWeight="800" overflowWrap="anywhere">{money(value)}</Text></Box>
       </Flex>)}
     </SimpleGrid>
-    <Text mt={3} fontSize="10px" color="#738883">Resultado realizado = recebimentos − despesas efetivamente pagas. Não representa o saldo bancário.</Text>
+    <Text mt={3} fontSize="10px" color="#738883">Resultado realizado = mensalidades recebidas + proventos recebidos − despesas pagas. Não representa o saldo bancário.</Text>
   </Box>;
 }
