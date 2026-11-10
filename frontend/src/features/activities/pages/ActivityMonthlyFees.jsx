@@ -166,7 +166,7 @@ export default function ActivityMonthlyFees() {
     </Box>
   </VStack>;
 
-  return <VStack w="100%" align="stretch" gap={3} minW={0} bg="#f8faf9" pb={6}>
+  return <VStack w="100%" align="stretch" gap={3} minW={0} bg="var(--app-background)" pb={6} paddingRight={4}>
     <Flex align="center" gap={3}>
       <Button variant="ghost" color={green} size="sm" onClick={() => navigate("/ActivityManagement")}><FiArrowLeft/> Voltar</Button>
       <Flex w="38px" h="38px" flexShrink={0} borderRadius="full" bg={green} color="white" align="center" justify="center"><FiCreditCard size={19}/></Flex>

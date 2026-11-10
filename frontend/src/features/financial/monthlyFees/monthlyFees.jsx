@@ -187,7 +187,7 @@ export default function MonthlyFees() {
   const resetTestData = () => getMonthlyFees({ reference });
 
   return (
-    <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
+    <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="var(--app-background)" paddingRight={4}>
       <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={3} wrap="wrap">
         <Flex align="center" gap={3}>
           <Flex w="48px" h="48px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}><FiCalendar size={24} /></Flex>

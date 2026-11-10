@@ -147,7 +147,7 @@ export default function ActivityManagementUsers() {
     <Button size="xs" variant="ghost" color="#ba3b3b" onClick={() => openRemove(user)}><FiTrash2/> Retirar</Button>
   </Flex>;
 
-  return <VStack gap={3} align="stretch" w="100%" minW={0} pb={6} bg="#f8faf9">
+  return <VStack gap={3} align="stretch" w="100%" minW={0} pb={6} bg="var(--app-background) paddingRight={4}">
     <Flex align="center" justify="space-between" gap={3} wrap="wrap">
       <Box><Heading fontSize={{ base: "19px", md: "23px" }} color="#062f2b">Alunos da turma</Heading><Text fontSize="11px" color={GRAY}>Gerencie os participantes vinculados à atividade.</Text></Box>
       <HStack gap={2}>

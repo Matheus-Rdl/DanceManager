@@ -99,7 +99,7 @@ export default function MonthlyFeesOverdue() {
   const clearFilters = () => { setSearch(""); setYear("all"); setActivity("all"); setPayment("all"); setOrder("newest"); };
   const hasFilters = Boolean(search || year !== "all" || activity !== "all" || payment !== "all" || order !== "newest");
 
-  return <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9" pb={6}>
+  return <VStack gap={3} align="stretch" width="100%" minW={0} bg="var(--app-background)" pb={6} paddingRight={4}>
     <Flex align={{ base: "flex-start", md: "center" }} justify="space-between" gap={3} wrap="wrap">
       <Flex align="center" gap={3}>
         <Button size="sm" variant="ghost" px={2} color={GREEN} onClick={() => navigate("/MonthlyFees")} aria-label="Voltar para Mensalidades"><FiArrowLeft /></Button>

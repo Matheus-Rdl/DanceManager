@@ -109,3 +109,15 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }*/
+
+
+/* Cor de fundo global do DanceManager: usada em todos os layouts principais. */
+:root {
+  --app-background: #E9EFEC;
+}
+
+html,
+body,
+#root {
+  background-color: var(--app-background);
+}

@@ -27,7 +27,7 @@ export default function Header({
         base: 4,
         md: 6,
       }}
-      bg="white"
+      bg="var(--app-background)"
       shadow="sm"
       flexShrink={0}
     >

@@ -366,7 +366,7 @@ export default function SettingsPage() {
   const count = key => fields.filter(field => field.collection === key).length;
   const total = groups.reduce((acc, group) => acc + group.items.length, 0);
 
-  return <Box width="100%" bg="#f8faf9" pb={7}>
+  return <Box width="100%" bg="var(--app-background)" pb={7} paddingRight={4}>
     <Flex align="center" justify="space-between" gap={3} wrap="wrap" mb={4}>
       <Flex align="center" gap={3}>
         <Flex bg="#e3f3ef" color="#0b6b5b" align="center" justify="center" borderRadius="11px" w="44px" h="44px"><FiSettings size={22}/></Flex>

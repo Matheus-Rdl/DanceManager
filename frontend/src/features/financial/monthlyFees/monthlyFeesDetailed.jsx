@@ -264,7 +264,7 @@ export default function MonthlyFeesDetailed() {
   const paidAmount = Number(selected?.paidAmount || 0);
   const balance = selected ? Math.max(Number(selected.amount) - paidAmount, 0) : 0;
   return (
-    <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9">
+    <VStack gap={3} align="stretch" width="100%" minW={0} bg="var(--app-background)" paddingRight={4}>
       {/* TÍTULO */}
       <Flex>
         <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">
@@ -515,7 +515,12 @@ export default function MonthlyFeesDetailed() {
                     <Heading fontSize="13px" color="#174f4a">Pagamentos registrados</Heading>
                     {paymentsLoading && <Text fontSize="11px">Carregando pagamentos...</Text>}
                     {!paymentsLoading && selectedPayments.length === 0 && <Text fontSize="11px" color="#60777c">Nenhum pagamento registrado.</Text>}
-                    {selectedPayments.map(paymentRow)}
+                    {selectedPayments.map((payment) => (
+                      <Box key={payment.id} p={2} border="1px solid #e2e8e7" borderRadius="8px">
+                        <Text fontSize="12px" fontWeight="700">{money(payment.amount)}</Text>
+                        <Text fontSize="10px" color="#60777c">{payment.method} • {dateBR(payment.paidAt)}</Text>
+                      </Box>
+                    ))}
                   </VStack>
                 </Dialog.Body>
                 <Dialog.Footer>
@@ -603,11 +608,6 @@ export default function MonthlyFeesDetailed() {
           </Dialog.Root>
         </>
       )}
-      <PaymentManagementDialog
-        payment={managedPayment} mode={managedMode}
-        onClose={() => { setManagedPayment(null); setManagedMode(""); }}
-        onSaved={afterPaymentChange}
-      />
     </VStack>
   );
 }

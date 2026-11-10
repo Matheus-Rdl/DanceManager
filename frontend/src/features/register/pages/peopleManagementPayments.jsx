@@ -138,7 +138,7 @@ export default function PeopleManagementPayments() {
   ) : <Text fontSize="12px" color="#60777c">Selecione um pagamento.</Text>;
 
   return (
-    <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9">
+    <VStack gap={3} align="stretch" width="100%" minW={0} bg="var(--app-background)" paddingRight={4}>
       {/* TITULO */}
       <Flex>
         <Button onClick={() => navigate(-1)} alignSelf="flex-start" variant="ghost" h="34px" px="4px" color="#174f4a" fontSize="12px" fontWeight="600" borderRadius="6px">

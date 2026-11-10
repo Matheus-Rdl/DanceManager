@@ -948,7 +948,7 @@ export default function PeopleManagementContracts() {
   // RENDER
   // ============================================================
   return (
-    <VStack gap={3} align="stretch" w="100%" minW={0} bg="#f8faf9">
+    <VStack gap={3} align="stretch" w="100%" minW={0} bg="var(--app-background)" paddingRight={4}>
       {/* TÍTULO */}
       <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={3} wrap="wrap">
         <Flex>

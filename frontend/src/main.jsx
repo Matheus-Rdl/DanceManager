@@ -119,7 +119,7 @@ function ServerLoading() {
       justify="center"
       direction="column"
       gap={4}
-      bg="gray.50"
+      bg="var(--app-background)"
     >
       <Text
         fontSize="2xl"
@@ -157,7 +157,7 @@ function ServerError() {
       justify="center"
       direction="column"
       gap={4}
-      bg="gray.50"
+      bg="var(--app-background)"
       px={6}
       textAlign="center"
     >

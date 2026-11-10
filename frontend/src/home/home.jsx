@@ -41,7 +41,7 @@ export default function Home() {
     { title: "Mensalidades atrasadas", value: summary?.metrics?.overdueFeesCount ?? 0, detail: `${money(summary?.metrics?.overdueFeesValue)} ainda em aberto`, icon: FiAlertCircle, tone: "#c13b3e", to: "/MonthlyFees" }
   ];
 
-  return <VStack align="stretch" gap={4} width="100%" minW={0} bg="#f8faf9" pb={6}>
+  return <VStack align="stretch" gap={4} width="100%" minW={0} bg="var(--app-background)" pb={6} paddingRight={4}>
     <Flex justify="space-between" align={{base:"flex-start",md:"center"}} gap={3} wrap="wrap">
       <Box><Heading fontSize={{base:"22px",md:"26px"}} fontWeight="800" color="#062f2b">Painel Principal</Heading><Text mt={1} fontSize="12px" color="#607873">Visão rápida da escola · {displayMonth(summary?.month)}</Text></Box>
       <Button variant="outline" size="sm" borderColor="#d6e3df" color="#0b6b5b" onClick={refresh} disabled={loading}><FiRefreshCw/> Atualizar</Button>

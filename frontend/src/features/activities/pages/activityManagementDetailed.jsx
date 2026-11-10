@@ -239,7 +239,7 @@ export default function ActivityManagementDetailed() {
     });
 
   return (
-    <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="#f8faf9">
+    <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="var(--app-background) paddingRight={4}">
 
       {/* TÍTULO */}
       <Flex>

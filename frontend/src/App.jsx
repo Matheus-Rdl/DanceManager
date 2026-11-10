@@ -15,7 +15,7 @@ function App() {
       h="100vh"
       w="100vw"
       overflow="hidden"
-      bg="gray.50"
+      bg="var(--app-background)"
       color="gray.800"
     >
 
@@ -50,7 +50,8 @@ function App() {
         <Box
           flex="1"
           overflowY="auto"
-          p={4}
+          m={4}
+          marginRight={0}
           bg="gray.50"
         >
           <Outlet />

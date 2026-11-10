@@ -44,7 +44,7 @@ export default function FinancialGeneral() {
     setFocus({ tab: destination, id: item.sourceId });
     setTab(destination);
   };
-  return <VStack gap={3} align="stretch" width="100%" minW={0} bg="#f8faf9" pb={7}>
+  return <VStack gap={3} align="stretch" width="100%" minW={0} bg="var(--app-background)" pb={7} paddingRight={4}>
     <Flex justify="space-between" align={{base:"flex-start",md:"center"}} gap={3} wrap="wrap">
       <Flex align="center" gap={3}>
         <Flex w="39px" h="39px" bg={COLORS.green} borderRadius="full" align="center" justify="center" color="white"><FiPieChart size={20}/></Flex>
