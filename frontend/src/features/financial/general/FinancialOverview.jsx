@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Heading, HStack, SimpleGrid, Text, VStack } from "@chakra-ui/react";
-import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiRepeat } from "react-icons/fi";
+import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart, FiRepeat } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
+import FinancialOverviewCharts from "./FinancialOverviewCharts";
 import { COLORS, money, periodRange, shiftMonth } from "./financialPeriod";
 
 /* EN: Section headers make the overview groups easier to scan.
@@ -163,6 +164,11 @@ export default function FinancialOverview({ period, refreshKey = 0 }) {
           <MonthlyStatCard icon={FiClock} title="Em aberto" value={money(summary?.openFees)}
             caption="Saldo não pago, incluindo as mensalidades em atraso." tone="warning" />
         </SimpleGrid>
+      </VStack>
+      <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
+        <SectionHeading icon={FiPieChart} title="Análise Financeira"
+          description="Composição das movimentações e distribuição das despesas no período selecionado." />
+        <FinancialOverviewCharts summary={summary} period={period} />
       </VStack>
       <VStack align="stretch" gap={3} mt={{ base: 2, md: 3 }}>
         <SectionHeading icon={FiRepeat} title="Outras pendências"

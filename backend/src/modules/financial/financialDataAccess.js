@@ -96,9 +96,11 @@ export default class FinancialDataAccess {
         { $match: { ...activePayments, ...between("paidAt", from, after) } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
+      /* Uma única agregação calcula despesas realizadas e sua distribuição por categoria.
+         A data usada é a de pagamento, nunca a competência/vencimento. */
       Expense.aggregate([
         { $match: { schoolId: schoolId(), status: "paid", ...between("paidAt", from, after) } },
-        { $group: { _id: null, total: { $sum: "$paidAmount" } } }
+        { $group: { _id: "$category", total: { $sum: "$paidAmount" } } }
       ]),
       MonthlyFee.find({ reference: { $gte: from, $lte: to }, status: { $ne: "cancelled" } })
         .select("amount paidAmount dueDate status").lean(),
@@ -114,11 +116,21 @@ export default class FinancialDataAccess {
     const monthlyFeesReceived = round(Number(paid[0]?.total || 0));
     const otherRevenuesReceived = round(Number(otherReceived[0]?.total || 0));
     const received = round(monthlyFeesReceived + otherRevenuesReceived);
-    const expensesPaid = round(Number(outgoing[0]?.total || 0));
+    /* Consolida categorias com nomes vazios/legados e preserva todos os valores pagos. */
+    const categoryTotals = new Map();
+    for (const item of outgoing) {
+      const category = String(item._id || "Outros").trim() || "Outros";
+      categoryTotals.set(category, (categoryTotals.get(category) || 0) + Number(item.total || 0));
+    }
+    const expenseCategories = [...categoryTotals].map(([category, amount]) => ({ category, amount: round(amount) }))
+      .filter(item => item.amount > 0)
+      .sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category, "pt-BR"));
+    const expensesPaid = round(outgoing.reduce((total, item) => total + Number(item.total || 0), 0));
     const overdueFees = fees.filter(fee => status(fee) === "overdue");
     const pendingExpenses = dueExpenses.filter(item => item.status === "pending");
     return {
       from, to, received, monthlyFeesReceived, otherRevenuesReceived, expensesPaid, result: round(received - expensesPaid),
+      expenseCategories,
       expectedFees: sum(fees, "amount"),
       openFees: round(fees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),
       overdueFeesCount: overdueFees.length,
