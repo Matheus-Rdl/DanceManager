@@ -200,11 +200,13 @@ export default function FinancialOverviewMiniTimeline({ period, refreshKey = 0, 
           <Text fontSize="10px" color={COLORS.gray}>Somente pagamentos e recebimentos efetivamente realizados.</Text>
         </Box>
       </Flex>
-      <SimpleGrid columns={{ base: 1, md: 4 }} gap={3} mb={3}>
+      <SimpleGrid columns={{ base: 1, md: 5 }} gap={3} mb={3}>
         <Box bg="#f0f8f4" p={3} borderRadius="9px"><Text fontSize="10px" color={COLORS.gray}>Mensalidades recebidas</Text>
           <Text fontSize="17px" fontWeight="800" color={GREEN}>{money(point.monthlyFeesReceived)}</Text></Box>
         <Box bg="#f0f8f4" p={3} borderRadius="9px"><Text fontSize="10px" color={COLORS.gray}>Proventos recebidos</Text>
           <Text fontSize="17px" fontWeight="800" color={GREEN}>{money(point.otherRevenuesReceived)}</Text></Box>
+        <Box bg="#e0f3ea" p={3} borderRadius="9px"><Text fontSize="10px" color={COLORS.gray}>Total recebido</Text>
+          <Text fontSize="17px" fontWeight="800" color={GREEN}>{money(point.otherRevenuesReceived + point.monthlyFeesReceived)}</Text></Box>
         <Box bg="#fff0f0" p={3} borderRadius="9px"><Text fontSize="10px" color={COLORS.gray}>Despesas pagas</Text>
           <Text fontSize="17px" fontWeight="800" color={RED}>{money(point.expensesPaid)}</Text></Box>
         <Box bg={point.result >= 0 ? "#f0f8f4" : "#fff0f0"} p={3} borderRadius="9px"><Text fontSize="10px" color={COLORS.gray}>Resultado do mês</Text>
