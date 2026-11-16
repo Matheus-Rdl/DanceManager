@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Flex, Heading, Input, NativeSelect, Table, Text, VStack } from "@chakra-ui/react";
-import { FiArrowDownLeft, FiArrowUpRight, FiChevronDown, FiChevronUp, FiExternalLink, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiArrowDownLeft, FiArrowUpRight, FiChevronDown, FiChevronUp, FiExternalLink, FiRefreshCw, FiSearch, FiDownload } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
+import { filterFinancialMovementRows } from "../../../services/reports/financial/financialMovementRows";
+import { generateExcelMovements } from "../../../services/reports/financial/excelMovements";
 import { COLORS, formatDate, formatMonth, money, periodRange } from "./financialPeriod";
 
 const ENTRY = { monthlyFee: "Mensalidade", revenue: "Provento", expense: "Despesa" };
-const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const originName = item => ENTRY[item.origin] || "Movimentação";
 const signed = item => `${item.direction === "in" ? "+" : "−"} ${money(item.amount)}`;
 const colorFor = item => item.direction === "in" ? "#137843" : "#c0393b";
@@ -35,6 +36,8 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => { setStartDate(""); setEndDate(""); setExpandedId(null); }, [from, to]);
   useEffect(() => {
@@ -50,13 +53,26 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
   }, [from, to, startDate, endDate, refreshKey, retry]);
 
   const availableMethods = useMemo(() => [...new Set(data.flatMap(item => (item.details || []).map(p => p.method).filter(Boolean)))].sort(), [data]);
-  const filtered = useMemo(() => data.filter(item => {
-    const text = normalize(`${item.description} ${item.category} ${item.reference} ${item.studentMat || ""} ${initiatorName(item)} ${item.method}`);
-    return (!search.trim() || text.includes(normalize(search.trim()))) &&
-      (!origin || item.origin === origin) &&
-      (!responsible || (responsible === "unknown" ? !item.responsible?.key : item.responsible?.key === responsible)) &&
-      (!method || item.details?.some(p => p.method === method));
-  }), [data, search, origin, responsible, method]);
+  const filtered = useMemo(() => filterFinancialMovementRows(data, { search, origin, responsible, method }),
+    [data, search, origin, responsible, method]);
+  /* EN: Export the exact set visible after all screen filters, without modifying financial records.
+     PT: Exporta os dados após todos os filtros da tela, sem alterar lançamentos financeiros. */
+  const exportExcel = async () => {
+    setExportError(""); setExporting(true);
+    try {
+      const fromDate = startDate || `${from}-01`;
+      const toDate = endDate || lastDay(to);
+      /* Consulta novamente para exportar os valores atuais, mesmo após uma alteração de filtro. */
+      const result = await financialServices.getMovements({ from, to, startDate, endDate });
+      if (!Array.isArray(result?.rows)) throw new Error("Resposta inválida ao consultar as movimentações.");
+      const visible = filterFinancialMovementRows(result.rows, { search, origin, responsible, method });
+      await generateExcelMovements({ movements: visible, from: fromDate, to: toDate });
+    } catch (err) {
+      setExportError(err?.message || "Não foi possível gerar o arquivo Excel.");
+    } finally {
+      setExporting(false);
+    }
+  };
   const totalReceived = filtered.reduce((n, item) => n + (item.direction === "in" ? Number(item.amount) : 0), 0);
   const totalPaid = filtered.reduce((n, item) => n + (item.direction === "out" ? Number(item.amount) : 0), 0);
   const showDetails = item => setExpandedId(current => current === item.id ? null : item.id);
@@ -86,7 +102,13 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
     <Flex justify="space-between" gap={2} align={{ base: "flex-start", md: "center" }} wrap="wrap">
       <Box><Heading color={COLORS.green} fontSize="16px">Extrato de movimentações</Heading>
         <Text fontSize="11px" color={COLORS.gray}>Somente valores efetivamente recebidos ou pagos, pela data da realização.</Text></Box>
-      <Badge bg="#e7f3ef" color={COLORS.green} borderRadius="full" px={3}>{filtered.length} lançamento(s)</Badge>
+      <Flex align="center" gap={2} wrap="wrap">
+        <Badge bg="#e7f3ef" color={COLORS.green} borderRadius="full" px={3}>{filtered.length} lançamento(s)</Badge>
+        <Button size="sm" bg={COLORS.green} color="white" _hover={{ bg: "#043c34" }}
+          loading={exporting} disabled={loading || !!error || exporting} onClick={exportExcel}>
+          <FiDownload/> Exportar Excel
+        </Button>
+      </Flex>
     </Flex>
     <Flex gap={2} direction={{ base: "column", md: "row" }}>
       <Box flex="1"><TotalsCard icon={FiArrowDownLeft} title="Entradas recebidas" value={totalReceived} tone="#137843"/></Box>
@@ -124,6 +146,7 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
           {(startDate || endDate) && <Button variant="ghost" size="xs" onClick={() => { setStartDate(""); setEndDate(""); }}>Limpar datas</Button>}
         </Flex>
       </Flex>
+      {exportError && <Text px={3} pt={3} color={COLORS.red} fontSize="11px">{exportError}</Text>}
       {loading && <Text p={4} fontSize="12px" color={COLORS.gray}>Carregando movimentações...</Text>}
       {error && <Box p={4}><Text fontSize="12px" color={COLORS.red}>{error}</Text><Button size="xs" mt={2} variant="outline" onClick={() => setRetry(v => v + 1)}>Tentar novamente</Button></Box>}
       {!loading && !error && !filtered.length && <Box textAlign="center" p={9}><Text fontWeight="700" color={COLORS.green} fontSize="13px">Nenhuma movimentação realizada encontrada</Text><Text fontSize="11px" color={COLORS.gray}>Altere os filtros ou consulte outro período. Lançamentos pendentes não entram no extrato.</Text></Box>}
