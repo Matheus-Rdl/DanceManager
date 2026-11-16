@@ -4,6 +4,7 @@ import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalenda
 import financialServices from "../../../services/financialServices";
 import FinancialOverviewCharts from "./FinancialOverviewCharts";
 import { COLORS, money, periodRange, shiftMonth } from "./financialPeriod";
+import FinancialOverviewMiniTimeline from "./FinancialOverviewMiniTimeline";
 
 /* EN: Section headers make the overview groups easier to scan.
    PT: Os títulos destacam cada grupo de indicadores da Visão Geral. */
@@ -103,7 +104,7 @@ function MainStatCard({ icon: Icon, title, value, detail, direction = 0, intent 
   </Box>;
 }
 
-export default function FinancialOverview({ period, refreshKey = 0 }) {
+export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolution }) {
   const { from, to } = periodRange(period);
   const [summary, setSummary] = useState(null);
   const [previousSummary, setPreviousSummary] = useState(null);
@@ -169,6 +170,7 @@ export default function FinancialOverview({ period, refreshKey = 0 }) {
         <SectionHeading icon={FiPieChart} title="Análise Financeira"
           description="Composição das movimentações e distribuição das despesas no período selecionado." />
         <FinancialOverviewCharts summary={summary} period={period} />
+        <FinancialOverviewMiniTimeline period={period} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
       </VStack>
       <VStack align="stretch" gap={3} mt={{ base: 2, md: 3 }}>
         <SectionHeading icon={FiRepeat} title="Outras pendências"

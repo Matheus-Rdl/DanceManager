@@ -57,7 +57,7 @@ export default function FinancialGeneral() {
     </Flex>
     <FinancialPeriodSelector period={period} onChange={updatePeriod} cashOnly={tab === "movements"}/>
     <Box role="tabpanel" minW={0}>
-      {tab==="overview" && <FinancialOverview period={period} refreshKey={refreshKey}/>}
+      {tab==="overview" && <FinancialOverview period={period} refreshKey={refreshKey} onOpenEvolution={() => setTab("evolution")}/>}
       {tab==="receipts" && <FinancialReceipts period={period} refreshKey={refreshKey}/>}
       {tab==="revenues" && <FinancialRevenues period={period} refreshKey={refreshKey} onDataChanged={refresh} focusId={focus?.tab === "revenues" ? focus.id : null}/>}
       {tab==="expenses" && <FinancialExpenses period={period} refreshKey={refreshKey} onDataChanged={refresh} focusId={focus?.tab === "expenses" ? focus.id : null}/>}
