@@ -2,6 +2,7 @@ import { ensureMonthlyFeesForUser, ensureAllActiveMonthlyFees, todayInBrazil } f
 
 import mongoose from "mongoose";
 import MonthlyFee from "../../models/MonthlyFee.js";
+import Payment from "../../models/Payment.js";
 import User from "../../models/User.js";
 import Contract from "../../models/Contract.js";
 
@@ -71,10 +72,33 @@ export default class MonthlyFeesDataAccess {
 
     const contractIds = [...new Set(fees.map(fee => fee.contractId))];
 
-    const [users, contracts] = await Promise.all([
+    /* EN: Load payment dates in one query for the selected competency. Reversed payments never count.
+       PT: Busca datas dos pagamentos da competência em uma consulta; estornos não entram no cálculo. */
+    const paymentIds = filters.reference ? fees.filter(fee => fee.status !== "cancelled").map(fee => fee.id) : [];
+    const [users, contracts, payments] = await Promise.all([
       User.find({ _id: { $in: userIds } }).lean(),
-      Contract.find({ id: { $in: contractIds } }).lean()
+      Contract.find({ id: { $in: contractIds } }).lean(),
+      paymentIds.length
+        ? Payment.find({ monthlyFeeId: { $in: paymentIds }, status: { $ne: "reversed" } })
+          .select("monthlyFeeId amount paidAt").lean()
+        : Promise.resolve([])
     ]);
+
+    /* EN: Sum only payments received on/before each fee's due date, using cents for precision.
+       PT: Soma somente pagamentos até o vencimento de cada mensalidade, em centavos. */
+    const feesById = new Map(fees.map(fee => [String(fee.id), fee]));
+    const onTimeCents = new Map();
+    for (const payment of payments) {
+      const id = String(payment.monthlyFeeId);
+      const fee = feesById.get(id);
+      const paidDate = String(payment.paidAt || "").slice(0, 10);
+      const dueDate = String(fee?.dueDate || "").slice(0, 10);
+      if (!fee || !/^\d{4}-\d{2}-\d{2}$/.test(paidDate) || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || paidDate > dueDate) continue;
+      const cents = Math.round(Number(payment.amount || 0) * 100);
+      if (!Number.isFinite(cents) || cents <= 0) continue;
+      onTimeCents.set(id, (onTimeCents.get(id) || 0) + cents);
+    }
+    const today = todayInBrazil();
 
     const usersMap = new Map(
       users.map(user => [String(user._id), user])
@@ -88,9 +112,19 @@ export default class MonthlyFeesDataAccess {
       const user = usersMap.get(String(fee.userId));
       const contract = contractsMap.get(fee.contractId);
 
+      const feeAmountCents = Math.round(Number(fee.amount || 0) * 100);
+      const receivedCents = Math.round(Number(fee.paidAmount || 0) * 100);
+      const validFee = fee.status !== "cancelled";
       return {
         ...fee,
         status: this.getStatus(fee),
+        /* EN: A fee is paid on time only when its full amount was received by its due date.
+           PT: Uma mensalidade só é pontual quando totalmente quitada até o vencimento. */
+        paidOnTime: validFee && feeAmountCents > 0 && receivedCents >= feeAmountCents
+          && (onTimeCents.get(String(fee.id)) || 0) >= feeAmountCents,
+        /* EN: Include overdue partial payments in the delinquency count.
+           PT: Inclui mensalidades parcialmente pagas e vencidas na inadimplência. */
+        hasOverdueBalance: validFee && feeAmountCents > receivedCents && String(fee.dueDate || "").slice(0, 10) < today,
         ...(filters.overdueOnly === true ? {
           remainingAmount: Math.round(Math.max(0, Number(fee.amount || 0) - Number(fee.paidAmount || 0)) * 100) / 100,
           daysOverdue: Math.max(0, Math.round((Date.parse(`${todayInBrazil()}T00:00:00Z`) - Date.parse(`${String(fee.dueDate).slice(0, 10)}T00:00:00Z`)) / 86400000))

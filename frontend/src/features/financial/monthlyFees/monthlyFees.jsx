@@ -5,7 +5,7 @@ import { Avatar, Badge, Box, Button, Flex, Heading, HStack, Input, NativeSelect,
 import monthlyFeesServices from "../../../services/monthlyFeesServices";
 import { listPlans } from "../../../services/plansServices.js";
 import { getContractColor } from "../../../utils/planColors.js";
-import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown, FiClock, FiDollarSign, FiSearch, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiArrowLeft, FiArrowRight, FiCalendar, FiCheck, FiCheckCircle, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown, FiClock, FiDollarSign, FiSearch, FiTrendingUp, FiUsers, FiX } from "react-icons/fi";
 
 const pad = (value) => String(value).padStart(2, "0");
 const formatCurrency = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -77,6 +77,30 @@ function SortHeader({ label, column, sort, onSort }) {
         </Button>
       </Table.ColumnHeader>
     );
+}
+
+/* EN: Match the monthly-fee KPI cards to the Financial Overview design system.
+   PT: Aplica aos indicadores de mensalidades o mesmo padrão visual da Visão Geral. */
+function MonthlyMetricCard({ card }) {
+  const Icon = card.icon;
+  const tones = {
+    green: { fg: "#075749", soft: "#eff9f3" },
+    received: { fg: "#168559", soft: "#eff9f3" },
+    warning: { fg: "#a86c00", soft: "#fff7e7" },
+    danger: { fg: "#b82c32", soft: "#fff0f0" }
+  };
+  const tone = tones[card.tone] || tones.green;
+  return <Box minW={0} p={{ base: 3, md: 4 }} border="1px solid #e1e9e7" borderRadius="12px"
+    bg={`linear-gradient(145deg, #ffffff 65%, ${tone.soft} 125%)`}
+    boxShadow="0 3px 12px rgba(7,63,51,0.04)">
+    <HStack gap={2} mb={3} align="center">
+      <Flex w="29px" h="29px" flexShrink={0} borderRadius="full" align="center" justify="center"
+        bg={tone.soft} color={tone.fg}><Icon size={17} /></Flex>
+      <Text color="#213b33" fontSize={{ base: "11px", md: "12px" }} fontWeight="600" lineHeight="1.35">{card.title}</Text>
+    </HStack>
+    <Heading color={tone.fg} fontSize={{ base: "18px", md: "21px" }} fontWeight="800" lineHeight="1.15" overflowWrap="anywhere">{card.value}</Heading>
+    <Text mt={2} fontSize="10px" color="#607873" lineHeight="1.45">{card.detail}</Text>
+  </Box>;
 }
 
 export default function MonthlyFees() {
@@ -159,12 +183,21 @@ export default function MonthlyFees() {
     const expected = activeFees.reduce((sum, fee) => sum + fee.amount, 0);
     const received = activeFees.reduce((sum, fee) => sum + (fee.paidAmount || 0), 0);
     const openFees = activeFees.filter((fee) => Math.max(fee.amount - (fee.paidAmount || 0), 0) > 0);
-    const overdueFees = activeFees.filter((fee) => fee.status === "overdue");
+    /* EN: Overdue partial fees also have unpaid balances; count users once, not fees.
+       PT: Parcelas parciais vencidas também têm saldo pendente; conta alunos distintos. */
+    const overdueFees = activeFees.filter((fee) => fee.hasOverdueBalance === true);
+    const overdueStudents = new Set(overdueFees.map(fee => String(fee.userId || fee.student?.userId || fee.student?.id || "")).filter(Boolean));
+    const paidOnTimeCount = activeFees.filter(fee => fee.paidOnTime === true).length;
+    const paidCount = activeFees.filter(fee => fee.status === "paid").length;
     return {
       expected,
       expectedCount: activeFees.length,
       received,
-      receivedCount: activeFees.filter((fee) => fee.status === "paid").length,
+      receivedCount: paidCount,
+      paidOnTimeCount,
+      overdueStudentsCount: overdueStudents.size,
+      paidCount,
+      settlementRate: activeFees.length ? paidCount / activeFees.length * 100 : null,
       open: openFees.reduce((sum, fee) => sum + Math.max(fee.amount - (fee.paidAmount || 0), 0), 0),
       openCount: openFees.length,
       overdue: overdueFees.reduce((sum, fee) => sum + Math.max(fee.amount - (fee.paidAmount || 0), 0), 0),
@@ -174,10 +207,10 @@ export default function MonthlyFees() {
   }, [monthlyFees]);
 
   const summaryCards = [
-    { title: "Previsto no período", value: formatCurrency(totals.expected), detail: `${totals.expectedCount} mensalidades`, icon: FiDollarSign, fg: "#006a54", bg: "#f1fbf8", border: "#c6e8df" },
-    { title: "Recebido", value: formatCurrency(totals.received), detail: `${totals.receivedCount} mensalidades pagas`, icon: FiCheck, fg: "#10923f", bg: "#f1fbf7", border: "#c6e8df" },
-    { title: "Em aberto", value: formatCurrency(totals.open), detail: `${totals.openCount} mensalidades`, icon: FiClock, fg: "#d98900", bg: "#fffaf0", border: "#f3dfb2" },
-    { title: "Em atraso", value: formatCurrency(totals.overdue), detail: `${totals.overdueCount} mensalidades`, icon: FiAlertCircle, fg: "#e33237", bg: "#fff4f4", border: "#f3cdcf" },
+    { title: "Previsto no período", value: formatCurrency(totals.expected), detail: `${totals.expectedCount} mensalidades`, icon: FiDollarSign, tone: "green" },
+    { title: "Recebido", value: formatCurrency(totals.received), detail: `${totals.receivedCount} mensalidades quitadas`, icon: FiCheck, tone: "received" },
+    { title: "Em aberto", value: formatCurrency(totals.open), detail: `${totals.openCount} mensalidades`, icon: FiClock, tone: "warning" },
+    { title: "Em atraso", value: formatCurrency(totals.overdue), detail: `${totals.overdueCount} mensalidades vencidas`, icon: FiAlertCircle, tone: "danger" },
   ];
 
   const hasFilters = search || statusFilter !== "all" || activityFilter !== "all";
@@ -190,8 +223,9 @@ export default function MonthlyFees() {
     <VStack gap={3} align="stretch" width="100%" minWidth={0} bg="var(--app-background)" paddingRight={4}>
       <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={3} wrap="wrap">
         <Flex align="center" gap={3}>
-          <Flex w="48px" h="48px" borderRadius="full" bg="#0b6b5b" color="white" align="center" justify="center" flexShrink={0}><FiCalendar size={24} /></Flex>
-          <Box><Heading as="h1" fontSize={{ base: "22px", md: "26px" }} fontWeight="700" lineHeight="1.1" color="#062f2b">Mensalidades</Heading><Text mt="4px" fontSize="12px" color="#5e7471">Acompanhe as mensalidades e os recebimentos dos alunos.</Text></Box>
+          <Flex w="38px" h="38px" borderRadius="12px" bg="#e9f6f1" color="#075749"
+            align="center" justify="center" flexShrink={0}><FiCalendar size={20} /></Flex>
+          <Box><Heading as="h1" fontSize={{ base: "19px", md: "23px" }} fontWeight="800" lineHeight="1.2" color="#075749">Mensalidades</Heading><Text mt="4px" fontSize={{ base: "11px", md: "12px" }} color="#607873">Acompanhe as mensalidades e os recebimentos dos alunos.</Text></Box>
         </Flex>
         <HStack gap={2}>
           {displayReady && totals.overdueCount > 0 && <Badge display={{ base: "none", md: "inline-flex" }} alignItems="center" gap="6px" px="12px" py="7px" borderRadius="999px" bg="#fff0f0" color="#c72e34" fontSize="11px" fontWeight="600"><FiAlertCircle size={14} />{totals.overdueCount} {totals.overdueCount === 1 ? "mensalidade em atraso" : "mensalidades em atraso"}</Badge>}
@@ -210,11 +244,45 @@ export default function MonthlyFees() {
       </Flex>
 
       {displayReady && (
-      <Box display={{ base: mobileSearchMode ? "none" : "block", md: "block" }}>
-        <SimpleGrid columns={{ base: 2, xl: 4 }} gap={3}>
-          {summaryCards.map((card) => { const Icon = card.icon; return <Flex key={card.title} p={3} minH={{ base: "112px", md: "105px" }} border="1px solid" borderColor={card.border} borderRadius="8px" bg={card.bg} align="flex-start" gap={{ base: 2, md: 3 }}><Flex display={{ base: "none", sm: "flex" }} mt="1px" w="36px" h="36px" flex="0 0 36px" borderRadius="full" bg={card.fg} color="white" align="center" justify="center"><Icon size={18} /></Flex><Box minW={0}><Text color={card.fg} fontSize={{ base: "11px", md: "13px" }} fontWeight="600">{card.title}</Text><Text mt="3px" color={card.title === "Em atraso" ? "#b01218" : card.title === "Em aberto" ? "#754700" : "#073f39"} fontSize={{ base: "16px", md: "19px" }} lineHeight="1.2" fontWeight="800">{card.value}</Text><Text mt="5px" color="#60777c" fontSize="10px">{card.detail}</Text></Box></Flex>; })}
-        </SimpleGrid>
-      </Box>
+        <VStack align="stretch" gap={3} display={{ base: mobileSearchMode ? "none" : "flex", md: "flex" }}>
+          <SimpleGrid columns={{ base: 2, xl: 4 }} gap={3}>
+            {summaryCards.map(card => <MonthlyMetricCard key={card.title} card={card} />)}
+          </SimpleGrid>
+
+          {/* EN: Keep the student list below; these are supplemental management indicators.
+              PT: Mantém a lista de mensalidades abaixo; estes cards são apenas indicadores adicionais. */}
+          <Text fontSize="13px" fontWeight="700" color="#075749" pt={2}>Acompanhamento dos alunos</Text>
+          <SimpleGrid columns={2} gap={3}>
+            <MonthlyMetricCard card={{ title: "Alunos inadimplentes", value: String(totals.overdueStudentsCount),
+              detail: "Alunos distintos com mensalidade vencida e saldo pendente.", icon: FiUsers, tone: "danger" }} />
+            <MonthlyMetricCard card={{ title: "Quitadas no prazo", value: String(totals.paidOnTimeCount),
+              detail: "Mensalidades integralmente pagas até o vencimento.", icon: FiCheckCircle, tone: "received" }} />
+          </SimpleGrid>
+          <Box bg="white" border="1px solid #e1e9e7" borderRadius="12px" p={{ base: 3, md: 4 }}
+            boxShadow="0 3px 12px rgba(7,63,51,0.04)">
+            <Flex align="center" justify="space-between" gap={3} wrap="wrap" mb={3}>
+              <HStack gap={2} align="center">
+                <Flex w="29px" h="29px" borderRadius="full" align="center" justify="center" bg="#eff9f3" color="#168559"><FiTrendingUp size={17} /></Flex>
+                <Box>
+                  <Text fontSize={{ base: "12px", md: "13px" }} fontWeight="700" color="#213b33">Taxa de quitação</Text>
+                  <Text fontSize="10px" color="#607873">Mensalidades totalmente pagas da competência selecionada.</Text>
+                </Box>
+              </HStack>
+              <Heading fontSize={{ base: "22px", md: "26px" }} fontWeight="800" color="#168559">
+                {totals.settlementRate == null ? "—" : `${totals.settlementRate.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+              </Heading>
+            </Flex>
+            <Box h="11px" bg="#e7efeb" borderRadius="full" overflow="hidden" role="progressbar"
+              aria-label="Taxa de quitação das mensalidades" aria-valuemin={0} aria-valuemax={100}
+              aria-valuenow={totals.settlementRate == null ? 0 : Math.min(100, totals.settlementRate)}>
+              <Box h="100%" w={`${Math.min(100, totals.settlementRate || 0)}%`} bg="#168559" borderRadius="full" />
+            </Box>
+            <Flex mt={3} align="center" justify="space-between" gap={2} wrap="wrap">
+              <Text fontSize="11px" fontWeight="600" color="#213b33">{totals.paidCount} de {totals.expectedCount} mensalidades quitadas</Text>
+              <Text fontSize="11px" color="#607873">{totals.expectedCount - totals.paidCount} não quitadas</Text>
+            </Flex>
+          </Box>
+        </VStack>
       )}
 
       <Box bg="white" border="1px solid #d7e2df" borderRadius="8px" overflow="hidden">
