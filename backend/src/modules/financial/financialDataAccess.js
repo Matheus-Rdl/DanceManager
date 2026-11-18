@@ -269,8 +269,17 @@ export default class FinancialDataAccess {
 
   async getReceipts(filters = {}) {
     const { from, after } = resolveRange(filters);
-    const payments = await Payment.find({ ...activePayments, ...between("paidAt", from, after) })
-      .sort({ paidAt: -1, createdAt: -1 }).lean();
+    /* EN: The default endpoint still returns only valid payments. The financial receipts
+       dashboard may also request reversed payments to calculate reversals of payments
+       originally made in the selected period; no cash-out transaction is generated.
+       PT: A consulta padrão mantém apenas pagamentos válidos. O painel financeiro pode
+       incluir estornados para apurar reversões de pagamentos originalmente feitos no
+       período selecionado, sem registrar uma saída de caixa fictícia. */
+    const includeReversed = filters.includeReversed === "true";
+    const query = { ...(includeReversed ? {} : activePayments), ...between("paidAt", from, after) };
+    const paymentsQuery = Payment.find(query);
+    if (includeReversed) paymentsQuery.select("id monthlyFeeId userId amount method paidAt createdAt status");
+    const payments = await paymentsQuery.sort({ paidAt: -1, createdAt: -1 }).lean();
     const monthlyFeeIds = [...new Set(payments.map(p => p.monthlyFeeId).filter(Boolean))];
     const userIds = [...new Set(payments.map(p => p.userId).filter(Boolean))];
     const [fees, users] = await Promise.all([
