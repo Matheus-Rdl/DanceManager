@@ -140,10 +140,16 @@ export default class FinancialDataAccess {
       .sort((a, b) => b.amount - a.amount || a.category.localeCompare(b.category, "pt-BR"));
     const expensesPaid = round(outgoing.reduce((total, item) => total + Number(item.total || 0), 0));
     const overdueFees = fees.filter(fee => status(fee) === "overdue");
+    /* EN: Count the same active monthly fees as the competency totals; partial and overdue unpaid fees are not settled.
+       PT: Conta as mesmas mensalidades válidas do período; cobranças parciais ou atrasadas não quitadas não entram na taxa. */
+    const totalFeesCount = fees.length;
+    const paidFeesCount = fees.filter(fee => status(fee) === "paid").length;
+    const feeSettlementRate = totalFeesCount ? round(paidFeesCount / totalFeesCount * 100) : null;
     const pendingExpenses = dueExpenses.filter(item => item.status === "pending");
     return {
       from, to, received, monthlyFeesReceived, otherRevenuesReceived, expensesPaid, result: round(received - expensesPaid),
       expenseCategories,
+      totalFeesCount, paidFeesCount, feeSettlementRate,
       expectedFees: sum(fees, "amount"),
       openFees: round(fees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),
       overdueFeesCount: overdueFees.length,

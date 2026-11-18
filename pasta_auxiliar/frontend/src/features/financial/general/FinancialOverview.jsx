@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Heading, HStack, SimpleGrid, Text, VStack } from "@chakra-ui/react";
-import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart } from "react-icons/fi";
+import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiCheckCircle, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
 import FinancialOverviewCharts from "./FinancialOverviewCharts";
 import { COLORS, money, periodRange, shiftMonth } from "./financialPeriod";
@@ -39,6 +39,49 @@ function MonthlyStatCard({ icon: Icon, title, value, caption, tone = "green" }) 
     </HStack>
     <Heading fontSize={{ base: "18px", md: "21px" }} color={style.accent} fontWeight="800" lineHeight="1.15">{value}</Heading>
     {caption && <Text mt={2} fontSize="10px" color={COLORS.gray} lineHeight="1.45">{caption}</Text>}
+  </Box>;
+}
+
+/* EN: Settlement rate considers fully paid monthly fees of the selected competencies, not payments received in the cash period.
+   PT: A taxa considera mensalidades totalmente quitadas das competências selecionadas, não recebimentos do período de caixa. */
+function MonthlySettlementCard({ paidCount, totalCount, rate }) {
+  const count = Math.max(0, Number(totalCount) || 0);
+  const paid = Math.min(count, Math.max(0, Number(paidCount) || 0));
+  const hasMetrics = totalCount != null && paidCount != null && rate != null;
+  const hasData = hasMetrics && count > 0 && Number.isFinite(Number(rate));
+  const percentage = hasData ? Math.min(100, Math.max(0, Number(rate))) : 0;
+  const label = hasData ? `${percentage.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—";
+  return <Box bg="white" border="1px solid #e1e9e7" borderRadius="12px" p={{ base: 3, md: 4 }}
+    boxShadow="0 3px 12px rgba(7,63,51,0.04)" minW={0}>
+    <HStack justify="space-between" align="start" gap={3} flexWrap="wrap">
+      <HStack align="start" gap={2} minW={0}>
+        <Box display="flex" alignItems="center" justifyContent="center" w="33px" h="33px"
+          bg="#e9f6f1" color="#075749" borderRadius="10px" flexShrink={0}><FiCheckCircle size={18} /></Box>
+        <Box minW={0}>
+          <Text fontWeight="700" color="#075749" fontSize={{ base: "13px", md: "14px" }}>Taxa de quitação</Text>
+          <Text fontSize="11px" color={COLORS.gray} mt={1}>
+            Mensalidades totalmente pagas das competências selecionadas.
+          </Text>
+        </Box>
+      </HStack>
+      <Heading fontSize={{ base: "25px", md: "29px" }} fontWeight="800" color="#168559" lineHeight="1.2">{label}</Heading>
+    </HStack>
+    {/* EN: Visual indicator, with accessible values for screen readers.
+        PT: Indicador visual, com valores acessíveis para leitores de tela. */}
+    <Box mt={4} h="11px" bg="#e7efeb" borderRadius="full" overflow="hidden"
+      role="progressbar" aria-label="Taxa de quitação das mensalidades"
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={hasData ? percentage : undefined}
+      aria-valuetext={hasData ? `${label}: ${paid} de ${count} mensalidades quitadas` : hasMetrics ? "Sem mensalidades no período" : "Indicador indisponível"}>
+      <Box bg="#168559" h="100%" w={`${percentage}%`} borderRadius="full" />
+    </Box>
+    <HStack mt={3} justify="space-between" gap={2} flexWrap="wrap">
+      <Text fontSize="11px" fontWeight="600" color="#25483d">
+        {hasData ? `${paid} de ${count} ${count === 1 ? "mensalidade" : "mensalidades"} quitadas` : hasMetrics ? "Sem mensalidades no período" : "Indicador indisponível"}
+      </Text>
+      {hasData && <Text fontSize="11px" color={COLORS.gray}>
+        {count - paid} {count - paid === 1 ? "mensalidade ainda não quitada" : "mensalidades ainda não quitadas"}
+      </Text>}
+    </HStack>
   </Box>;
 }
 
@@ -170,6 +213,7 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
             detail={`Margem: ${margin}`} neutral spanOnMobile />
         </SimpleGrid>
       </VStack>
+      
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiCalendar} title="Mensalidades"
           description="Cobranças, recebimentos e situação das mensalidades da competência selecionada." />
@@ -183,13 +227,17 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
           <MonthlyStatCard icon={FiClock} title="Em aberto" value={money(summary?.openFees)}
             caption="Saldo não pago, incluindo as mensalidades em atraso." tone="warning" />
         </SimpleGrid>
+        <MonthlySettlementCard paidCount={summary?.paidFeesCount}
+          totalCount={summary?.totalFeesCount} rate={summary?.feeSettlementRate} />
       </VStack>
+
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiPieChart} title="Análise Financeira"
           description="Composição das movimentações e distribuição das despesas no período selecionado." />
         <FinancialOverviewCharts summary={summary} period={period} />
         <FinancialOverviewMiniTimeline period={period} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
       </VStack>
+
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiAlertCircle} title="Atenção financeira"
           description="Mensalidades vencidas e proventos pendentes do período; despesas a vencer nos próximos 7 dias a partir de hoje." />
