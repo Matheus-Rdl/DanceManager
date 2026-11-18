@@ -102,7 +102,7 @@ export default class FinancialDataAccess {
        PT: Despesas próximas do vencimento consideram hoje, independentemente do período histórico. */
     const today = todayInBrazil();
     const lastDay = addCalendarDays(today, 6);
-    const [paid, outgoing, fees, dueExpenses, otherReceived, dueRevenues, upcomingExpenses] = await Promise.all([
+    const [paid, outgoing, fees, dueExpenses, otherReceived, dueRevenues, upcomingExpenses, topExpenses] = await Promise.all([
       Payment.aggregate([
         { $match: { ...activePayments, ...between("paidAt", from, after) } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
@@ -124,7 +124,12 @@ export default class FinancialDataAccess {
       Revenue.find({ schoolId: schoolId(), reference: { $gte: from, $lte: to }, status: "pending" })
         .select("amount dueDate").lean(),
       Expense.find({ schoolId: schoolId(), status: "pending", dueDate: { $gte: today, $lte: lastDay } })
-        .select("amount").lean()
+        .select("amount").lean(),
+      /* EN: Top five individual paid expenses by real payment date (not competency).
+         PT: Cinco maiores despesas individuais pela data real do pagamento (não pela competência). */
+      Expense.find({ schoolId: schoolId(), status: "paid", paidAmount: { $gt: 0 }, ...between("paidAt", from, after) })
+        .select("id description category paidAmount paidAt -_id")
+        .sort({ paidAmount: -1, paidAt: -1, id: 1 }).limit(5).lean()
     ]);
     const monthlyFeesReceived = round(Number(paid[0]?.total || 0));
     const otherRevenuesReceived = round(Number(otherReceived[0]?.total || 0));
@@ -149,6 +154,10 @@ export default class FinancialDataAccess {
     return {
       from, to, received, monthlyFeesReceived, otherRevenuesReceived, expensesPaid, result: round(received - expensesPaid),
       expenseCategories,
+      topExpenses: topExpenses.map(item => ({
+        id: item.id, description: item.description, category: item.category,
+        paidAt: item.paidAt, amount: round(Number(item.paidAmount) || 0)
+      })),
       totalFeesCount, paidFeesCount, feeSettlementRate,
       expectedFees: sum(fees, "amount"),
       openFees: round(fees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),

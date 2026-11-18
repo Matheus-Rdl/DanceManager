@@ -3,7 +3,7 @@ import { Box, Button, Heading, HStack, SimpleGrid, Text, VStack } from "@chakra-
 import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiCheckCircle, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
 import FinancialOverviewCharts from "./FinancialOverviewCharts";
-import { COLORS, money, periodRange, shiftMonth } from "./financialPeriod";
+import { COLORS, formatDate, money, periodRange, shiftMonth } from "./financialPeriod";
 import FinancialOverviewMiniTimeline from "./FinancialOverviewMiniTimeline";
 
 /* EN: Section headers make the overview groups easier to scan.
@@ -110,6 +110,51 @@ function AttentionCard({ icon: Icon, title, count, amount, description, tone = "
       <Text fontSize="10px" color={COLORS.gray}>{valueCount === 1 ? "lançamento" : "lançamentos"}</Text>
     </HStack>
     <Text mt={1} fontSize={{ base: "13px", md: "15px" }} fontWeight="700" color={valueCount ? style.accent : "#607873"}>{money(amount)}</Text>
+  </Box>;
+}
+
+/* EN: Ranks the five highest individual expenses paid within the selected cash period.
+   PT: Classifica as cinco maiores despesas individuais pagas no período de caixa escolhido. */
+function TopExpensesCard({ items }) {
+  const expenses = (Array.isArray(items) ? items : [])
+    .filter(item => Number.isFinite(Number(item.amount)) && Number(item.amount) > 0)
+    .sort((a, b) => Number(b.amount) - Number(a.amount) || String(b.paidAt || "").localeCompare(String(a.paidAt || "")))
+    .slice(0, 5);
+  const largest = Number(expenses[0]?.amount || 0);
+
+  return <Box bg="white" border="1px solid #dfe8e4" borderRadius="13px" p={{ base: 3, md: 4 }} minW={0}
+    boxShadow="0 3px 12px rgba(7,63,51,0.055)">
+    {!expenses.length ? <Text py={5} color={COLORS.gray} fontSize="12px" textAlign="center">
+      Nenhuma despesa paga no período selecionado.
+    </Text> : <VStack align="stretch" gap={3}>
+      {expenses.map((item, index) => <Box key={item.id || `${item.description}-${item.paidAt}-${index}`} minW={0}>
+        <HStack justify="space-between" align="center" gap={3} mb={2}>
+          <HStack minW={0} flex="1" gap={3} align="center">
+            <Box w="27px" h="27px" flexShrink={0} display="flex" justifyContent="center" alignItems="center"
+              borderRadius="7px" bg="#f1f6f4" color="#075749" fontSize="11px" fontWeight="800">
+              {index + 1}º
+            </Box>
+            <Box minW={0}>
+              <Text color="#203b32" fontSize={{ base: "11px", md: "12px" }} fontWeight="700" overflowWrap="anywhere">
+                {item.description || "Despesa sem descrição"}
+              </Text>
+              <Text fontSize="10px" color={COLORS.gray}>
+                {item.category || "Outros"} · Pago em {formatDate(item.paidAt)}
+              </Text>
+            </Box>
+          </HStack>
+          <Text color="#c4363c" fontSize={{ base: "12px", md: "13px" }} fontWeight="800"
+            whiteSpace="nowrap" fontVariantNumeric="tabular-nums">{money(item.amount)}</Text>
+        </HStack>
+        {/* EN: Each bar is relative to the largest individual expense, not to total expenses.
+            PT: Cada barra é proporcional à maior despesa individual, não ao total de gastos. */}
+        <Box h="6px" bg="#f2e9e9" borderRadius="full" overflow="hidden"
+          role="meter" aria-label={`Comparação da despesa ${index + 1}`} aria-valuemin={0}
+          aria-valuemax={100} aria-valuenow={largest > 0 ? Math.round(Number(item.amount) / largest * 100) : 0}>
+          <Box bg="#ed4a55" h="100%" w={`${largest > 0 ? Number(item.amount) / largest * 100 : 0}%`} borderRadius="full" />
+        </Box>
+      </Box>)}
+    </VStack>}
   </Box>;
 }
 
@@ -238,6 +283,12 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
         <FinancialOverviewMiniTimeline period={period} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
       </VStack>
 
+      <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
+        <SectionHeading icon={FiBarChart2} title="Maiores despesas"
+          description="Os 5 maiores gastos individuais efetivamente pagos no período selecionado." />
+        <TopExpensesCard items={summary?.topExpenses} />
+      </VStack>
+      
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiAlertCircle} title="Atenção financeira"
           description="Mensalidades vencidas e proventos pendentes do período; despesas a vencer nos próximos 7 dias a partir de hoje." />
