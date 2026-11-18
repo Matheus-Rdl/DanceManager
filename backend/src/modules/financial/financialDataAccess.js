@@ -40,6 +40,13 @@ const resolveRange = filters => {
   return { from, to, after: addMonths(to, 1) };
 };
 const round = value => Math.round(value * 100) / 100;
+/* EN: Add calendar days in UTC so YYYY-MM-DD comparisons are timezone-safe.
+   PT: Soma dias pelo calendário UTC para comparar datas YYYY-MM-DD com segurança. */
+const addCalendarDays = (date, days) => {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
 
 /* Acesso e agregação aos dados financeiros; nenhuma resposta HTTP nesta camada. */
 export default class FinancialDataAccess {
@@ -91,7 +98,11 @@ export default class FinancialDataAccess {
   async getPeriodSummary(filters = {}) {
     const { from, to, after } = resolveRange(filters);
     await ensureAllExpenses();
-    const [paid, outgoing, fees, dueExpenses, otherReceived, dueRevenues] = await Promise.all([
+    /* EN: Upcoming expense alerts always refer to today, regardless of the selected historical period.
+       PT: Despesas próximas do vencimento consideram hoje, independentemente do período histórico. */
+    const today = todayInBrazil();
+    const lastDay = addCalendarDays(today, 6);
+    const [paid, outgoing, fees, dueExpenses, otherReceived, dueRevenues, upcomingExpenses] = await Promise.all([
       Payment.aggregate([
         { $match: { ...activePayments, ...between("paidAt", from, after) } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
@@ -111,7 +122,9 @@ export default class FinancialDataAccess {
         { $group: { _id: null, total: { $sum: "$receivedAmount" } } }
       ]),
       Revenue.find({ schoolId: schoolId(), reference: { $gte: from, $lte: to }, status: "pending" })
-        .select("amount dueDate").lean()
+        .select("amount dueDate").lean(),
+      Expense.find({ schoolId: schoolId(), status: "pending", dueDate: { $gte: today, $lte: lastDay } })
+        .select("amount").lean()
     ]);
     const monthlyFeesReceived = round(Number(paid[0]?.total || 0));
     const otherRevenuesReceived = round(Number(otherReceived[0]?.total || 0));
@@ -137,6 +150,8 @@ export default class FinancialDataAccess {
       overdueFeesValue: round(overdueFees.reduce((total, f) => total + Math.max(Number(f.amount || 0) - Number(f.paidAmount || 0), 0), 0)),
       pendingExpensesCount: pendingExpenses.length,
       pendingExpensesValue: sum(pendingExpenses, "amount"),
+      upcomingExpensesCount: upcomingExpenses.length,
+      upcomingExpensesValue: sum(upcomingExpenses, "amount"),
       pendingRevenuesCount: dueRevenues.length, pendingRevenuesValue: sum(dueRevenues, "amount"),
       overdueRevenuesCount: dueRevenues.filter(r => r.dueDate < todayInBrazil()).length
     };
@@ -178,6 +193,7 @@ export default class FinancialDataAccess {
     const byOutgoing = new Map(outgoing.map(item => [item._id, Number(item.total) || 0]));
     const byOtherIncoming = new Map(otherIncoming.map(item => [item._id, Number(item.total) || 0]));
     const round = value => Math.round(value * 100) / 100;
+
     const timeline = Array.from({ length: count }, (_, index) => {
       const reference = addMonths(firstMonth, index);
       const monthlyFeesReceived = round(byIncoming.get(reference) || 0);

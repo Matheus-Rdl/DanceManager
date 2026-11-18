@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Heading, HStack, SimpleGrid, Text, VStack } from "@chakra-ui/react";
-import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart, FiRepeat } from "react-icons/fi";
+import { FiAlertCircle, FiArrowDownRight, FiArrowUpRight, FiBarChart2, FiCalendar, FiClock, FiCreditCard, FiDatabase, FiDollarSign, FiMinus, FiPieChart } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
 import FinancialOverviewCharts from "./FinancialOverviewCharts";
 import { COLORS, money, periodRange, shiftMonth } from "./financialPeriod";
@@ -42,13 +42,31 @@ function MonthlyStatCard({ icon: Icon, title, value, caption, tone = "green" }) 
   </Box>;
 }
 
-/* EN: Preserve the pre-existing pending indicators outside the monthly fee group.
-   PT: Mantém os indicadores de pendências existentes separados das mensalidades. */
-function StatCard({ icon: Icon, title, value, caption, tone = COLORS.green }) {
-  return <Box bg="white" border="1px solid #e1e9e7" borderRadius="9px" p={4} minW={0}>
-    <HStack gap={2} mb={2}><Box color={tone}><Icon size={18} /></Box><Text fontSize="11px" color={COLORS.gray}>{title}</Text></HStack>
-    <Heading fontSize={{ base: "16px", md: "21px" }} color={tone} fontWeight="800">{value}</Heading>
-    {caption && <Text mt={1} fontSize="10px" color={COLORS.gray}>{caption}</Text>}
+/* EN: Alerts summarize open obligations; they never create or modify transactions.
+   PT: Os alertas resumem pendências, sem criar nem alterar movimentações. */
+function AttentionCard({ icon: Icon, title, count, amount, description, tone = "warning" }) {
+  const styles = {
+    danger: { accent: "#c4363c", iconBg: "#fff0f0", border: "#f1d6d9" },
+    warning: { accent: "#a86c00", iconBg: "#fff6e5", border: "#eddfc3" },
+    neutral: { accent: "#075749", iconBg: "#eaf6f0", border: "#dce9e2" }
+  };
+  const style = styles[tone] || styles.warning;
+  const valueCount = Math.max(0, Number(count) || 0);
+  return <Box bg="white" border="1px solid" borderColor={style.border} borderLeft={`3px solid ${style.accent}`}
+    borderRadius="12px" p={{ base: 3, md: 4 }} minW={0} boxShadow="0 3px 12px rgba(7,63,51,0.04)">
+    <HStack gap={2} mb={3} align="start">
+      <Box flexShrink={0} w="33px" h="33px" display="flex" alignItems="center" justifyContent="center"
+        borderRadius="10px" bg={style.iconBg} color={style.accent}><Icon size={17} /></Box>
+      <Box minW={0}>
+        <Text fontSize={{ base: "11px", md: "12px" }} color="#203b32" fontWeight="700" lineHeight="1.35">{title}</Text>
+        <Text mt={1} fontSize="10px" color={COLORS.gray} lineHeight="1.45">{description}</Text>
+      </Box>
+    </HStack>
+    <HStack align="baseline" gap={2} wrap="wrap">
+      <Heading fontSize={{ base: "22px", md: "26px" }} fontWeight="800" color={valueCount ? style.accent : "#607873"}>{valueCount}</Heading>
+      <Text fontSize="10px" color={COLORS.gray}>{valueCount === 1 ? "lançamento" : "lançamentos"}</Text>
+    </HStack>
+    <Text mt={1} fontSize={{ base: "13px", md: "15px" }} fontWeight="700" color={valueCount ? style.accent : "#607873"}>{money(amount)}</Text>
   </Box>;
 }
 
@@ -166,20 +184,27 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
             caption="Saldo não pago, incluindo as mensalidades em atraso." tone="warning" />
         </SimpleGrid>
       </VStack>
+      
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiPieChart} title="Análise Financeira"
           description="Composição das movimentações e distribuição das despesas no período selecionado." />
         <FinancialOverviewCharts summary={summary} period={period} />
         <FinancialOverviewMiniTimeline period={period} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
       </VStack>
-      <VStack align="stretch" gap={3} mt={{ base: 2, md: 3 }}>
-        <SectionHeading icon={FiRepeat} title="Outras pendências"
-          description="Valores de despesas e proventos ainda pendentes no período." />
-        <SimpleGrid columns={{ base: 2, md: 2 }} gap={3}>
-          <StatCard icon={FiRepeat} title="Despesas pendentes" value={summary?.pendingExpensesCount ?? 0}
-            caption={money(summary?.pendingExpensesValue)} tone="#996500" />
-          <StatCard icon={FiClock} title="Proventos pendentes" value={summary?.pendingRevenuesCount ?? 0}
-            caption={money(summary?.pendingRevenuesValue)} tone="#996500" />
+
+      <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
+        <SectionHeading icon={FiAlertCircle} title="Atenção financeira"
+          description="Mensalidades vencidas e proventos pendentes do período; despesas a vencer nos próximos 7 dias a partir de hoje." />
+        <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={3}>
+          <AttentionCard icon={FiAlertCircle} title="Mensalidades atrasadas" tone="danger"
+            count={summary?.overdueFeesCount} amount={summary?.overdueFeesValue}
+            description="Cobranças vencidas com saldo pendente no período selecionado." />
+          <AttentionCard icon={FiClock} title="Despesas próximas do vencimento" tone="warning"
+            count={summary?.upcomingExpensesCount} amount={summary?.upcomingExpensesValue}
+            description="Despesas não pagas que vencem nos próximos 7 dias, incluindo hoje." />
+          <AttentionCard icon={FiCreditCard} title="Proventos a receber" tone="neutral"
+            count={summary?.pendingRevenuesCount} amount={summary?.pendingRevenuesValue}
+            description="Proventos pendentes no período selecionado." />
         </SimpleGrid>
       </VStack>
       <Text fontSize="11px" color={COLORS.gray}>Resultado realizado = mensalidades recebidas + proventos recebidos − despesas pagas no período. Valores pendentes não entram no resultado. Não é saldo bancário.</Text>
