@@ -17,9 +17,11 @@ import paymentsRouter from "./modules/payments/paymentsRouter.js";
 import expensesRouter from "./modules/expenses/expensesRouter.js";
 import revenuesRouter from "./modules/revenues/revenuesRouter.js";
 import financialRouter from "./modules/financial/financialRouter.js";
+import financialAccountsRouter from "./modules/financialAccounts/financialAccountsRouter.js";
 import dashboardRouter from "./modules/dashboard/dashboardRouter.js";
 import Expense from "./models/Expense.js";
 import Revenue from "./models/Revenue.js";
+import FinancialAccount from "./models/FinancialAccount.js";
 import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
 import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
@@ -94,6 +96,9 @@ async function main() {
   app.use("/expenses", expensesRouter);
   app.use("/revenues", revenuesRouter);
   app.use("/financial", financialRouter);
+  /* EN: Independent account registry; never modifies existing financial endpoints.
+     PT: Cadastro independente de contas; não altera as rotas financeiras existentes. */
+  app.use("/financial-accounts", financialAccountsRouter);
   app.use("/dashboard", dashboardRouter);
 
   app.use((err, req, res, next) => {
@@ -120,6 +125,9 @@ async function main() {
   await runFeeGeneration();
   await Expense.init(); // Índice único para despesas recorrentes.
   await Revenue.init(); // Índice único para futuras integrações de proventos.
+  /* EN: Ensure unique account-name/default indexes before accepting new account requests.
+     PT: Garante os índices únicos de contas e da conta padrão antes de aceitar cadastros. */
+  await FinancialAccount.init();
   const runExpenseGeneration = async () => {
     try {
       const count = await ensureAllExpenses();
