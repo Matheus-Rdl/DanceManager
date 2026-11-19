@@ -1,6 +1,6 @@
 /* Requisições do Financeiro Geral, mantendo o formato { success, body } da API. */
 const root = `${import.meta.env.VITE_API_URL}/expenses`;
-export const expenseCategories = ["Professores", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros"];
+export const expenseCategories = ["Professores", "Pró-labore", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros"];
 const request = async (path = "", method = "GET", data) => {
   const response = await fetch(`${root}${path}`, {
     method, headers: { "Content-Type": "application/json" },

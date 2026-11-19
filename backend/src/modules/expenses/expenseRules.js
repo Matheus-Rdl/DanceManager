@@ -1,7 +1,7 @@
 import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import { initiatorFields } from "../financial/financialInitiators.js";
 
-export const CATEGORIES = ["Professores", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros"];
+export const CATEGORIES = ["Professores", "Pró-labore", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros"];
 /* Até implementar login por escola, o identificador vem exclusivamente da configuração do servidor. */
 export const schoolId = () => process.env.SCHOOL_ID || "default";
 export const monthNow = () => todayInBrazil().slice(0, 7);
