@@ -120,7 +120,7 @@ describe("Commit 09: cálculo puro dos saldos", () => {
 const source = code => `data:text/javascript,${encodeURIComponent(code)}`;
 registerHooks({ resolve(specifier, context, nextResolve) {
   if (["../../models/FinancialAccount.js", "../../models/Payment.js", "../../models/Expense.js",
-       "../../models/Revenue.js"].includes(specifier)) {
+       "../../models/Revenue.js", "../../models/FinancialTransfer.js"].includes(specifier)) {
     return { url: source("export default {};"), shortCircuit: true };
   }
   if (specifier === "../expenses/expenseRules.js") {
@@ -134,6 +134,8 @@ const fakeModel = (records, queries) => ({
   find(query) {
     queries.push(query);
     const matched = records.filter(record => Object.entries(query).every(([key, value]) => {
+      if (key === "$or") return value.some(branch => Object.entries(branch).every(([name, rule]) =>
+        rule.$in ? rule.$in.includes(record[name]) : rule === record[name]));
       if (value && typeof value === "object") {
         if (value.$in && !value.$in.includes(record[key])) return false;
         if (value.$ne !== undefined && value.$ne === record[key]) return false;
@@ -143,17 +145,19 @@ const fakeModel = (records, queries) => ({
       }
       return record[key] === value;
     }));
-    const queryChain = { select() { return queryChain; }, sort() { return queryChain; }, lean: async () => matched };
+    const queryChain = { select() { return queryChain; }, sort() { return queryChain; },
+      session() { return queryChain; }, lean: async () => matched };
     return queryChain;
   }
 });
 const makeDAO = (data = fixture(), school = "school-test") => {
-  const queries = { accounts: [], payments: [], expenses: [], revenues: [] };
+  const queries = { accounts: [], payments: [], expenses: [], revenues: [], transfers: [] };
   return { queries, dao: new BalanceDAO({
     accountModel: fakeModel(data.accounts, queries.accounts),
     paymentModel: fakeModel(data.payments, queries.payments),
     expenseModel: fakeModel(data.expenses.map(e => ({ ...e, schoolId: "school-test" })), queries.expenses),
     revenueModel: fakeModel(data.revenues.map(r => ({ ...r, schoolId: "school-test" })), queries.revenues),
+    transferModel: fakeModel(data.transfers ?? [], queries.transfers),
     resolveSchoolId: () => school, today: () => "2026-11-20"
   }) };
 };
@@ -168,6 +172,7 @@ describe("Commit 09: consulta de saldos (DataAccess isolado)", () => {
     assert.deepEqual(queries.payments[0].paidAt, { $gte: "2026-07-01", $lt: "2026-08-01" });
     assert.equal(queries.expenses[0].schoolId, "school-test");
     assert.equal(queries.revenues[0].schoolId, "school-test");
+    assert.equal(queries.transfers[0].schoolId, "school-test");
   });
   it("retorna lista vazia sem ler os lançamentos quando não há contas", async () => {
     const { dao, queries } = makeDAO({ accounts: [], payments: [], expenses: [], revenues: [] });
@@ -192,5 +197,57 @@ describe("Commit 09: consulta de saldos (DataAccess isolado)", () => {
     const router = readFileSync(new URL("../../src/modules/financialAccounts/financialAccountsRouter.js", import.meta.url), "utf8");
     assert.ok(router.indexOf('router.get("/balances"') >= 0);
     assert.ok(router.indexOf('router.get("/balances"') < router.indexOf('router.get("/:id"'));
+  });
+});
+
+/* EN: A transfer changes the distribution of cash, not the business's revenue or expenses.
+   PT: Uma transferência altera a distribuição dos saldos, não as receitas e despesas do negócio. */
+describe("Commit 11: saldos após transferências", () => {
+  const completed = { schoolId: "school-test", fromAccountId: NOH, toAccountId: INFINITE,
+    amount: 90, status: "completed", transferredAt: "2026-07-10T12:00:00.000Z" };
+  it("debita origem, credita destino e mantém o total consolidado", () => {
+    const data = fixture(); data.transfers = [completed];
+    const result = calc(data);
+    assert.equal(account(result, NOH).balance, 1015.05);
+    assert.equal(account(result, INFINITE).balance, 289.74);
+    assert.equal(result.totalBalance, 1304.79);
+    assert.equal(account(result, NOH).transfersOut, 90);
+    assert.equal(account(result, INFINITE).transfersIn, 90);
+    assert.equal(account(result, NOH).received, 185.55);
+    assert.equal(account(result, NOH).paid, 80.5);
+  });
+  it("ignora transferências estornadas, futuras ou de contas desconhecidas", () => {
+    const data = fixture(); data.transfers = [
+      { ...completed, status: "reversed" },
+      { ...completed, transferredAt: "2026-08-01T12:00:00.000Z" },
+      { ...completed, fromAccountId: "other-id", toAccountId: "foreign-account" }
+    ];
+    assert.equal(account(calc(data), NOH).balance, 1105.05);
+  });
+  it("considera a data brasileira do registro UTC para evitar contar a data-base", () => {
+    const data = fixture(); data.transfers = [
+      { ...completed, amount: 20, transferredAt: "2026-07-01T02:59:00.000Z" },
+      { ...completed, amount: 15, transferredAt: "2026-07-01T03:01:00.000Z" }
+    ];
+    const result = calc(data);
+    assert.equal(account(result, NOH).balance, 1090.05);
+    assert.equal(account(result, INFINITE).balance, 214.74);
+  });
+  it("consulta transferências reais da escola na API de saldos", async () => {
+    const data = fixture(); data.transfers = [completed];
+    const { dao, queries } = makeDAO(data);
+    const result = await dao.getBalances({ asOf: "2026-07-31" });
+    assert.equal(result.totalBalance, 1304.79);
+    assert.equal(result.accounts[0].transfersOut, 90);
+    assert.equal(result.accounts[1].transfersIn, 90);
+    assert.equal(queries.transfers[0].status, "completed");
+    assert.ok(Array.isArray(queries.transfers[0].$or));
+  });
+  it("consulta saldos em sessão transacional sem aceitar sessão fornecida pelo cliente", async () => {
+    const data = fixture(); data.transfers = [completed];
+    const { dao } = makeDAO(data);
+    const session = { id: "internal" };
+    const result = await dao.getBalances({ asOf: "2026-07-31", session: "forged" }, { session });
+    assert.equal(result.totalBalance, 1304.79);
   });
 });

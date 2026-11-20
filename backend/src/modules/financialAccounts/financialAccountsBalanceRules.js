@@ -52,7 +52,7 @@ const sumCents = (left, right) => {
        A reversed payment is not an active receipt; handling actual refunds is a separate feature.
    PT: Apenas liquidações após o FIM da data-base entram no saldo.
        Pagamento estornado não é recebimento ativo; devoluções reais serão tratadas separadamente. */
-export function calculateFinancialAccountBalances({ accounts = [], payments = [], expenses = [], revenues = [] }, asOf) {
+export function calculateFinancialAccountBalances({ accounts = [], payments = [], expenses = [], revenues = [], transfers = [] }, asOf) {
   if (!isValidBalanceDate(asOf)) throw accountError("Data da consulta de saldos inválida.");
   const balances = accounts.map(account => {
     if (typeof account.id !== "string" || !account.id || !isValidBalanceDate(account.balanceDate)) {
@@ -65,8 +65,10 @@ export function calculateFinancialAccountBalances({ accounts = [], payments = []
       active: account.active === true, isDefault: account.isDefault === true,
       initialBalance: initialCents / 100, balanceDate: account.balanceDate,
       available, monthlyFeesReceived: 0, otherRevenuesReceived: 0,
-      received: 0, paid: 0, balance: available ? initialCents / 100 : null,
-      _startCents: initialCents, _paymentsCents: 0, _revenuesCents: 0, _expensesCents: 0
+      received: 0, paid: 0, transfersIn: 0, transfersOut: 0,
+      balance: available ? initialCents / 100 : null,
+      _startCents: initialCents, _paymentsCents: 0, _revenuesCents: 0,
+      _expensesCents: 0, _transfersInCents: 0, _transfersOutCents: 0
     };
   });
   const byId = new Map(balances.map(account => [account.id, account]));
@@ -89,21 +91,42 @@ export function calculateFinancialAccountBalances({ accounts = [], payments = []
   addRecords(revenues, { dateField: "receivedAt", amountField: "receivedAmount", target: "_revenuesCents",
     statusCheck: p => p.status === "received" });
 
+  /* EN: Transfers change only account balances, not business income or expenses.
+         Use the Brazilian calendar date of the UTC instant for each account baseline.
+     PT: Transferências alteram apenas saldos das contas, não receita nem despesa.
+         Usa o dia brasileiro do instante UTC para respeitar a data-base de cada conta. */
+  for (const transfer of transfers) {
+    if (transfer.status !== "completed" ||
+        typeof transfer.transferredAt !== "string" || !Number.isFinite(Date.parse(transfer.transferredAt))) continue;
+    const day = brazilBalanceDay(new Date(transfer.transferredAt));
+    for (const [id, key] of [[transfer.fromAccountId, "_transfersOutCents"],
+      [transfer.toAccountId, "_transfersInCents"]]) {
+      const account = byId.get(id);
+      if (!account?.available || day <= account.balanceDate || day > asOf) continue;
+      account[key] = sumCents(account[key], cents(transfer.amount));
+    }
+  }
+
   let totalCents = 0;
   let complete = true;
   for (const account of balances) {
     if (!account.available) { complete = false; continue; }
     const receivedCents = sumCents(account._paymentsCents, account._revenuesCents);
-    const currentCents = sumCents(sumCents(account._startCents, receivedCents), -account._expensesCents);
+    const currentCents = sumCents(
+      sumCents(sumCents(account._startCents, receivedCents), -account._expensesCents),
+      sumCents(account._transfersInCents, -account._transfersOutCents));
     account.monthlyFeesReceived = account._paymentsCents / 100;
     account.otherRevenuesReceived = account._revenuesCents / 100;
     account.received = receivedCents / 100;
     account.paid = account._expensesCents / 100;
+    account.transfersIn = account._transfersInCents / 100;
+    account.transfersOut = account._transfersOutCents / 100;
     account.balance = currentCents / 100;
     totalCents = sumCents(totalCents, currentCents);
   }
   /* EN: Never expose internal accumulator fields through the API.
      PT: Não expõe campos temporários de soma na resposta da API. */
-  const result = balances.map(({ _startCents, _paymentsCents, _revenuesCents, _expensesCents, ...account }) => account);
+  const result = balances.map(({ _startCents, _paymentsCents, _revenuesCents,
+    _expensesCents, _transfersInCents, _transfersOutCents, ...account }) => account);
   return { asOf, accounts: result, complete, totalBalance: complete ? totalCents / 100 : null };
 }
