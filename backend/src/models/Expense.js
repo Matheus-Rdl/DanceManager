@@ -24,6 +24,9 @@ const expenseSchema = new mongoose.Schema({
   paidAt: { type: String, default: null },
   paidAmount: { type: Number, default: null },
   method: { type: String, default: null },
+  /* EN: The account is assigned when money actually leaves an account, not when an expense is created.
+     PT: A conta é vinculada quando há pagamento, não na criação de uma despesa pendente. */
+  accountId: { type: String, default: null, index: true },
   notes: { type: String, default: "" },
   history: { type: [historySchema], default: [] },
   createdAt: { type: String, required: true },

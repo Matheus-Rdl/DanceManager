@@ -2,8 +2,12 @@ import crypto from "crypto";
 import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import Expense from "../../models/Expense.js";
 import ExpenseRecurrence from "../../models/ExpenseRecurrence.js";
+import FinancialAccount from "../../models/FinancialAccount.js";
 import { ensureAllExpenses, ensureExpensesForRecurrence } from "./expenseGeneration.js";
 import { initiatorFields } from "../financial/financialInitiators.js";
+import {
+  ensureNoPendingExpenseAccount, resolveExpenseAccountId, validateRequestedExpenseAccountId
+} from "./expenseAccountRules.js";
 import {
   schoolId, monthNow, addMonths, isMonth, isDate, CATEGORIES, validation,
   cleanText, amountValue, expenseFields, dueDateFor, visibleExpense
@@ -18,6 +22,9 @@ const snapshot = item => ({
   dueDate: item.dueDate, reference: item.reference, status: item.status,
   paidAmount: item.paidAmount, paidAt: item.paidAt,
   method: item.method, notes: item.notes,
+  /* EN: Preserve legacy history snapshots when a paid expense has no account yet.
+     PT: Preserva o histórico legado quando a despesa paga ainda não tem conta. */
+  ...(item.accountId ? { accountId: item.accountId } : {}),
   initiator: item.initiator ? { key: item.initiator.key, name: item.initiator.name } : null
 });
 const reasonText = body => cleanText(body?.reason, "Justificativa", 500);
@@ -95,16 +102,22 @@ export default class ExpensesDataAccess {
     /* Validate and persist the payment in the same insert when already paid.
        Valida e registra o pagamento no mesmo insert, sem criar pendência intermediária. */
     const paidOnCreate = body.alreadyPaid === true;
+    if (!paidOnCreate) ensureNoPendingExpenseAccount(body);
     const payment = paidOnCreate ? correctionPayment(body) : null;
+    /* EN: Resolve only paid expenses; pending expenses never get an account assigned.
+       PT: Resolve a conta somente para despesas pagas; pendentes ficam sem conta. */
+    const accountId = paidOnCreate
+      ? await resolveExpenseAccountId({ requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId() })
+      : null;
     const time = moment();
     const item = await Expense.create({
       ...fields, id: crypto.randomUUID(), schoolId: schoolId(), recurrenceId: null,
       status: paidOnCreate ? "paid" : "pending",
       paidAmount: payment?.paidAmount ?? null, paidAt: payment?.paidAt ?? null,
-      method: payment?.method ?? null,
+      method: payment?.method ?? null, accountId,
       history: [
         log("created", paidOnCreate ? "Despesa avulsa cadastrada já paga" : "Despesa avulsa cadastrada"),
-        ...(paidOnCreate ? [log("paid", `Pagamento de ${payment.paidAmount} em ${payment.paidAt} por ${payment.method}; responsável: ${fields.initiator.name}. Registrado no cadastro.`)] : [])
+        ...(paidOnCreate ? [log("paid", `Pagamento de ${payment.paidAmount} em ${payment.paidAt} por ${payment.method}; responsável: ${fields.initiator.name}; conta: ${accountId ?? "não atribuída"}. Registrado no cadastro.`)] : [])
       ],
       createdAt: time, updatedAt: time
     });
@@ -122,8 +135,14 @@ export default class ExpensesDataAccess {
     if (item.status === "paid") {
       const reason = reasonText(body);
       const payment = correctionPayment(body);
-      return applyUpdate(item, { ...fields, ...payment }, "paid_corrected", reason, "Correção de despesa quitada");
+      /* EN: Editing other paid fields must not silently move money to a different account.
+         PT: Editar outros dados de uma despesa paga não muda a conta silenciosamente. */
+      const accountId = body.accountId === undefined
+        ? item.accountId ?? null
+        : await resolveExpenseAccountId({ requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId() });
+      return applyUpdate(item, { ...fields, ...payment, accountId }, "paid_corrected", reason, "Correção de despesa quitada");
     }
+    ensureNoPendingExpenseAccount(body);
     const reason = body.reason ? cleanText(body.reason, "Justificativa", 500) : "";
     return applyUpdate(item, fields, "edited", reason, "Dados da despesa alterados individualmente");
   }
@@ -136,10 +155,14 @@ export default class ExpensesDataAccess {
     const method = cleanText(body.method, "Forma de pagamento", 70);
     const notes = String(body.notes || "").slice(0, 500);
     const responsible = initiatorFields(body);
+    validateRequestedExpenseAccountId(body.accountId);
+    const accountId = await resolveExpenseAccountId({
+      requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId()
+    });
     const paid = await Expense.findOneAndUpdate(
       { schoolId: schoolId(), id, status: "pending" },
-      { $set: { status: "paid", paidAmount, paidAt, method, notes, ...responsible, updatedAt: moment() },
-        $push: { history: log("paid", `Pagamento de ${paidAmount} em ${paidAt} por ${method}; responsável: ${responsible.initiator?.name || "não informado"}`) } },
+      { $set: { status: "paid", paidAmount, paidAt, method, notes, accountId, ...responsible, updatedAt: moment() },
+        $push: { history: log("paid", `Pagamento de ${paidAmount} em ${paidAt} por ${method}; responsável: ${responsible.initiator?.name || "não informado"}; conta: ${accountId ?? "não atribuída"}`) } },
       { new: true, runValidators: true }
     );
     if (!paid) throw validation("Despesa inexistente, cancelada ou já paga.", 409);
@@ -161,7 +184,9 @@ export default class ExpensesDataAccess {
     if (!["pending", "paid"].includes(item.status)) throw validation("Esta despesa já está cancelada ou zerada.", 409);
     const reason = reasonText(body);
     return applyUpdate(item, {
-      status: "zeroed", amount: 0, paidAmount: null, paidAt: null, method: null
+      /* EN: Remove the account from the now-unpaid record; its prior value remains in history.
+         PT: Remove a conta do lançamento zerado; a conta anterior permanece no histórico. */
+      status: "zeroed", amount: 0, paidAmount: null, paidAt: null, method: null, accountId: null
     }, "zeroed", reason, "Lançamento corrigido para R$ 0,00");
   }
 
