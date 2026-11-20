@@ -27,6 +27,9 @@ const revenueSchema = new mongoose.Schema({
   receivedAt: { type: String, default: null },
   receivedAmount: { type: Number, default: null },
   method: { type: String, default: null },
+  /* EN: Assign the financial account only when money is received, not while pending.
+     PT: Vincula a conta financeira somente no recebimento, não enquanto estiver pendente. */
+  accountId: { type: String, default: null, index: true },
   notes: { type: String, default: "" },
   history: { type: [historySchema], default: [] },
   createdAt: { type: String, required: true },

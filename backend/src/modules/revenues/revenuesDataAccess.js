@@ -1,7 +1,11 @@
 import crypto from "crypto";
 import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import Revenue from "../../models/Revenue.js";
+import FinancialAccount from "../../models/FinancialAccount.js";
 import { initiatorFields } from "../financial/financialInitiators.js";
+import {
+  ensureNoPendingRevenueAccount, resolveRevenueAccountId
+} from "./revenueAccountRules.js";
 import {
   REVENUE_CATEGORIES, schoolId, isMonth, isDate, validation,
   cleanText, amountValue, visibleRevenue, revenueFields
@@ -16,6 +20,9 @@ const snapshot = item => ({
   dueDate: item.dueDate, reference: item.reference, status: item.status,
   receivedAmount: item.receivedAmount, receivedAt: item.receivedAt,
   method: item.method, notes: item.notes,
+  /* EN: Include the account in new audit snapshots while preserving the legacy format.
+     PT: Inclui a conta nos novos registros de auditoria sem alterar históricos antigos. */
+  ...(item.accountId ? { accountId: item.accountId } : {}),
   initiator: item.initiator ? { key: item.initiator.key, name: item.initiator.name } : null
 });
 const reasonText = body => cleanText(body?.reason, "Justificativa", 500);
@@ -77,12 +84,19 @@ export default class RevenuesDataAccess {
   async create(body) {
     const fields = { ...revenueFields(body), ...initiatorFields(body, { required: true }) };
     const receivedNow = body.receivedNow === true;
+    if (!receivedNow) ensureNoPendingRevenueAccount(body);
     const receipt = receivedNow ? receiptFields(body) : { receivedAmount: null, receivedAt: null, method: null };
+    /* EN: Resolve the account only when an actual receipt is recorded.
+       PT: Resolve a conta somente quando um recebimento efetivo é registrado. */
+    const accountId = receivedNow
+      ? await resolveRevenueAccountId({ requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId() })
+      : null;
     const at = timestamp();
     const item = await Revenue.create({
-      ...fields, ...receipt, id: crypto.randomUUID(), schoolId: schoolId(), sourceType: "manual", sourceId: null,
+      ...fields, ...receipt, accountId, id: crypto.randomUUID(), schoolId: schoolId(), sourceType: "manual", sourceId: null,
       status: receivedNow ? "received" : "pending",
-      history: [history("created", "Provento manual cadastrado"), ...(receivedNow ? [history("received", "Recebimento informado no cadastro")] : [])],
+      history: [history("created", "Provento manual cadastrado"), ...(receivedNow
+        ? [history("received", `Recebimento informado no cadastro; conta: ${accountId ?? "não atribuída"}`)] : [])],
       createdAt: at, updatedAt: at
     });
     return visibleRevenue(item.toObject());
@@ -95,21 +109,32 @@ export default class RevenuesDataAccess {
     const fields = revenueFields(body);
     if (item.status === "received") {
       const reason = reasonText(body);
-      return applyUpdate(item, { ...fields, ...receiptFields(body) }, "received_corrected", reason,
+      /* EN: A normal correction preserves the previous account. Only an explicit,
+             valid accountId can move a received revenue to a different account.
+         PT: Uma correção comum mantém a conta anterior. A troca exige o envio
+             explícito de um accountId válido. */
+      const accountId = body.accountId === undefined
+        ? item.accountId ?? null
+        : await resolveRevenueAccountId({ requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId() });
+      return applyUpdate(item, { ...fields, ...receiptFields(body), accountId }, "received_corrected", reason,
         "Correção de provento recebido");
     }
+    ensureNoPendingRevenueAccount(body);
     return applyUpdate(item, fields, "edited", String(body.reason || "").slice(0, 500), "Dados do provento alterados");
   }
 
   async receive(id, body) {
     const receipt = receiptFields(body);
     const responsible = initiatorFields(body);
+    const accountId = await resolveRevenueAccountId({
+      requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId()
+    });
     const item = await Revenue.findOneAndUpdate(
       { schoolId: schoolId(), id, sourceType: "manual", status: "pending" },
-      { $set: { ...receipt, ...responsible, status: "received", updatedAt: timestamp(),
+      { $set: { ...receipt, ...responsible, accountId, status: "received", updatedAt: timestamp(),
           ...(String(body.notes || "").trim() ? { notes: String(body.notes).slice(0, 500) } : {}) },
         $inc: { __v: 1 },
-        $push: { history: history("received", `Recebido ${receipt.receivedAmount} em ${receipt.receivedAt} por ${receipt.method}; responsável: ${responsible.initiator?.name || "não informado"}`) } },
+        $push: { history: history("received", `Recebido ${receipt.receivedAmount} em ${receipt.receivedAt} por ${receipt.method}; responsável: ${responsible.initiator?.name || "não informado"}; conta: ${accountId ?? "não atribuída"}`) } },
       { new: true, runValidators: true }
     );
     if (!item) throw validation("Provento inexistente, integrado, cancelado ou já recebido.", 409);
