@@ -16,6 +16,9 @@ const paymentSchema = new mongoose.Schema({
   monthlyFeeId: { type: String, required: true, index: true },
   contractId: { type: String, required: true, index: true },
   userId: { type: String, required: true, index: true },
+  /* EN: Each partial installment can be received in a different financial account.
+     PT: Cada pagamento parcial pode entrar em uma conta financeira diferente. */
+  accountId: { type: String, default: null, index: true },
   amount: { type: Number, required: true, min: 0.01 },
   method: { type: String, required: true },
   paidAt: { type: String, required: true },

@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import mongoose from "mongoose";
 import Payment from "../../models/Payment.js";
+import FinancialAccount from "../../models/FinancialAccount.js";
+import { schoolId } from "../expenses/expenseRules.js";
+import { resolvePaymentAccountId, validateRequestedPaymentAccountId } from "./paymentAccountRules.js";
 import MonthlyFee from "../../models/MonthlyFee.js";
 import MonthlyFeesDataAccess from "../monthlyFees/monthlyFeesDataAccess.js";
 import { PAYMENT_ACTIVE, paymentCents, sumActivePaymentCents, paymentSnapshot, validatePaymentChange } from "./paymentRules.js";
@@ -30,6 +33,7 @@ export default class PaymentsDataAccess {
     const paidAt = paymentData.paidAt || new Date().toISOString();
     if (Number.isNaN(Date.parse(paidAt))) throw paymentError("Data do pagamento inválida.");
     if (!paymentData.method) throw paymentError("Informe a forma de pagamento.");
+    validateRequestedPaymentAccountId(paymentData.accountId);
     const session = await mongoose.startSession();
     try {
       let result;
@@ -40,9 +44,14 @@ export default class PaymentsDataAccess {
         const remaining = paymentCents(fee.amount) - paymentCents(fee.paidAmount || 0);
         if (remaining <= 0) throw paymentError("Essa mensalidade já está quitada.");
         if (paymentCents(amount) > remaining) throw paymentError("O pagamento não pode ultrapassar o saldo.");
+        /* EN: Link the installment to the requested account or the server-side default (Noh).
+           PT: Vincula a parcela à conta escolhida ou à conta padrão do servidor (Noh). */
+        const accountId = await resolvePaymentAccountId({
+          requestedAccountId: paymentData.accountId, model: FinancialAccount, schoolId: schoolId(), session
+        });
         const payment = new Payment({
           id: crypto.randomUUID(), monthlyFeeId: fee.id, contractId: fee.contractId,
-          userId: fee.userId, amount: paymentCents(amount) / 100, method: paymentData.method,
+          userId: fee.userId, accountId, amount: paymentCents(amount) / 100, method: paymentData.method,
           paidAt, receipt: paymentData.receipt === true, createdAt: new Date().toISOString(), status: "confirmed"
         });
         await payment.save({ session });
@@ -60,6 +69,7 @@ export default class PaymentsDataAccess {
   async changePayment(paymentId, body = {}, action = "edited") {
     if (!paymentId || !["edited", "reversed"].includes(action)) throw paymentError("Operação de pagamento inválida.");
     const changed = validatePaymentChange(body, { edit: action === "edited" });
+    if (action === "edited") validateRequestedPaymentAccountId(changed.accountId);
     const actor = null;
     const session = await mongoose.startSession();
     try {
@@ -73,14 +83,22 @@ export default class PaymentsDataAccess {
         const before = paymentSnapshot(payment);
         const at = new Date().toISOString();
         if (action === "edited") {
+          /* EN: Editing other payment details does not silently move funds between accounts.
+             PT: Editar outros dados não transfere silenciosamente o pagamento entre contas. */
+          const nextAccountId = changed.accountId === undefined || changed.accountId === payment.accountId
+            ? payment.accountId || null
+            : await resolvePaymentAccountId({
+              requestedAccountId: changed.accountId, model: FinancialAccount, schoolId: schoolId(), session
+            });
           if (fee.status === "cancelled") throw paymentError("Não é possível editar pagamento de mensalidade cancelada.", 409);
-          if (before.amount === changed.amount && before.paidAt.slice(0, 10) === changed.paidAt.slice(0, 10) && before.method === changed.method && before.receipt === changed.receipt) {
+          if (before.amount === changed.amount && before.paidAt.slice(0, 10) === changed.paidAt.slice(0, 10) && before.method === changed.method && before.receipt === changed.receipt && (payment.accountId || null) === nextAccountId) {
             throw paymentError("Nenhuma informação foi alterada.");
           }
           payment.amount = changed.amount;
           payment.method = changed.method;
           payment.paidAt = changed.paidAt;
           payment.receipt = changed.receipt;
+          payment.accountId = nextAccountId;
         } else {
           payment.status = "reversed";
           payment.reversedAt = at;

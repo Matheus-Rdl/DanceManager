@@ -13,7 +13,10 @@ export const paymentSnapshot = payment => ({
   paidAt: payment.paidAt,
   method: payment.method,
   receipt: payment.receipt === true,
-  status: payment.status || "confirmed"
+  status: payment.status || "confirmed",
+  /* EN: Preserve the legacy snapshot shape when the payment has no assigned account.
+     PT: Mantém o formato antigo do histórico quando o pagamento não possui conta vinculada. */
+  ...(payment.accountId ? { accountId: payment.accountId } : {})
 });
 
 export const validatePaymentChange = (body, { edit = false } = {}) => {
@@ -37,5 +40,8 @@ export const validatePaymentChange = (body, { edit = false } = {}) => {
       (raw.length > 10 && (Number.isNaN(Date.parse(raw)) || !/^\d{4}-\d{2}-\d{2}T/.test(raw)))) {
     throw Object.assign(new Error("Data do pagamento inválida."), { statusCode: 400 });
   }
-  return { reason, amount: paymentCents(amount) / 100, method, paidAt: `${date}T12:00:00.000Z`, receipt: body?.receipt === true };
+  return { reason, amount: paymentCents(amount) / 100, method, paidAt: `${date}T12:00:00.000Z`, receipt: body?.receipt === true,
+    /* EN: Only an explicitly supplied accountId can change the account during an edit.
+       PT: Apenas um accountId informado explicitamente pode alterar a conta na edição. */
+    ...(Object.hasOwn(body, "accountId") ? { accountId: body.accountId } : {}) };
 };
