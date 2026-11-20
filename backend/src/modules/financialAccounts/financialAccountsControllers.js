@@ -18,6 +18,7 @@ export default class FinancialAccountsControllers {
     }
   }
 
+  async balances(query) { return this.execute(() => this.dataAccess.balances(query)); }
   async list(query) { return this.execute(() => this.dataAccess.list(query)); }
   async get(id) { return this.execute(() => this.dataAccess.get(id)); }
   async create(body) { return this.execute(() => this.dataAccess.create(body), true); }

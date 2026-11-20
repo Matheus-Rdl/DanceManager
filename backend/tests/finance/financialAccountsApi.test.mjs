@@ -166,9 +166,9 @@ describe("Contas financeiras: contrato HTTP", () => {
     await controller.create(newAccount());
     assert.equal((await controller.create(newAccount())).statusCode, 409);
   });
-  it("declara as quatro rotas esperadas", () => {
+  it("declara as cinco rotas esperadas", () => {
     assert.deepEqual(router.routes.map(({method,path}) => `${method} ${path}`),
-      ["GET /", "GET /:id", "POST /", "PATCH /:id"]);
+      ["GET /balances", "GET /", "GET /:id", "POST /", "PATCH /:id"]);
   });
   it("registra as rotas no index sem substituir o módulo Financeiro", () => {
     const index = readFileSync(new URL("../../src/index.js", import.meta.url), "utf8");

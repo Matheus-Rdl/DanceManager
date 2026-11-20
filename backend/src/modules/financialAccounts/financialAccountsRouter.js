@@ -5,8 +5,9 @@ const router = express.Router();
 const controller = new FinancialAccountsControllers();
 const respond = (res, result) => res.status(result.statusCode).send(result);
 
-/* EN: Account management only; payments, balances and transfers belong to later commits.
-   PT: Apenas gestão das contas; pagamentos, saldos e transferências ficam para os próximos commits. */
+/* EN: The balances endpoint is registered before /:id, to avoid interpreting "balances" as an account ID.
+   PT: A rota de saldos vem antes de /:id, evitando interpretar "balances" como ID de conta. */
+router.get("/balances", async (req, res) => respond(res, await controller.balances(req.query)));
 router.get("/", async (req, res) => respond(res, await controller.list(req.query)));
 router.get("/:id", async (req, res) => respond(res, await controller.get(req.params.id)));
 router.post("/", async (req, res) => respond(res, await controller.create(req.body || {})));

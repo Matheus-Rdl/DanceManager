@@ -24,6 +24,15 @@ export default class FinancialAccountsDataAccess {
     this.clock = clock;
   }
 
+  /* EN: Load settlement models only for balance requests; keep account CRUD independent.
+     PT: Carrega os models de liquidação apenas nas consultas de saldo; preserva o CRUD independente. */
+  async balances(filters = {}) {
+    const { default: FinancialAccountsBalanceDataAccess } = await import("./financialAccountsBalanceDataAccess.js");
+    return new FinancialAccountsBalanceDataAccess({
+      accountModel: this.model, resolveSchoolId: this.resolveSchoolId
+    }).getBalances(filters);
+  }
+
   async list(filters = {}) {
     const query = { schoolId: this.resolveSchoolId(), ...accountListFilters(filters) };
     return this.model.find(query).sort({ isDefault: -1, name: 1 }).lean();
