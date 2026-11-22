@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, Button, Flex, Heading, Text, VStack } from "@chakra-ui/react";
-import { FiActivity, FiRepeat, FiCreditCard, FiDollarSign, FiPieChart, FiRefreshCw, FiTrendingUp } from "react-icons/fi";
+import { FiActivity, FiRepeat, FiCreditCard, FiDollarSign, FiPieChart, FiRefreshCw, FiTrendingUp, FiLayers } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import FinancialPeriodSelector from "./FinancialPeriodSelector";
 import FinancialOverview from "./FinancialOverview";
@@ -9,6 +9,7 @@ import FinancialExpenses from "./FinancialExpenses";
 import FinancialRevenues from "./FinancialRevenues";
 import FinancialEvolution from "./FinancialEvolution";
 import FinancialMovements from "./FinancialMovements";
+import FinancialAccounts from "./FinancialAccounts";
 import { COLORS, initialPeriod } from "./financialPeriod";
 
 const tabs = [
@@ -17,6 +18,7 @@ const tabs = [
   {id:"revenues",label:"Proventos",icon:FiDollarSign},
   {id:"expenses",label:"Despesas",icon:FiDollarSign},
   {id:"movements",label:"Movimentações",icon:FiRepeat},
+  {id:"accounts",label:"Contas",icon:FiLayers},
   {id:"evolution",label:"Evolução Financeira",icon:FiTrendingUp}
 ];
 
@@ -55,7 +57,9 @@ export default function FinancialGeneral() {
     <Flex bg="white" border="1px solid #d7e2df" borderRadius="9px" p={1} gap={1} wrap="wrap" role="tablist" aria-label="Áreas do financeiro">
       {tabs.map(item => {const Icon=item.icon;return <Button key={item.id} role="tab" aria-selected={tab===item.id} size="sm" h="36px" flex={{base:"1 1 calc(50% - 6px)",md:"unset"}} bg={tab===item.id?COLORS.green:"transparent"} color={tab===item.id?"white":COLORS.green} onClick={()=>{ setFocus(null); setTab(item.id); }} borderRadius="6px" fontSize="11px"><Icon/>{item.label}</Button>;})}
     </Flex>
-    <FinancialPeriodSelector period={period} onChange={updatePeriod} cashOnly={tab === "movements"}/>
+    {/* EN: Account balances follow their own reference date, not the period/competence selector.
+         PT: O saldo das contas usa sua própria data-base, não o filtro de competência. */}
+    {tab !== "accounts" && <FinancialPeriodSelector period={period} onChange={updatePeriod} cashOnly={tab === "movements"}/> }
     <Box role="tabpanel" minW={0}>
       {tab==="overview" && <FinancialOverview period={period} refreshKey={refreshKey} onOpenEvolution={() => setTab("evolution")}/>}
       {tab==="receipts" && <FinancialReceipts period={period} refreshKey={refreshKey}/>}
@@ -63,6 +67,7 @@ export default function FinancialGeneral() {
       {tab==="expenses" && <FinancialExpenses period={period} refreshKey={refreshKey} onDataChanged={refresh} focusId={focus?.tab === "expenses" ? focus.id : null}/>}
       {tab==="movements" && <FinancialMovements period={period} refreshKey={refreshKey} onOpenOrigin={openOrigin}/>}
       {tab==="evolution" && <FinancialEvolution period={period} refreshKey={refreshKey}/>}
+      {tab==="accounts" && <FinancialAccounts refreshKey={refreshKey}/> }
     </Box>
   </VStack>;
 }
