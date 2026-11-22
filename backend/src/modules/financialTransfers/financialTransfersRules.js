@@ -1,5 +1,5 @@
 import {
-  isValidTransferAmount, hasDistinctTransferAccounts, isValidTransferTimestamp
+  isValidTransferAmount, isValidTransferAccountId, hasDistinctTransferAccounts, isValidTransferTimestamp
 } from "../../models/financialTransferRules.js";
 import { initiatorFields } from "../financial/financialInitiators.js";
 import { accountError } from "../financialAccounts/financialAccountsRules.js";
@@ -50,4 +50,47 @@ export function validTransferClock(value) {
     throw accountError("Data e hora do servidor inválidas para transferência.", 500);
   }
   return value;
+}
+
+/* EN: Validate safe, bounded history filters; unknown keys must never reach a MongoDB query.
+   PT: Valida filtros limitados e seguros; campos desconhecidos nunca chegam à consulta MongoDB. */
+export function transferHistoryFilters(query = {}) {
+  if (!query || typeof query !== "object" || Array.isArray(query) ||
+      Object.keys(query).some(key => !["accountId", "status", "page", "limit"].includes(key))) {
+    throw accountError("Filtros de transferências inválidos.");
+  }
+  const filter = {};
+  if (query.accountId !== undefined) {
+    if (!isValidTransferAccountId(query.accountId)) throw accountError("Conta do filtro inválida.");
+    filter.accountId = query.accountId;
+  }
+  if (query.status !== undefined) {
+    if (!["completed", "reversed"].includes(query.status)) throw accountError("Status do filtro inválido.");
+    filter.status = query.status;
+  }
+  const positiveInteger = (value, fallback, maximum) => {
+    if (value === undefined) return fallback;
+    const raw = typeof value === "string" ? value : String(value);
+    if (!/^[1-9]\d*$/.test(raw)) throw accountError("Paginação inválida.");
+    const number = Number(raw);
+    if (!Number.isSafeInteger(number) || number > maximum) throw accountError("Paginação fora do limite permitido.");
+    return number;
+  };
+  return { filter, page: positiveInteger(query.page, 1, 1000), limit: positiveInteger(query.limit, 20, 100) };
+}
+
+/* EN: A reversal must carry a meaningful explanation and a known operator.
+       Reversal metadata (status, timestamp, account IDs) is owned by the server.
+   PT: O estorno exige justificativa e responsável conhecido.
+       Status, data e IDs são controlados pelo servidor, não pelo cliente. */
+export function transferReversalFields(body = {}) {
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).some(key => !["reason", "initiatorKey"].includes(key))) {
+    throw accountError("Dados do estorno inválidos.");
+  }
+  if (typeof body.reason !== "string" || body.reason.trim().length < 5 || body.reason.trim().length > 500) {
+    throw accountError("A justificativa deve conter entre 5 e 500 caracteres.");
+  }
+  const reversedBy = initiatorFields(body, { required: true }).initiator;
+  return { reversalReason: body.reason.trim(), reversedBy };
 }

@@ -77,5 +77,8 @@ financialTransferSchema.index({ schoolId: 1, idempotencyKey: 1 }, { unique: true
 financialTransferSchema.index({ schoolId: 1, fromAccountId: 1, transferredAt: -1 });
 financialTransferSchema.index({ schoolId: 1, toAccountId: 1, transferredAt: -1 });
 financialTransferSchema.index({ schoolId: 1, transferredAt: -1 });
+/* EN: Lookup reversals by date without scanning every old transfer.
+   PT: Consulta estornos por data sem percorrer todas as transferências antigas. */
+financialTransferSchema.index({ schoolId: 1, reversedAt: -1 });
 
 export default mongoose.model("FinancialTransfer", financialTransferSchema);

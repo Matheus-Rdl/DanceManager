@@ -3,7 +3,7 @@ import { initiatorFields } from "../financial/financialInitiators.js";
 import { isDate, isMonth, validation, cleanText, amountValue, schoolId } from "../expenses/expenseRules.js";
 
 export { isDate, isMonth, validation, cleanText, amountValue, schoolId };
-export const REVENUE_CATEGORIES = ["Vendas", "Serviços", "Inscrições", "Patrocínios", "Doações", "Eventos", "Aulas particulares", "Bailes", "Rifas", "Outros"];
+export const REVENUE_CATEGORIES = ["Vendas", "Aulas particulares", "Serviços", "Inscrições", "Patrocínios", "Doações", "Eventos", "Aulas particulares", "Bailes", "Rifas", "Outros"];
 export const visibleRevenue = item => ({
   ...item,
   displayStatus: item.status === "pending" && item.dueDate < todayInBrazil() ? "overdue" : item.status

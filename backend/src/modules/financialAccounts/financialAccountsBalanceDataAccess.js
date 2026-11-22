@@ -40,9 +40,12 @@ export default class FinancialAccountsBalanceDataAccess {
        PT: Consulta só IDs conhecidos, datas liquidadas e despesas/proventos da escola.
            Pagamentos antigos não têm schoolId; o vínculo à conta delimita esses registros. */
     const ids = eligibleAccounts.map(account => account.id);
-    const lower = nextBalanceDay(eligibleAccounts.reduce((min, account) =>
-      account.balanceDate < min ? account.balanceDate : min, eligibleAccounts[0].balanceDate));
+    const earliestBalanceDate = eligibleAccounts.reduce((min, account) =>
+      account.balanceDate < min ? account.balanceDate : min, eligibleAccounts[0].balanceDate);
+    const lower = nextBalanceDay(earliestBalanceDate);
     const upper = nextBalanceDay(asOf);
+    const transferLower = `${earliestBalanceDate}T00:00:00.000Z`;
+    const transferUpper = `${nextBalanceDay(upper)}T00:00:00.000Z`;
     const queries = [
       this.paymentModel.find({ accountId: { $in: ids }, status: { $ne: "reversed" },
         paidAt: { $gte: lower, $lt: upper } }).select("accountId amount paidAt status"),
@@ -50,13 +53,17 @@ export default class FinancialAccountsBalanceDataAccess {
         paidAt: { $gte: lower, $lt: upper } }).select("accountId paidAmount paidAt status"),
       this.revenueModel.find({ schoolId: school, accountId: { $in: ids }, status: "received",
         receivedAt: { $gte: lower, $lt: upper } }).select("accountId receivedAmount receivedAt status"),
-      /* EN: Include one extra UTC day at the top, since a late Brazilian hour is next-day UTC.
-         PT: Inclui um dia UTC extra porque a noite no Brasil pode ser o dia seguinte em UTC. */
-      this.transferModel.find({ schoolId: school, status: "completed",
+      /* EN: Include reversals occurring after an older original transfer. An additional UTC
+             day accounts for late São Paulo hours when calculating each account's balance.
+         PT: Inclui estornos posteriores a transferências antigas. Um dia UTC extra
+             contempla o período noturno de São Paulo no cálculo por data-base. */
+      this.transferModel.find({ schoolId: school, status: { $in: ["completed", "reversed"] },
         $or: [{ fromAccountId: { $in: ids } }, { toAccountId: { $in: ids } }],
-        transferredAt: { $gte: `${eligibleAccounts.reduce((min, a) => a.balanceDate < min ? a.balanceDate : min, eligibleAccounts[0].balanceDate)}T00:00:00.000Z`,
-          $lt: `${nextBalanceDay(upper)}T00:00:00.000Z` } })
-        .select("fromAccountId toAccountId amount transferredAt status")
+        $and: [{ $or: [
+          { transferredAt: { $gte: transferLower, $lt: transferUpper } },
+          { reversedAt: { $gte: transferLower, $lt: transferUpper } }
+        ] }] })
+        .select("fromAccountId toAccountId amount transferredAt status reversedAt")
     ];
     /* EN: MongoDB forbids parallel queries on the same transaction session.
        PT: MongoDB não permite consultas paralelas usando a mesma sessão transacional. */

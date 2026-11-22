@@ -1,3 +1,4 @@
+import { isValidTransferTimestamp } from "../../models/financialTransferRules.js";
 import { isValidBalanceDate, isValidInitialBalance } from "../../models/financialAccountRules.js";
 import { accountError } from "./financialAccountsRules.js";
 
@@ -91,19 +92,29 @@ export function calculateFinancialAccountBalances({ accounts = [], payments = []
   addRecords(revenues, { dateField: "receivedAt", amountField: "receivedAmount", target: "_revenuesCents",
     statusCheck: p => p.status === "received" });
 
-  /* EN: Transfers change only account balances, not business income or expenses.
-         Use the Brazilian calendar date of the UTC instant for each account baseline.
-     PT: Transferências alteram apenas saldos das contas, não receita nem despesa.
-         Usa o dia brasileiro do instante UTC para respeitar a data-base de cada conta. */
-  for (const transfer of transfers) {
-    if (transfer.status !== "completed" ||
-        typeof transfer.transferredAt !== "string" || !Number.isFinite(Date.parse(transfer.transferredAt))) continue;
-    const day = brazilBalanceDay(new Date(transfer.transferredAt));
-    for (const [id, key] of [[transfer.fromAccountId, "_transfersOutCents"],
-      [transfer.toAccountId, "_transfersInCents"]]) {
+  /* EN: Reversed transfers remain effective until the reversal date; the reversal
+         then applies the opposite cash movement. This preserves historical balances.
+     PT: Transferências estornadas continuam valendo até o dia do estorno; nessa data
+         a operação inversa recompõe os saldos, preservando consultas históricas. */
+  const applyTransfer = (transfer, day, debitId, creditId) => {
+    for (const [id, key] of [[debitId, "_transfersOutCents"], [creditId, "_transfersInCents"]]) {
       const account = byId.get(id);
       if (!account?.available || day <= account.balanceDate || day > asOf) continue;
       account[key] = sumCents(account[key], cents(transfer.amount));
+    }
+  };
+  for (const transfer of transfers) {
+    if (!["completed", "reversed"].includes(transfer.status) ||
+        !isValidTransferTimestamp(transfer.transferredAt)) continue;
+    const originalDay = brazilBalanceDay(new Date(transfer.transferredAt));
+    applyTransfer(transfer, originalDay, transfer.fromAccountId, transfer.toAccountId);
+    if (transfer.status === "reversed") {
+      if (!isValidTransferTimestamp(transfer.reversedAt) ||
+          transfer.reversedAt < transfer.transferredAt) {
+        throw accountError("Estorno de transferência sem data válida.", 500);
+      }
+      const reversalDay = brazilBalanceDay(new Date(transfer.reversedAt));
+      applyTransfer(transfer, reversalDay, transfer.toAccountId, transfer.fromAccountId);
     }
   }
 

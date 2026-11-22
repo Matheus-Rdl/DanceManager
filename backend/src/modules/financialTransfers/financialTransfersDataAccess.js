@@ -5,7 +5,9 @@ import { schoolId } from "../expenses/expenseRules.js";
 import FinancialAccountsBalanceDataAccess from "../financialAccounts/financialAccountsBalanceDataAccess.js";
 import { brazilBalanceDay } from "../financialAccounts/financialAccountsBalanceRules.js";
 import { accountError } from "../financialAccounts/financialAccountsRules.js";
-import { sameTransferRequest, transferCreateFields, validTransferClock } from "./financialTransfersRules.js";
+import { sameTransferRequest, transferCreateFields, transferHistoryFilters,
+  transferReversalFields, validTransferClock } from "./financialTransfersRules.js";
+import { isValidTransferAccountId } from "../../models/financialTransferRules.js";
 
 /* EN: Transfers never create expense/revenue documents or directly overwrite an account balance.
    PT: Transferências nunca geram despesas/proventos nem sobrescrevem o saldo da conta. */
@@ -34,6 +36,87 @@ export default class FinancialTransfersDataAccess {
       throw accountError("Esta chave de operação já foi usada em outra transferência.", 409);
     }
     return { transfer: original, reused: true };
+  }
+
+  /* EN: A school-scoped, paginated audit trail ordered by transfer instant and stable ID.
+     PT: Histórico de auditoria paginado por escola, ordenado por data e ID estável. */
+  async list(query = {}) {
+    const { filter, page, limit } = transferHistoryFilters(query);
+    const where = { schoolId: this.resolveSchoolId() };
+    if (filter.status) where.status = filter.status;
+    if (filter.accountId) where.$or = [
+      { fromAccountId: filter.accountId }, { toAccountId: filter.accountId }
+    ];
+    const [total, items] = await Promise.all([
+      this.transferModel.countDocuments(where),
+      this.transferModel.find(where).sort({ transferredAt: -1, id: -1 })
+        .skip((page - 1) * limit).limit(limit).lean()
+    ]);
+    return { items, total, page, limit };
+  }
+
+  /* EN: Never return a transfer belonging to another school.
+     PT: Nunca retorna transferência pertencente a outra escola. */
+  async getById(id) {
+    if (!isValidTransferAccountId(id)) throw accountError("ID da transferência inválido.");
+    const record = await this.transferModel.findOne({ schoolId: this.resolveSchoolId(), id }).lean();
+    if (!record) throw accountError("Transferência não encontrada.", 404);
+    return record;
+  }
+
+  /* EN: Reverse inside a MongoDB transaction with both accounts locked in a stable order.
+         Do not delete the original transfer, create business revenue/expense, or
+         silently allow the receiving account to go negative.
+     PT: Estorna numa transação MongoDB, bloqueando ambas as contas na mesma ordem.
+         Não exclui a transferência, não cria receitas/despesas e não permite
+         saldo insuficiente na conta que devolverá o valor. */
+  async reverse(id, body) {
+    if (!isValidTransferAccountId(id)) throw accountError("ID da transferência inválido.");
+    const fields = transferReversalFields(body);
+    const school = this.resolveSchoolId();
+    const session = await this.transferModel.db.startSession();
+    try {
+      let reversed = null;
+      await session.withTransaction(async () => {
+        const original = await this.transferModel.findOne({ schoolId: school, id }).session(session).lean();
+        if (!original) throw accountError("Transferência não encontrada.", 404);
+        if (original.status !== "completed") throw accountError("Esta transferência já foi estornada.", 409);
+        const stamp = validTransferClock(this.clock());
+        if (stamp < original.transferredAt) {
+          throw accountError("Estorno não pode ser anterior à transferência.", 409);
+        }
+        const asOf = brazilBalanceDay(new Date(stamp));
+        for (const accountId of [original.fromAccountId, original.toAccountId].sort()) {
+          const account = await this.accountModel.findOneAndUpdate(
+            { schoolId: school, id: accountId }, { $inc: { __v: 1 } },
+            { session, new: true }
+          ).lean();
+          if (!account) throw accountError("Conta original não encontrada nesta escola.", 404);
+          if (account.balanceDate > asOf) {
+            throw accountError("Data-base da conta posterior à data do estorno.", 409);
+          }
+        }
+        const balances = await this.balanceService.getBalances({ asOf }, { session });
+        const receiver = balances.accounts.find(account => account.id === original.toAccountId);
+        if (!receiver?.available || !Number.isFinite(receiver.balance)) {
+          throw accountError("Saldo da conta de destino indisponível para o estorno.", 409);
+        }
+        if (Math.round(receiver.balance * 100) < Math.round(original.amount * 100)) {
+          throw accountError("Saldo insuficiente na conta de destino para estornar.", 409);
+        }
+        const updated = await this.transferModel.findOneAndUpdate(
+          { schoolId: school, id, status: "completed" },
+          { $set: { status: "reversed", reversedAt: stamp, reversalReason: fields.reversalReason,
+            reversedBy: fields.reversedBy, updatedAt: stamp } },
+          { session, new: true, runValidators: true }
+        ).lean();
+        if (!updated) throw accountError("Transferência já estornada ou modificada por outra operação.", 409);
+        reversed = updated;
+      }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+      return reversed;
+    } finally {
+      await session.endSession();
+    }
   }
 
   async create(body) {
@@ -108,3 +191,4 @@ export default class FinancialTransfersDataAccess {
     }
   }
 }
+

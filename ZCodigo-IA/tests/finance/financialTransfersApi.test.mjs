@@ -30,7 +30,7 @@ registerHooks({ resolve(specifier, _context, nextResolve) {
   if (specifier === "express") {
     return { url: mocked(`export default { Router: () => {
       const routes = [];
-      return { routes, post: (path, handler) => routes.push({ path, handler, method: "POST" }) };
+      return { routes, use: (handler) => routes.push({ method: "MIDDLEWARE", handler }), get: (path, handler) => routes.push({ path, handler, method: "GET" }), post: (path, handler) => routes.push({ path, handler, method: "POST" }) };
     }};`), shortCircuit: true };
   }
   return nextResolve(specifier, _context);
@@ -229,13 +229,13 @@ describe("Commit 11: HTTP e integração", () => {
       body: "Não foi possível registrar a transferência." });
   });
   it("bloqueia novas transferências em produção enquanto não existe autenticação", async () => {
-    const route = routes.routes.find(route => route.method === "POST");
+    const route = routes.routes.find(route => route.method === "MIDDLEWARE");
     const previous = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
     try {
       let response;
       const res = { status(code) { response = { code }; return this; }, send(body) { response.body = body; } };
-      await route.handler({ body: fixedBody() }, res);
+      await route.handler({ body: fixedBody() }, res, () => { throw new Error("Não deveria liberar produção"); });
       assert.equal(response.code, 403);
       assert.match(response.body.body, /autenticação/);
     } finally {

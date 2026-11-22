@@ -133,9 +133,9 @@ const { default: BalanceDAO } = await import("../../src/modules/financialAccount
 const fakeModel = (records, queries) => ({
   find(query) {
     queries.push(query);
-    const matched = records.filter(record => Object.entries(query).every(([key, value]) => {
-      if (key === "$or") return value.some(branch => Object.entries(branch).every(([name, rule]) =>
-        rule.$in ? rule.$in.includes(record[name]) : rule === record[name]));
+    const matches = (record, conditions) => Object.entries(conditions).every(([key, value]) => {
+      if (key === "$or") return value.some(branch => matches(record, branch));
+      if (key === "$and") return value.every(branch => matches(record, branch));
       if (value && typeof value === "object") {
         if (value.$in && !value.$in.includes(record[key])) return false;
         if (value.$ne !== undefined && value.$ne === record[key]) return false;
@@ -144,7 +144,8 @@ const fakeModel = (records, queries) => ({
         return true;
       }
       return record[key] === value;
-    }));
+    });
+    const matched = records.filter(record => matches(record, query));
     const queryChain = { select() { return queryChain; }, sort() { return queryChain; },
       session() { return queryChain; }, lean: async () => matched };
     return queryChain;
@@ -216,9 +217,9 @@ describe("Commit 11: saldos após transferências", () => {
     assert.equal(account(result, NOH).received, 185.55);
     assert.equal(account(result, NOH).paid, 80.5);
   });
-  it("ignora transferências estornadas, futuras ou de contas desconhecidas", () => {
+  it("não inclui saldo de estornos realizados no mesmo dia e ignora transferências futuras ou externas", () => {
     const data = fixture(); data.transfers = [
-      { ...completed, status: "reversed" },
+      { ...completed, status: "reversed", reversedAt: "2026-07-10T17:00:00.000Z" },
       { ...completed, transferredAt: "2026-08-01T12:00:00.000Z" },
       { ...completed, fromAccountId: "other-id", toAccountId: "foreign-account" }
     ];
@@ -240,8 +241,23 @@ describe("Commit 11: saldos após transferências", () => {
     assert.equal(result.totalBalance, 1304.79);
     assert.equal(result.accounts[0].transfersOut, 90);
     assert.equal(result.accounts[1].transfersIn, 90);
-    assert.equal(queries.transfers[0].status, "completed");
+    assert.deepEqual(queries.transfers[0].status.$in, ["completed", "reversed"]);
     assert.ok(Array.isArray(queries.transfers[0].$or));
+  });
+  it("consulta estornos feitos após a data-base mesmo quando a transferência original é anterior", async () => {
+    const data = { accounts: accounts(), payments: [], expenses: [], revenues: [] };
+    data.accounts[0].balanceDate = "2026-07-31";
+    data.accounts[1].balanceDate = "2026-07-31";
+    data.accounts[0].initialBalance = 500;
+    data.accounts[1].initialBalance = 500;
+    data.transfers = [{ ...completed, amount: 100, status: "reversed",
+      reversedAt: "2026-11-20T15:00:00.000Z" }];
+    const { dao, queries } = makeDAO(data);
+    const result = await dao.getBalances({ asOf: "2026-11-20" });
+    assert.equal(result.accounts[0].balance, 600);
+    assert.equal(result.accounts[1].balance, 400);
+    const filter = queries.transfers[0];
+    assert.ok(filter.$and[0].$or.some(branch => Boolean(branch.reversedAt)));
   });
   it("consulta saldos em sessão transacional sem aceitar sessão fornecida pelo cliente", async () => {
     const data = fixture(); data.transfers = [completed];
