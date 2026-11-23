@@ -132,9 +132,11 @@ describe("Commit 14: integração e disposição visual", () => {
     assert.match(src, /view\.accounts\.map\(/);
   });
 
-  it("não tem transferência ou saldos de exemplo neste commit", async () => {
+  it("integra o Dialog de transferência sem inserir saldos de exemplo", async () => {
     const src = await sourceFile("FinancialAccounts.jsx");
-    assert.doesNotMatch(src, /TransferDialog|FinancialTransfersList|8\.740|2\.460|11\.200/);
+    assert.match(src, /import TransferDialog from "\.\/TransferDialog"/);
+    assert.match(src, /<TransferDialog open=\{transferOpen\}/);
+    assert.doesNotMatch(src, /8\.740|2\.460|11\.200/);
   });
 
   it("o resumo não soma o saldo das contas no cliente nem ignora respostas incompletas", async () => {

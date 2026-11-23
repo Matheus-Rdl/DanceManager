@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Flex, Heading, SimpleGrid, Spinner, Text, VStack } from "@chakra-ui/react";
-import { FiRefreshCw } from "react-icons/fi";
-import { IoWalletOutline } from "react-icons/io5";
+import { FiArrowLeftRight, FiRefreshCw, FiWallet } from "react-icons/fi";
 import financialAccountsServices from "../../../services/financialAccountsServices";
 import FinancialAccountCard from "./FinancialAccountCard";
 import FinancialAccountsSummary from "./FinancialAccountsSummary";
+import TransferDialog from "./TransferDialog";
 import { buildFinancialAccountsView } from "./financialAccountsView";
 import { COLORS, formatDate } from "./financialPeriod";
 
@@ -17,6 +17,8 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const activeAccounts = view?.accounts?.filter(account => account.active) ?? [];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +46,7 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
     <Flex justify="space-between" align={{ base: "flex-start", md: "center" }} gap={3} wrap="wrap">
       <Flex align="center" gap={3}>
         <Flex w="38px" h="38px" borderRadius="12px" bg="#e9f6f1" color={COLORS.green}
-          align="center" justify="center"><IoWalletOutline size={20}/></Flex>
+          align="center" justify="center"><FiWallet size={20}/></Flex>
         <Box>
           <Heading as="h2" fontSize={{ base: "19px", md: "23px" }} fontWeight="800" color={COLORS.green}>
             Contas Financeiras
@@ -52,9 +54,18 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
           <Text fontSize="11px" color={COLORS.gray}>Saldos calculados da Noh, InfinitePay e demais contas cadastradas.</Text>
         </Box>
       </Flex>
-      <Button size="sm" variant="outline" onClick={() => setRetryKey(value => value + 1)}>
-        <FiRefreshCw/> Atualizar contas
-      </Button>
+      <Flex gap={2} wrap="wrap">
+        {/* EN: The dialog is preview-only until the API integration commit.
+            PT: O Dialog só apresenta uma prévia até a etapa de integração com a API. */}
+        <Button size="sm" bg={COLORS.green} color="white"
+          disabled={loading || !!error || activeAccounts.length < 2}
+          onClick={() => setTransferOpen(true)}>
+          <FiArrowLeftRight/> Transferir
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setRetryKey(value => value + 1)}>
+          <FiRefreshCw/> Atualizar contas
+        </Button>
+      </Flex>
     </Flex>
 
     {loading && <Flex bg="white" borderRadius="12px" p={4} align="center" gap={2}>
@@ -81,5 +92,6 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
         registrados no sistema. Não há sincronização automática com os bancos; confira os saldos iniciais provisórios.
       </Text>
     </>}
+    <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} accounts={view?.accounts ?? []}/>
   </VStack>;
 }
