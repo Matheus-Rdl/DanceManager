@@ -5,6 +5,7 @@ import financialServices from "../../../services/financialServices";
 import FinancialOverviewCharts from "./FinancialOverviewCharts";
 import { COLORS, formatDate, money, periodRange, shiftMonth } from "./financialPeriod";
 import FinancialOverviewMiniTimeline from "./FinancialOverviewMiniTimeline";
+import FinancialOverviewAccounts from "./FinancialOverviewAccounts";
 
 /* EN: Section headers make the overview groups easier to scan.
    PT: Os títulos destacam cada grupo de indicadores da Visão Geral. */
@@ -258,7 +259,11 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
             detail={`Margem: ${margin}`} neutral spanOnMobile />
         </SimpleGrid>
       </VStack>
-      
+
+      {/* EN: Bank balances are independent of the selected monthly/annual reporting period.
+          PT: Os saldos das contas são independentes do período mensal/anual selecionado. */}
+      <FinancialOverviewAccounts refreshKey={refreshKey}/>
+
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiCalendar} title="Mensalidades"
           description="Cobranças, recebimentos e situação das mensalidades da competência selecionada." />
