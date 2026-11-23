@@ -8,6 +8,7 @@ import { schoolId, monthNow, isMonth, addMonths } from "../expenses/expenseRules
 import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import { isDate } from "../expenses/expenseRules.js";
 import { buildFinancialMovements } from "./financialMovements.js";
+import { resolveFinancialAccountMatch } from "./financialAccountFilter.js";
 
 const activePayments = { status: { $ne: "reversed" } }; // Keep legacy records without status.
 const sum = (items, field) => Math.round(items.reduce((acc, item) => acc + Number(item[field] || 0), 0) * 100) / 100;
@@ -52,15 +53,16 @@ const addCalendarDays = (date, days) => {
 export default class FinancialDataAccess {
   async getSummary(filters = {}) {
     const month = resolveMonth(filters.month);
+    const accountMatch = await resolveFinancialAccountMatch(filters.accountId);
     await ensureAllExpenses();
     const startChart = addMonths(month, -5);
     const end = addMonths(month, 1);
     const [payments, paidExpenses, fees, dueExpenses, receivedRevenues, dueRevenues] = await Promise.all([
-      Payment.find({ ...activePayments, ...between("paidAt", startChart, end) }).select("amount paidAt").lean(),
-      Expense.find({ schoolId: schoolId(), status: "paid", ...between("paidAt", startChart, end) }).select("paidAmount paidAt").lean(),
+      Payment.find({ ...activePayments, ...accountMatch, ...between("paidAt", startChart, end) }).select("amount paidAt").lean(),
+      Expense.find({ schoolId: schoolId(), status: "paid", ...accountMatch, ...between("paidAt", startChart, end) }).select("paidAmount paidAt").lean(),
       MonthlyFee.find({ reference: month, status: { $ne: "cancelled" } }).select("amount paidAmount dueDate status").lean(),
       Expense.find({ schoolId: schoolId(), reference: month, status: { $nin: ["cancelled", "zeroed"] } }).select("amount paidAmount status dueDate").lean(),
-      Revenue.find({ schoolId: schoolId(), status: "received", ...between("receivedAt", startChart, end) }).select("receivedAmount receivedAt").lean(),
+      Revenue.find({ schoolId: schoolId(), status: "received", ...accountMatch, ...between("receivedAt", startChart, end) }).select("receivedAmount receivedAt").lean(),
       Revenue.find({ schoolId: schoolId(), reference: month, status: "pending" }).select("amount dueDate").lean()
     ]);
     const paidInMonth = payments.filter(p => p.paidAt.slice(0, 7) === month);
@@ -94,9 +96,14 @@ export default class FinancialDataAccess {
     };
   }
 
+  /* EN: accountId filters ONLY settled cash flows; open fees, pending revenue and due expenses
+         remain global because they have no settled financial account.
+     PT: accountId filtra SOMENTE valores liquidados; mensalidades abertas, proventos pendentes
+         e despesas a vencer permanecem gerais porque não têm conta de liquidação. */
   /* Resumo por período. Realizados: paidAt; previstos: referência da cobrança/despesa. */
   async getPeriodSummary(filters = {}) {
     const { from, to, after } = resolveRange(filters);
+    const accountMatch = await resolveFinancialAccountMatch(filters.accountId);
     await ensureAllExpenses();
     /* EN: Upcoming expense alerts always refer to today, regardless of the selected historical period.
        PT: Despesas próximas do vencimento consideram hoje, independentemente do período histórico. */
@@ -104,13 +111,13 @@ export default class FinancialDataAccess {
     const lastDay = addCalendarDays(today, 6);
     const [paid, outgoing, fees, dueExpenses, otherReceived, dueRevenues, upcomingExpenses, topExpenses] = await Promise.all([
       Payment.aggregate([
-        { $match: { ...activePayments, ...between("paidAt", from, after) } },
+        { $match: { ...activePayments, ...accountMatch, ...between("paidAt", from, after) } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
       ]),
       /* Uma única agregação calcula despesas realizadas e sua distribuição por categoria.
          A data usada é a de pagamento, nunca a competência/vencimento. */
       Expense.aggregate([
-        { $match: { schoolId: schoolId(), status: "paid", ...between("paidAt", from, after) } },
+        { $match: { schoolId: schoolId(), status: "paid", ...accountMatch, ...between("paidAt", from, after) } },
         { $group: { _id: "$category", total: { $sum: "$paidAmount" } } }
       ]),
       MonthlyFee.find({ reference: { $gte: from, $lte: to }, status: { $ne: "cancelled" } })
@@ -118,7 +125,7 @@ export default class FinancialDataAccess {
       Expense.find({ schoolId: schoolId(), reference: { $gte: from, $lte: to }, status: { $nin: ["cancelled", "zeroed"] } })
         .select("amount status dueDate").lean(),
       Revenue.aggregate([
-        { $match: { schoolId: schoolId(), status: "received", ...between("receivedAt", from, after) } },
+        { $match: { schoolId: schoolId(), status: "received", ...accountMatch, ...between("receivedAt", from, after) } },
         { $group: { _id: null, total: { $sum: "$receivedAmount" } } }
       ]),
       Revenue.find({ schoolId: schoolId(), reference: { $gte: from, $lte: to }, status: "pending" })
@@ -127,7 +134,7 @@ export default class FinancialDataAccess {
         .select("amount").lean(),
       /* EN: Top five individual paid expenses by real payment date (not competency).
          PT: Cinco maiores despesas individuais pela data real do pagamento (não pela competência). */
-      Expense.find({ schoolId: schoolId(), status: "paid", paidAmount: { $gt: 0 }, ...between("paidAt", from, after) })
+      Expense.find({ schoolId: schoolId(), status: "paid", ...accountMatch, paidAmount: { $gt: 0 }, ...between("paidAt", from, after) })
         .select("id description category paidAmount paidAt -_id")
         .sort({ paidAmount: -1, paidAt: -1, id: 1 }).limit(5).lean()
     ]);
@@ -179,6 +186,7 @@ export default class FinancialDataAccess {
       throw Object.assign(new Error("Período do gráfico inválido."), { statusCode: 400 });
     }
     const month = resolveMonth(filters.month);
+    const accountMatch = await resolveFinancialAccountMatch(filters.accountId);
     const year = String(filters.year || month.slice(0, 4));
     if (!/^(19|20|21)\d{2}$/.test(year)) {
       throw Object.assign(new Error("Ano inválido."), { statusCode: 400 });
@@ -186,8 +194,8 @@ export default class FinancialDataAccess {
     const count = mode === "12" || mode === "year" ? 12 : mode === "6" ? 6 : 1;
     const firstMonth = mode === "year" ? `${year}-01` : addMonths(month, 1 - count);
     const finalExclusive = addMonths(firstMonth, count);
-    const matchPayments = { ...activePayments, ...between("paidAt", firstMonth, finalExclusive) };
-    const matchExpenses = { schoolId: schoolId(), status: "paid", ...between("paidAt", firstMonth, finalExclusive) };
+    const matchPayments = { ...activePayments, ...accountMatch, ...between("paidAt", firstMonth, finalExclusive) };
+    const matchExpenses = { schoolId: schoolId(), status: "paid", ...accountMatch, ...between("paidAt", firstMonth, finalExclusive) };
 
     /* Os timestamps são strings ISO (YYYY-MM-DD...). Não utilizar a data de vencimento. */
     const [incoming, outgoing, otherIncoming] = await Promise.all([
@@ -200,7 +208,7 @@ export default class FinancialDataAccess {
         { $group: { _id: { $substrBytes: ["$paidAt", 0, 7] }, total: { $sum: "$paidAmount" } } }
       ]),
       Revenue.aggregate([
-        { $match: { schoolId: schoolId(), status: "received", ...between("receivedAt", firstMonth, finalExclusive) } },
+        { $match: { schoolId: schoolId(), status: "received", ...accountMatch, ...between("receivedAt", firstMonth, finalExclusive) } },
         { $group: { _id: { $substrBytes: ["$receivedAt", 0, 7] }, total: { $sum: "$receivedAmount" } } }
       ])
     ]);
@@ -231,6 +239,7 @@ export default class FinancialDataAccess {
      Somente dinheiro movimentado, agrupado por lançamento e filtrado pela data real. */
   async getMovements(filters = {}) {
     const { from, to, after } = resolveRange(filters);
+    const accountMatch = await resolveFinancialAccountMatch(filters.accountId);
     if (filters.startDate && !isDate(filters.startDate)) {
       throw Object.assign(new Error("Data inicial inválida."), { statusCode: 400 });
     }
@@ -251,12 +260,12 @@ export default class FinancialDataAccess {
     if (start >= end) return buildFinancialMovements({}, period);
 
     const [payments, expenses, revenues] = await Promise.all([
-      Payment.find({ ...activePayments, ...between("paidAt", start, end) })
-        .select("id monthlyFeeId userId amount paidAt createdAt method").lean(),
-      Expense.find({ schoolId: schoolId(), status: "paid", ...between("paidAt", start, end) })
-        .select("id description category reference initiator status paidAt paidAmount method createdAt").lean(),
-      Revenue.find({ schoolId: schoolId(), status: "received", ...between("receivedAt", start, end) })
-        .select("id description category reference initiator status receivedAt receivedAmount method createdAt").lean()
+      Payment.find({ ...activePayments, ...accountMatch, ...between("paidAt", start, end) })
+        .select("id monthlyFeeId userId amount paidAt createdAt method accountId").lean(),
+      Expense.find({ schoolId: schoolId(), status: "paid", ...accountMatch, ...between("paidAt", start, end) })
+        .select("id description category reference initiator status paidAt paidAmount method createdAt accountId").lean(),
+      Revenue.find({ schoolId: schoolId(), status: "received", ...accountMatch, ...between("receivedAt", start, end) })
+        .select("id description category reference initiator status receivedAt receivedAmount method createdAt accountId").lean()
     ]);
     const feeIds = [...new Set(payments.map(item => item.monthlyFeeId).filter(Boolean))];
     const userIds = [...new Set(payments.map(item => String(item.userId || "")).filter(id => /^[\da-f]{24}$/i.test(id)))];
@@ -264,7 +273,7 @@ export default class FinancialDataAccess {
       MonthlyFee.find({ id: { $in: feeIds } }).select("id reference").lean(),
       User.find({ _id: { $in: userIds } }).select("user_name user_mat").lean()
     ]);
-    return buildFinancialMovements({ payments, fees, users, expenses, revenues }, period);
+    return buildFinancialMovements({ payments, fees, users, expenses, revenues }, period, accountMatch);
   }
 
   async getReceipts(filters = {}) {

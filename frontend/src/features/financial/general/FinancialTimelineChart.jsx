@@ -53,7 +53,7 @@ function TotalIndicator({ label, amount, color, highlight = false }) {
   </Box>;
 }
 
-export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
+export default function FinancialTimelineChart({ period, refreshKey = 0, accountId = "" }) {
   const mode = period.mode;
   const month = period.reference;
   const selectedYear = period.year;
@@ -67,7 +67,7 @@ export default function FinancialTimelineChart({ period, refreshKey = 0 }) {
 
   /* O mês da página controla 6/12 meses. Ano e Mês são filtros próprios do gráfico. */
   const queryMonth = mode === "month" ? `${selectedYear}-${selectedMonth}` : month;
-  const options = useMemo(() => ({ mode, month: queryMonth, year: selectedYear }), [mode, queryMonth, selectedYear]);
+  const options = useMemo(() => ({ mode, month: queryMonth, year: selectedYear, accountId }), [mode, queryMonth, selectedYear, accountId]);
   useEffect(() => {
     if (!/^\d{4}-\d{2}$/.test(String(options.month))) return;
     let active = true;

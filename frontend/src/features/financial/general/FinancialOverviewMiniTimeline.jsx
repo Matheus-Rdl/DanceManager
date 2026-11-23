@@ -57,7 +57,7 @@ function MovementPreview({ title, value, entries, color, icon: Icon, emptyText }
 
 /* EN: The selected filter controls the exact number of chart bars.
    PT: O filtro superior determina exatamente quantos meses aparecem no gráfico. */
-export default function FinancialOverviewMiniTimeline({ period, refreshKey = 0, onOpenDetails }) {
+export default function FinancialOverviewMiniTimeline({ period, accountId = "", refreshKey = 0, onOpenDetails }) {
   const queryMode = period.mode;
   const queryMonth = period.mode === "year" ? `${period.year}-12` : period.reference;
   const [timeline, setTimeline] = useState([]);
@@ -71,7 +71,7 @@ export default function FinancialOverviewMiniTimeline({ period, refreshKey = 0, 
 
   /* EN: Default to the top filter month, but allow choosing another visible month.
      PT: Inicia no mês do filtro superior, mas permite escolher outro mês exibido. */
-  const selectionScope = `${queryMode}:${queryMonth}:${period.year}`;
+  const selectionScope = `${queryMode}:${queryMonth}:${period.year}:${accountId}`;
   const [manualSelection, setManualSelection] = useState({ scope: null, reference: null });
   const defaultMonth = timeline.find(item => item.reference === period.reference)?.reference
     ?? timeline[timeline.length - 1]?.reference
@@ -90,12 +90,13 @@ export default function FinancialOverviewMiniTimeline({ period, refreshKey = 0, 
     setLoading(true);
     setError("");
     setTimeline([]);
-    financialServices.getTimeline({ mode: queryMode, month: queryMonth, year: period.year })
+    setMovements([]);
+    financialServices.getTimeline({ mode: queryMode, month: queryMonth, year: period.year, accountId })
       .then(data => { if (active) setTimeline(Array.isArray(data?.timeline) ? data.timeline : []); })
       .catch(err => { if (active) setError(err.message || "Não foi possível carregar a evolução financeira."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [queryMode, queryMonth, period.year, refreshKey, retry]);
+  }, [queryMode, queryMonth, period.year, accountId, refreshKey, retry]);
 
   /* EN: Load the real transactions for the selected month, including a manually chosen one.
      PT: Carrega os lançamentos reais do mês selecionado, inclusive ao clicar em outro mês. */
@@ -105,12 +106,12 @@ export default function FinancialOverviewMiniTimeline({ period, refreshKey = 0, 
     setDetailsLoading(true);
     setDetailsError("");
     setMovements([]);
-    financialServices.getMovements({ from: selectedMonth, to: selectedMonth })
+    financialServices.getMovements({ from: selectedMonth, to: selectedMonth, accountId })
       .then(data => { if (active) setMovements(Array.isArray(data?.rows) ? data.rows : []); })
       .catch(err => { if (active) setDetailsError(err.message || "Não foi possível carregar os lançamentos deste mês."); })
       .finally(() => { if (active) setDetailsLoading(false); });
     return () => { active = false; };
-  }, [selectedMonth, refreshKey, detailsRetry]);
+  }, [selectedMonth, accountId, refreshKey, detailsRetry]);
 
   const highest = useMemo(() => Math.max(0, ...timeline.flatMap(point => [Number(point.received) || 0, Number(point.expensesPaid) || 0])), [timeline]);
   const maximum = axisMaximum(highest);

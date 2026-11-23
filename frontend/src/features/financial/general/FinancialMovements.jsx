@@ -23,7 +23,7 @@ function TotalsCard({ title, value, tone, icon: Icon }) {
   </Box>;
 }
 
-export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigin }) {
+export default function FinancialMovements({ period, refreshKey = 0, accountId = "", onOpenOrigin }) {
   const { from, to } = periodRange(period);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,17 +40,18 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
   const [exportError, setExportError] = useState("");
 
   useEffect(() => { setStartDate(""); setEndDate(""); setExpandedId(null); }, [from, to]);
+  useEffect(() => setExpandedId(null), [accountId]);
   useEffect(() => {
     let active = true;
     setLoading(true); setError("");
     /* The date filter is sent to the API; other filters work on the loaded result.
        O período é aplicado no servidor; os demais filtros atuam na lista retornada. */
-    financialServices.getMovements({ from, to, startDate, endDate })
+    financialServices.getMovements({ from, to, startDate, endDate, accountId })
       .then(result => { if (active) setData(Array.isArray(result?.rows) ? result.rows : []); })
       .catch(err => { if (active) { setData([]); setError(err.message || "Não foi possível consultar o extrato."); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [from, to, startDate, endDate, refreshKey, retry]);
+  }, [from, to, startDate, endDate, accountId, refreshKey, retry]);
 
   const availableMethods = useMemo(() => [...new Set(data.flatMap(item => (item.details || []).map(p => p.method).filter(Boolean)))].sort(), [data]);
   const filtered = useMemo(() => filterFinancialMovementRows(data, { search, origin, responsible, method }),
@@ -63,7 +64,7 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
       const fromDate = startDate || `${from}-01`;
       const toDate = endDate || lastDay(to);
       /* Consulta novamente para exportar os valores atuais, mesmo após uma alteração de filtro. */
-      const result = await financialServices.getMovements({ from, to, startDate, endDate });
+      const result = await financialServices.getMovements({ from, to, startDate, endDate, accountId });
       if (!Array.isArray(result?.rows)) throw new Error("Resposta inválida ao consultar as movimentações.");
       const visible = filterFinancialMovementRows(result.rows, { search, origin, responsible, method });
       await generateExcelMovements({ movements: visible, from: fromDate, to: toDate });
@@ -84,7 +85,7 @@ export default function FinancialMovements({ period, refreshKey = 0, onOpenOrigi
       <Text><b>Referência:</b> {formatMonth(item.reference)}</Text>
       <Text><b>Responsável:</b> {initiatorName(item)}</Text>
     </Flex>
-    <Text fontSize="11px" fontWeight="700" color={COLORS.green} mb={2}>Pagamentos e recebimentos neste período</Text>
+    <Text fontSize="11px" fontWeight="700" color={COLORS.green} mb={2}>Pagamentos e recebimentos nesta consulta</Text>
     <VStack gap={2} align="stretch">
       {(item.details || []).map((payment, index) => <Flex key={payment.id || index} justify="space-between" align="center" gap={3}>
         <Text fontSize="11px" color={COLORS.gray}>{formatDate(payment.date)} · {payment.method}</Text>

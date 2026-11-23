@@ -10,6 +10,7 @@ import FinancialRevenues from "./FinancialRevenues";
 import FinancialEvolution from "./FinancialEvolution";
 import FinancialMovements from "./FinancialMovements";
 import FinancialAccounts from "./FinancialAccounts";
+import FinancialAccountFilter from "./FinancialAccountFilter";
 import { COLORS, initialPeriod } from "./financialPeriod";
 
 const tabs = [
@@ -29,6 +30,9 @@ export default function FinancialGeneral() {
   /* Um único filtro de período compartilhado entre todas as abas. */
   const [period, setPeriod] = useState(() => initialPeriod("month"));
   const [refreshKey,setRefreshKey] = useState(0);
+  /* EN: Keep one account filter across Overview and Movements without changing the bank balance cards.
+     PT: Compartilha o filtro entre Visão Geral e Movimentações sem alterar os cards de saldo bancário. */
+  const [accountId, setAccountId] = useState("");
   const updatePeriod = value => setPeriod(value);
   const refresh = () => setRefreshKey(key => key+1);
   /* Open the existing record rather than editing/duplicating it in the statement.
@@ -60,13 +64,15 @@ export default function FinancialGeneral() {
     {/* EN: Account balances follow their own reference date, not the period/competence selector.
          PT: O saldo das contas usa sua própria data-base, não o filtro de competência. */}
     {tab !== "accounts" && <FinancialPeriodSelector period={period} onChange={updatePeriod} cashOnly={tab === "movements"}/> }
+    {(tab === "overview" || tab === "movements" || tab === "evolution") &&
+      <FinancialAccountFilter value={accountId} onChange={setAccountId} refreshKey={refreshKey}/>}
     <Box role="tabpanel" minW={0}>
-      {tab==="overview" && <FinancialOverview period={period} refreshKey={refreshKey} onOpenEvolution={() => setTab("evolution")}/>}
+      {tab==="overview" && <FinancialOverview period={period} refreshKey={refreshKey} accountId={accountId} onOpenEvolution={() => setTab("evolution")}/>}
       {tab==="receipts" && <FinancialReceipts period={period} refreshKey={refreshKey}/>}
       {tab==="revenues" && <FinancialRevenues period={period} refreshKey={refreshKey} onDataChanged={refresh} focusId={focus?.tab === "revenues" ? focus.id : null}/>}
       {tab==="expenses" && <FinancialExpenses period={period} refreshKey={refreshKey} onDataChanged={refresh} focusId={focus?.tab === "expenses" ? focus.id : null}/>}
-      {tab==="movements" && <FinancialMovements period={period} refreshKey={refreshKey} onOpenOrigin={openOrigin}/>}
-      {tab==="evolution" && <FinancialEvolution period={period} refreshKey={refreshKey}/>}
+      {tab==="movements" && <FinancialMovements period={period} refreshKey={refreshKey} accountId={accountId} onOpenOrigin={openOrigin}/>}
+      {tab==="evolution" && <FinancialEvolution period={period} refreshKey={refreshKey} accountId={accountId}/>}
       {tab==="accounts" && <FinancialAccounts refreshKey={refreshKey}/> }
     </Box>
   </VStack>;

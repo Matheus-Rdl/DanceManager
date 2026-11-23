@@ -211,7 +211,7 @@ function MainStatCard({ icon: Icon, title, value, detail, direction = 0, intent 
   </Box>;
 }
 
-export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolution }) {
+export default function FinancialOverview({ period, refreshKey = 0, accountId = "", onOpenEvolution }) {
   const { from, to } = periodRange(period);
   const [summary, setSummary] = useState(null);
   const [previousSummary, setPreviousSummary] = useState(null);
@@ -225,8 +225,8 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
     const oldRange = previousRange(from, to);
     /* Falha na comparação não impede visualizar os valores do período atual. */
     Promise.allSettled([
-      financialServices.getPeriodSummary({ from, to }),
-      financialServices.getPeriodSummary(oldRange)
+      financialServices.getPeriodSummary({ from, to, accountId }),
+      financialServices.getPeriodSummary({ ...oldRange, accountId })
     ]).then(([current, previous]) => {
       if (!mounted) return;
       if (current.status === "fulfilled") setSummary(current.value);
@@ -234,7 +234,7 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
       if (previous.status === "fulfilled") setPreviousSummary(previous.value);
     }).finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [from, to, refreshKey, retry]);
+  }, [from, to, accountId, refreshKey, retry]);
 
   const description = period.mode === "month" ? "mês anterior" : period.mode === "year" ? "ano anterior" : "período anterior";
   const incomeChange = changeLabel(summary?.received, previousSummary?.received, description);
@@ -266,7 +266,7 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
 
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
         <SectionHeading icon={FiCalendar} title="Mensalidades"
-          description="Cobranças, recebimentos e situação das mensalidades da competência selecionada." />
+          description="Recebimentos da conta selecionada; cobranças previstas, atrasadas e pendentes permanecem gerais." />
         <SimpleGrid columns={{ base: 2, lg: 4 }} gap={3}>
           <MonthlyStatCard icon={FiCreditCard} title="Recebidas" value={money(summary?.monthlyFeesReceived)}
             caption="Pagamentos de mensalidades realizados no período." tone="green" />
@@ -285,7 +285,7 @@ export default function FinancialOverview({ period, refreshKey = 0, onOpenEvolut
         <SectionHeading icon={FiPieChart} title="Análise Financeira"
           description="Composição das movimentações e distribuição das despesas no período selecionado." />
         <FinancialOverviewCharts summary={summary} period={period} />
-        <FinancialOverviewMiniTimeline period={period} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
+        <FinancialOverviewMiniTimeline period={period} accountId={accountId} refreshKey={refreshKey} onOpenDetails={onOpenEvolution} />
       </VStack>
 
       <VStack align="stretch" gap={3} mt={{ base: 4, md: 6 }}>
