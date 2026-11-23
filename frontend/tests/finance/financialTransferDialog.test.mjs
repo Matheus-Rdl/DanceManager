@@ -80,7 +80,7 @@ describe("Commit 15: contas e validação local", () => {
   });
 });
 
-describe("Commit 15: integração visual sem gravação", () => {
+describe("Commit 16: diálogo integrado à API", () => {
   it("usa Dialog e select dinâmico de origem e destino", async () => {
     const src = await readSource("TransferDialog.jsx");
     assert.match(src, /<Dialog\.Root/);
@@ -89,11 +89,15 @@ describe("Commit 15: integração visual sem gravação", () => {
     assert.match(src, /availableAccounts\.filter\(account => account\.id !== draft\.fromAccountId\)/);
     assert.match(src, /<option key=\{account\.id\} value=\{account\.id\}>/);
   });
-  it("apresenta conferência e nunca chama API ou altera saldos", async () => {
+  it("exige conferência antes do envio e usa a API existente", async () => {
     const src = await readSource("TransferDialog.jsx");
     assert.match(src, /setReviewing\(result\.valid\)/);
     assert.match(src, /Conferir dados/);
-    assert.doesNotMatch(src, /financialTransfersServices|\.create\(|fetch\(/);
+    assert.match(src, /Confirmar transferência/);
+    assert.match(src, /createTransferSubmission/);
+    assert.match(src, /financialTransfersServices\.create\(data\)/);
+    assert.match(src, /submissionRef\.current\.isPending\(\)/);
+    assert.match(src, /onCompleted\?\.\(\)/);
   });
   it("exige responsável e permite observação de até 500 caracteres", async () => {
     const src = await readSource("TransferDialog.jsx");
@@ -101,11 +105,14 @@ describe("Commit 15: integração visual sem gravação", () => {
     assert.match(src, /maxLength=\{500\}/);
     assert.match(src, /onOpenChange=\{event =>/);
   });
-  it("abre pelo menu Contas apenas com duas contas ativas", async () => {
+  it("abre com duas contas ativas e atualiza os saldos somente após sucesso", async () => {
     const src = await readSource("FinancialAccounts.jsx");
     assert.match(src, /activeAccounts\.length < 2/);
-    assert.match(src, /onClick=\{\(\) => setTransferOpen\(true\)\}/);
-    assert.match(src, /<TransferDialog open=\{transferOpen\} onClose=\{\(\) => setTransferOpen\(false\)\}/);
+    assert.match(src, /setTransferOpen\(true\)/);
+    assert.match(src, /<TransferDialog open=\{transferOpen\}/);
+    assert.match(src, /onCompleted=\{onTransferCompleted\}/);
+    assert.match(src, /setRetryKey\(value => value \+ 1\)/);
+    assert.match(src, /financialAccountsServices\.getBalances\(/);
     assert.doesNotMatch(src, /financialTransfersServices\.create/);
   });
 });

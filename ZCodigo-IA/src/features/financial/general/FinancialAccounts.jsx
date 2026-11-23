@@ -18,6 +18,14 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [transferNotice, setTransferNotice] = useState("");
+
+  /* EN: Refresh the list and BOTH calculated balances after the API confirms a transfer.
+     PT: Reconsulta as contas e AMBOS os saldos calculados após a confirmação da API. */
+  const onTransferCompleted = () => {
+    setTransferNotice("Transferência registrada com sucesso. Atualizando saldos...");
+    setRetryKey(value => value + 1);
+  };
   const activeAccounts = view?.accounts?.filter(account => account.active) ?? [];
 
   useEffect(() => {
@@ -29,10 +37,18 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
       financialAccountsServices.list({}, { signal: controller.signal }),
       financialAccountsServices.getBalances({}, { signal: controller.signal })
     ]).then(([accounts, balances]) => {
-      if (!controller.signal.aborted) setView(buildFinancialAccountsView(accounts, balances));
+      if (!controller.signal.aborted) {
+        const updatedView = buildFinancialAccountsView(accounts, balances);
+        setView(updatedView);
+        setTransferNotice(current => current ? (updatedView.complete ?
+          "Transferência registrada com sucesso. Saldos atualizados." :
+          "Transferência registrada. Alguns saldos estão indisponíveis; consulte novamente.") : current);
+      }
     }).catch(err => {
       if (controller.signal.aborted) return;
       setError(err?.message || "Não foi possível consultar as contas financeiras.");
+      setTransferNotice(current => current ?
+        "Transferência registrada, mas os saldos não puderam ser atualizados. Tente Atualizar contas." : current);
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
     });
@@ -55,11 +71,11 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
         </Box>
       </Flex>
       <Flex gap={2} wrap="wrap">
-        {/* EN: The dialog is preview-only until the API integration commit.
-            PT: O Dialog só apresenta uma prévia até a etapa de integração com a API. */}
+        {/* EN: Account operations are submitted only after a separate confirmation.
+            PT: Operações financeiras só são enviadas após uma confirmação separada. */}
         <Button size="sm" bg={COLORS.green} color="white"
           disabled={loading || !!error || activeAccounts.length < 2}
-          onClick={() => setTransferOpen(true)}>
+          onClick={() => { setTransferNotice(""); setTransferOpen(true); }}>
           <FiArrowLeftRight/> Transferir
         </Button>
         <Button size="sm" variant="outline" onClick={() => setRetryKey(value => value + 1)}>
@@ -67,6 +83,10 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
         </Button>
       </Flex>
     </Flex>
+
+    {transferNotice && <Box role="status" bg="#edf6f2" color={COLORS.green} borderRadius="10px" p={3}>
+      <Text fontSize="12px">{transferNotice}</Text>
+    </Box>}
 
     {loading && <Flex bg="white" borderRadius="12px" p={4} align="center" gap={2}>
       <Spinner size="sm" color={COLORS.green}/><Text fontSize="12px" color={COLORS.gray}>Carregando saldos das contas...</Text>
@@ -92,6 +112,7 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
         registrados no sistema. Não há sincronização automática com os bancos; confira os saldos iniciais provisórios.
       </Text>
     </>}
-    <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)} accounts={view?.accounts ?? []}/>
+    <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)}
+      onCompleted={onTransferCompleted} accounts={view?.accounts ?? []}/>
   </VStack>;
 }
