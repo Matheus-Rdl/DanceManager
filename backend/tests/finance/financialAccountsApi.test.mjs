@@ -12,7 +12,8 @@ export default { Schema, model: (name, schema) => ({ modelName: name, schema }) 
 const schoolStub = `export const schoolId = () => "school-from-server";`;
 const expressStub = `export default { Router: () => {
   const routes = [];
-  return { routes, get: (path, handler) => routes.push({ method: "GET", path, handler }),
+  return { routes, use: handler => routes.push({ method: "MIDDLEWARE", handler }),
+    get: (path, handler) => routes.push({ method: "GET", path, handler }),
     post: (path, handler) => routes.push({ method: "POST", path, handler }),
     patch: (path, handler) => routes.push({ method: "PATCH", path, handler }) };
 }};`;
@@ -167,7 +168,7 @@ describe("Contas financeiras: contrato HTTP", () => {
     assert.equal((await controller.create(newAccount())).statusCode, 409);
   });
   it("declara as cinco rotas esperadas", () => {
-    assert.deepEqual(router.routes.map(({method,path}) => `${method} ${path}`),
+    assert.deepEqual(router.routes.filter(r => r.method !== "MIDDLEWARE").map(({method,path}) => `${method} ${path}`),
       ["GET /balances", "GET /", "GET /:id", "POST /", "PATCH /:id"]);
   });
   it("registra as rotas no index sem substituir o módulo Financeiro", () => {

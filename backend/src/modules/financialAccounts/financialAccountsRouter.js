@@ -1,9 +1,14 @@
 import express from "express";
 import FinancialAccountsControllers from "./financialAccountsControllers.js";
+import { financialAccountsAccessGate } from "./financialAccountsAccess.js";
 
 const router = express.Router();
 const controller = new FinancialAccountsControllers();
 const respond = (res, result) => res.status(result.statusCode).send(result);
+
+/* EN: Apply the security gate to ALL financial account routes, including read-only balances.
+   PT: Protege TODAS as rotas de contas, inclusive as consultas de saldo. */
+router.use(financialAccountsAccessGate);
 
 /* EN: The balances endpoint is registered before /:id, to avoid interpreting "balances" as an account ID.
    PT: A rota de saldos vem antes de /:id, evitando interpretar "balances" como ID de conta. */

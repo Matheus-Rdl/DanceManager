@@ -7,6 +7,7 @@ import financialAccountsServices from "../../../services/financialAccountsServic
 import FinancialAccountCard from "./FinancialAccountCard";
 import FinancialAccountsSummary from "./FinancialAccountsSummary";
 import TransferDialog from "./TransferDialog";
+import FinancialTransfersList from "./FinancialTransfersList";
 import { buildFinancialAccountsView } from "./financialAccountsView";
 import { COLORS, formatDate } from "./financialPeriod";
 
@@ -114,6 +115,8 @@ export default function FinancialAccounts({ refreshKey = 0 }) {
         registrados no sistema. Não há sincronização automática com os bancos; confira os saldos iniciais provisórios.
       </Text>
     </>}
+    {!loading && !error && view?.accounts?.length > 0 &&
+      <FinancialTransfersList accounts={view.accounts} refreshKey={retryKey + refreshKey}/>}
     <TransferDialog open={transferOpen} onClose={() => setTransferOpen(false)}
       onCompleted={onTransferCompleted} accounts={view?.accounts ?? []}/>
   </VStack>;
