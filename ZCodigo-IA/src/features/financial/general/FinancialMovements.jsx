@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Flex, Heading, Input, NativeSelect, Table, Text, VStack } from "@chakra-ui/react";
 import { FiArrowDownLeft, FiArrowUpRight, FiChevronDown, FiChevronUp, FiExternalLink, FiRefreshCw, FiSearch, FiDownload } from "react-icons/fi";
 import financialServices from "../../../services/financialServices";
+import financialAccountsServices from "../../../services/financialAccountsServices";
 import { filterFinancialMovementRows } from "../../../services/reports/financial/financialMovementRows";
 import { generateExcelMovements } from "../../../services/reports/financial/excelMovements";
 import { COLORS, formatDate, formatMonth, money, periodRange } from "./financialPeriod";
@@ -63,11 +64,16 @@ export default function FinancialMovements({ period, refreshKey = 0, accountId =
     try {
       const fromDate = startDate || `${from}-01`;
       const toDate = endDate || lastDay(to);
-      /* Consulta novamente para exportar os valores atuais, mesmo após uma alteração de filtro. */
-      const result = await financialServices.getMovements({ from, to, startDate, endDate, accountId });
+      /* EN: Refresh movements and account names together; do not export guessed account labels.
+         PT: Atualiza lançamentos e nomes das contas juntos; não exporta nomes presumidos. */
+      const [result, accounts] = await Promise.all([
+        financialServices.getMovements({ from, to, startDate, endDate, accountId }),
+        financialAccountsServices.list()
+      ]);
       if (!Array.isArray(result?.rows)) throw new Error("Resposta inválida ao consultar as movimentações.");
+      if (!Array.isArray(accounts)) throw new Error("Resposta inválida ao consultar as contas financeiras.");
       const visible = filterFinancialMovementRows(result.rows, { search, origin, responsible, method });
-      await generateExcelMovements({ movements: visible, from: fromDate, to: toDate });
+      await generateExcelMovements({ movements: visible, accounts, from: fromDate, to: toDate });
     } catch (err) {
       setExportError(err?.message || "Não foi possível gerar o arquivo Excel.");
     } finally {

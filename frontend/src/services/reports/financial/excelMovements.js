@@ -4,7 +4,7 @@ import { getFinancialMovementExportRows } from "./financialMovementRows";
 
 /* EN: Export only the currently filtered, realized cash transactions to a single XLSX tab.
    PT: Exporta somente os pagamentos realizados e filtrados, em uma única aba XLSX. */
-export async function generateExcelMovements({ movements = [], from, to }) {
+export async function generateExcelMovements({ movements = [], accounts = [], from, to }) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "DanceManager";
   workbook.created = new Date();
@@ -17,7 +17,9 @@ export async function generateExcelMovements({ movements = [], from, to }) {
     { header: "Categoria", key: "category", width: 22 },
     { header: "Descrição", key: "description", width: 48 },
     { header: "Valor", key: "amount", width: 20 },
-    { header: "Tipo", key: "type", width: 14 }
+    { header: "Tipo", key: "type", width: 14 },
+    { header: "Conta financeira", key: "accountName", width: 24 },
+    { header: "ID da conta", key: "accountId", width: 39 }
   ];
   const header = sheet.getRow(1);
   header.height = 27;
@@ -27,7 +29,9 @@ export async function generateExcelMovements({ movements = [], from, to }) {
 
   /* EN: Use genuine Excel dates and signed numeric BRL values for reliable validation and sums.
      PT: Usa datas reais do Excel e valores numéricos com sinal para permitir conferência e soma. */
-  const rows = getFinancialMovementExportRows(movements);
+  /* EN: Keep account labels and IDs tied to each settlement, even for mixed-account fees.
+     PT: Preserva nome e ID da conta de cada parcela, inclusive nas mensalidades mistas. */
+  const rows = getFinancialMovementExportRows(movements, { accounts });
   for (const item of rows) {
     const validDate = /^\d{4}-\d{2}-\d{2}$/.test(item.date);
     const row = sheet.addRow({
@@ -43,7 +47,7 @@ export async function generateExcelMovements({ movements = [], from, to }) {
   sheet.getColumn("date").numFmt = "dd/mm/yyyy";
   sheet.getColumn("amount").numFmt = '"R$" #,##0.00;[Red]-"R$" #,##0.00';
   sheet.getColumn("amount").alignment = { horizontal: "right", vertical: "middle" };
-  sheet.autoFilter = { from: "A1", to: `H${Math.max(2, rows.length + 1)}` };
+  sheet.autoFilter = { from: "A1", to: `J${Math.max(2, rows.length + 1)}` };
 
   const buffer = await workbook.xlsx.writeBuffer();
   const suffix = `${from || "inicio"}_a_${to || "fim"}`.replace(/[^\dA-Za-z_\-]/g, "");

@@ -28,14 +28,22 @@ export function filterFinancialMovementRows(rows = [], { search = "", origin = "
 
 /* EN: One spreadsheet row per actual settlement, including each partial monthly-fee payment.
    PT: Uma linha por pagamento realizado, inclusive cada parcela de mensalidade. */
-export function getFinancialMovementExportRows(rows = []) {
+export function getFinancialMovementExportRows(rows = [], { accounts = [] } = {}) {
+  /* EN: Resolve names from the account registry, including inactive accounts for historical exports.
+     PT: Busca os nomes no cadastro de contas, inclusive inativas para exportações históricas. */
+  const accountNames = new Map(accounts.map(account => [String(account.id), String(account.name || "").trim()]));
   const result = [];
   for (const item of rows) {
     const details = Array.isArray(item.details) && item.details.length
-      ? item.details : [{ date: item.date, method: item.method, amount: item.amount }];
+      ? item.details : [{ date: item.date, method: item.method, amount: item.amount, accountId: item.accountId }];
     for (const detail of details) {
       const value = round(detail.amount);
       if (!Number.isFinite(value) || value <= 0) continue;
+      /* EN: Each settlement owns its account; never inherit the grouped monthly fee's account.
+         PT: Cada parcela tem sua própria conta; nunca presume a conta da mensalidade agrupada. */
+      const accountId = detail.accountId ? String(detail.accountId) : "";
+      const accountName = !accountId ? "Não identificada" :
+        accountNames.get(accountId) || "Conta não localizada";
       result.push({
         date: String(detail.date || item.date || "").slice(0, 10),
         initiator: item.responsible?.name || "Não informado",
@@ -44,7 +52,9 @@ export function getFinancialMovementExportRows(rows = []) {
         category: item.category || "Outros",
         description: item.description || "",
         amount: item.direction === "out" ? -value : value,
-        type: item.direction === "out" ? "Saída" : "Entrada"
+        type: item.direction === "out" ? "Saída" : "Entrada",
+        accountName,
+        accountId
       });
     }
   }
