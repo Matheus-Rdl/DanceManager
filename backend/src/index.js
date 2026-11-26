@@ -24,6 +24,9 @@ import Expense from "./models/Expense.js";
 import Revenue from "./models/Revenue.js";
 import FinancialAccount from "./models/FinancialAccount.js";
 import FinancialTransfer from "./models/FinancialTransfer.js";
+import PrivateLessonPlan from "./models/PrivateLessonPlan.js";
+import PrivateLessonPackage from "./models/PrivateLessonPackage.js";
+import PrivateLesson from "./models/PrivateLesson.js";
 import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
 import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
@@ -134,6 +137,11 @@ async function main() {
   /* EN: Create the unique idempotency index before enabling financial transfers.
      PT: Cria o índice único de idempotência antes de aceitar transferências. */
   await FinancialTransfer.init();
+  /* EN: Initialize private lesson collections and indexes before exposing their future API.
+     PT: Inicializa collections e indices de aulas particulares antes de expor a futura API. */
+  await PrivateLessonPlan.init();
+  await PrivateLessonPackage.init();
+  await PrivateLesson.init();
   const runExpenseGeneration = async () => {
     try {
       const count = await ensureAllExpenses();
