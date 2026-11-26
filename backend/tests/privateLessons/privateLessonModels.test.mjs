@@ -47,3 +47,13 @@ test("lesson validates its interval and supports reschedulable absences", () => 
   error(PrivateLesson, { ...lesson, status: "paid" }, "status");
   assert.equal(PrivateLesson.schema.path("teacherId"), undefined);
 });
+
+test("embedded receipt validates and existing packages default to no payments", () => {
+  const receipt = { id: "00000000-0000-4000-8000-000000000001", requestId: "00000000-0000-4000-8000-000000000002",
+    accountId: "00000000-0000-4000-8000-000000000003", amount: 300, receivedAt: "2026-11-26", method: "Pix", createdAt: now };
+  assert.equal(new PrivateLessonPackage(pkg).payments.length, 0);
+  assert.equal(new PrivateLessonPackage({ ...pkg, payments: [receipt] }).validateSync(), undefined);
+  for (const invalid of [{ amount: -1 }, { amount: 0.001 }, { accountId: "bad" }, { receivedAt: "2026-02-30" }]) {
+    assert.ok(new PrivateLessonPackage({ ...pkg, payments: [{ ...receipt, ...invalid }] }).validateSync());
+  }
+});

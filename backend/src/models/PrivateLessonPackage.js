@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import privateLessonPaymentSchema from "./PrivateLessonPayment.js";
 import {
   PRIVATE_PACKAGE_STATUSES, hasValidParticipants, isValidLessonAmount,
   isValidLessonCount, isValidLessonDate
@@ -33,6 +34,9 @@ const privateLessonPackageSchema = new mongoose.Schema({
      PT: A situação do pacote independe da situação financeira. Sem validade ou vencimento. */
   status: { type: String, enum: PRIVATE_PACKAGE_STATUSES, default: "active", required: true },
   notes: { type: String, default: "", trim: true, maxlength: 1000 },
+  /* EN: Financial state is derived from receipts, not a duplicated balance.
+     PT: A situação financeira é derivada dos recebimentos, sem duplicar saldo. */
+  payments: { type: [privateLessonPaymentSchema], default: [] },
   createdAt: { type: String, required: true },
   updatedAt: { type: String, required: true }
 }, { collection: "privateLessonPackages", optimisticConcurrency: true });
