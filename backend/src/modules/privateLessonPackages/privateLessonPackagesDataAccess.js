@@ -1,3 +1,4 @@
+import { paymentSummary } from "../../models/privateLessonPaymentRules.js";
 import { randomUUID } from "node:crypto";
 import { createPackageFields, packageError, participantFilter, packageListFilters, updatePackageFields } from "./privateLessonPackagesRules.js";
 import { createPlanFields, validPlanId } from "../privateLessonPlans/privateLessonPlansRules.js";
@@ -36,7 +37,13 @@ export default class PrivateLessonPackagesDataAccess {
     const schoolId = this.resolveSchoolId();
     const rows = await this.model.find({ schoolId, ...packageListFilters(query) })
       .sort({ contractedOn: -1, createdAt: -1, id: 1 }).lean();
-    return this.withParticipants(rows, schoolId);
+    /* EN: Return one derived financial summary per package, not the complete receipt journal.
+       PT: Retorna um resumo financeiro calculado por pacote, sem o histórico integral de recebimentos. */
+    return this.withParticipants(rows.map(row => {
+      const financial = paymentSummary(row);
+      const { payments, ...publicRow } = row;
+      return { ...publicRow, financial };
+    }), schoolId);
   }
 
   async get(id) {

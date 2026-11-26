@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Dialog, Flex, Heading, HStack, Input, Portal, SimpleGrid, Spinner, Text, VStack } from "@chakra-ui/react";
 import { FiCalendar, FiCheckCircle, FiDollarSign, FiEye, FiLayers, FiPlus, FiRefreshCw, FiSearch, FiUsers } from "react-icons/fi";
+import { summarizeFinancialPackages, paymentStatusLabel } from "./privateLessonFinancialView.js";
 import PrivateLessonPaymentPanel from "./PrivateLessonPaymentPanel.jsx";
 import PrivateLessonPurchaseDialog from "./PrivateLessonPurchaseDialog.jsx";
 import service from "../../services/privateLessonPackagesServices.js";
@@ -32,7 +33,7 @@ function Info({ label, children }) {
 
 /* EN: Fetch a fresh detail on open and abort when the dialog closes.
    PT: Consulta detalhes atualizados ao abrir e cancela a requisição ao fechar. */
-function PackageDetails({ id, onClose }) {
+function PackageDetails({ id, onClose, onChanged }) {
   const [row, setRow] = useState(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
   const [error, setError] = useState("");
@@ -51,14 +52,14 @@ function PackageDetails({ id, onClose }) {
           <SimpleGrid columns={2} gap={4}><Info label="Data da contratação">{displayDate(row.contractedOn)}</Info><Info label="Tipo">{row.planId ? "Pacote padrão" : "Personalizado"}</Info><Info label="Aulas contratadas">{row.lessonCount}</Info><Info label="Valor contratado">{money(row.amount)}</Info><Info label="Valor por aula">{money(row.amount / row.lessonCount)}</Info></SimpleGrid>
           <Box borderTop="1px solid #e5ece9" pt={3}><Text fontSize="12px" fontWeight="700" color="#315650" mb={2}>Participantes</Text><Participants row={row}/></Box>
           <Box><Text fontSize="12px" fontWeight="700" color="#315650" mb={1}>Observações</Text><Text fontSize="13px" color="#173c37" whiteSpace="pre-wrap" overflowWrap="anywhere">{row.notes || "Nenhuma observação."}</Text></Box>
-          <PrivateLessonPaymentPanel pkg={row} onBusy={setPaymentBusy}/>
+          <PrivateLessonPaymentPanel pkg={row} onBusy={setPaymentBusy} onChanged={onChanged}/>
         </VStack>}
       </Dialog.Body><Dialog.Footer borderTop="1px solid #e5ece9"><Button size="sm" variant="outline" disabled={paymentBusy} onClick={onClose}>Fechar</Button></Dialog.Footer>
     </Dialog.Content></Dialog.Positioner></Portal>
   </Dialog.Root>;
 }
 
-const headers = ["Pacote", "Participantes", "Contratação", "Aulas contratadas", "Valor contratado", "Situação", "Ações"];
+const headers = ["Pacote", "Participantes", "Contratação", "Aulas contratadas", "Valor contratado", "Recebido", "Em aberto", "Pagamento", "Situação", "Ações"];
 const cell = { padding: "12px", verticalAlign: "top", textAlign: "left" };
 export default function PrivateLessonsPage() {
   const [rows, setRows] = useState([]);
@@ -81,6 +82,7 @@ export default function PrivateLessonsPage() {
   }, [refresh]);
   const visible = useMemo(() => filterPackages(rows, filters), [rows, filters]);
   const summary = useMemo(() => summarizePackages(visible), [visible]);
+  const financial = useMemo(() => { try { return {data:summarizeFinancialPackages(visible),error:""}; } catch(err) { return {data:null,error:err.message}; } }, [visible]);
   const periodOK = validPeriod(filters);
   const showSummary = !loading && !error && periodOK;
   const change = (key, value) => setFilters(old => ({ ...old, [key]: value }));
@@ -104,6 +106,13 @@ export default function PrivateLessonsPage() {
       <StatCard icon={FiUsers} title="Participantes ativos" value={showSummary ? summary.participants : "—"} caption="Pessoas distintas em pacotes ativos"/>
       <StatCard icon={FiDollarSign} title="Valor contratado" value={showSummary ? money(summary.contractedAmount) : "—"} caption="Ativos e concluídos; não é valor recebido"/>
     </SimpleGrid>
+    <SimpleGrid columns={{base:2,xl:3}} gap={3}>
+      <StatCard icon={FiDollarSign} title="Recebido nos pacotes" value={showSummary && financial.data ? money(financial.data.received) : "—"} caption="Recebimentos das contratações filtradas"/>
+      <StatCard icon={FiDollarSign} title="Valor em aberto" value={showSummary && financial.data ? money(financial.data.outstanding) : "—"} caption="Pacotes ativos e concluídos"/>
+      <StatCard icon={FiLayers} title="Pacotes com pendência" value={showSummary && financial.data ? financial.data.pendingCount : "—"} caption="Ativos e concluídos com saldo"/>
+    </SimpleGrid>
+    {showSummary && financial.error && <Text role="alert" color="#b4232b" fontSize="12px">{financial.error}</Text>}
+    <Text fontSize="11px" color="#607873">O período filtra a contratação, não a data do recebimento. Para fluxo de caixa por data, consulte o Financeiro.</Text>
     <HStack gap={3} px={1} mt={2}><Flex w="38px" h="38px" flexShrink={0} bg="#e9f6f1" color="#075749" borderRadius="12px" align="center" justify="center"><FiLayers size={20}/></Flex><Box><Heading as="h2" fontSize={{base:"19px",md:"23px"}} color="#075749" fontWeight="800">Pacotes contratados</Heading><Text fontSize="12px" color="#607873">Os indicadores acompanham os filtros selecionados.</Text></Box></HStack>
     <Flex bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={3} gap={3} align="end" wrap="wrap">
       <Box flex="1 1 200px" minW={0}><Text as="label" htmlFor="private-search" fontSize="11px" fontWeight="600" color="#315650">Buscar</Text><HStack px={2} border="1px solid #cfd9d7" borderRadius="8px" gap={2}><FiSearch color="#78918b"/><Input id="private-search" value={filters.search} onChange={e => change("search", e.target.value)} placeholder="Aluno, matrícula ou pacote" h="36px" border="none" px={0} fontSize="12px"/></HStack></Box>
@@ -113,10 +122,10 @@ export default function PrivateLessonsPage() {
     </Flex>
     {!periodOK && <Text role="alert" fontSize="12px" color="#b4232b">A data inicial deve ser anterior ou igual à final.</Text>}
     <Box bg="white" border="1px solid #dbe6e2" borderRadius="12px" overflow="hidden" boxShadow="0 3px 12px rgba(7,63,51,0.04)">
-      {loading ? <Flex align="center" justify="center" gap={2} p={8}><Spinner color="#075749"/><Text fontSize="12px">Carregando contratações...</Text></Flex> : error ? <VStack align="center" p={6}><Text role="alert" color="#b4232b" fontSize="13px" textAlign="center">{error}</Text><Button size="sm" variant="outline" onClick={reload}>Tentar novamente</Button></VStack> : !periodOK ? null : !visible.length ? <Box p={8} textAlign="center"><Text fontSize="13px" fontWeight="600" color="#315650">{rows.length ? "Nenhum pacote corresponde aos filtros." : "Nenhum pacote contratado."}</Text><Text mt={1} fontSize="12px" color="#607873">{rows.length ? "Altere os filtros para visualizar outras contratações." : "Os pacotes aparecerão aqui após a contratação."}</Text></Box> : <Box overflowX="auto"><Box as="table" w="100%" minW="830px" fontSize="12px" style={{borderCollapse:"collapse"}}><thead><tr>{headers.map(title => <th scope="col" key={title} style={{...cell,background:"#f3f8f6",color:"#315650",fontWeight:700}}>{title}</th>)}</tr></thead><tbody>{visible.map(row => <tr key={row.id} style={{borderTop:"1px solid #e5ece9"}}><td style={cell}><Text color="#075749" fontWeight="700" overflowWrap="anywhere">{row.name}</Text><Text fontSize="10px" color="#607873">{row.planId ? "Padrão" : "Personalizado"}</Text></td><td style={cell}><Participants row={row}/></td><td style={cell}>{displayDate(row.contractedOn)}</td><td style={cell}>{row.lessonCount}</td><td style={cell}>{money(row.amount)}</td><td style={cell}><StatusBadge status={row.status}/></td><td style={cell}><Button variant="ghost" size="xs" aria-label={`Ver detalhes de ${row.name}`} onClick={() => setSelected(row.id)}><FiEye/> Detalhes</Button></td></tr>)}</tbody></Box></Box>}
+      {loading ? <Flex align="center" justify="center" gap={2} p={8}><Spinner color="#075749"/><Text fontSize="12px">Carregando contratações...</Text></Flex> : error ? <VStack align="center" p={6}><Text role="alert" color="#b4232b" fontSize="13px" textAlign="center">{error}</Text><Button size="sm" variant="outline" onClick={reload}>Tentar novamente</Button></VStack> : !periodOK ? null : !visible.length ? <Box p={8} textAlign="center"><Text fontSize="13px" fontWeight="600" color="#315650">{rows.length ? "Nenhum pacote corresponde aos filtros." : "Nenhum pacote contratado."}</Text><Text mt={1} fontSize="12px" color="#607873">{rows.length ? "Altere os filtros para visualizar outras contratações." : "Os pacotes aparecerão aqui após a contratação."}</Text></Box> : <Box overflowX="auto"><Box as="table" w="100%" minW="1130px" fontSize="12px" style={{borderCollapse:"collapse"}}><thead><tr>{headers.map(title => <th scope="col" key={title} style={{...cell,background:"#f3f8f6",color:"#315650",fontWeight:700}}>{title}</th>)}</tr></thead><tbody>{visible.map(row => <tr key={row.id} style={{borderTop:"1px solid #e5ece9"}}><td style={cell}><Text color="#075749" fontWeight="700" overflowWrap="anywhere">{row.name}</Text><Text fontSize="10px" color="#607873">{row.planId ? "Padrão" : "Personalizado"}</Text></td><td style={cell}><Participants row={row}/></td><td style={cell}>{displayDate(row.contractedOn)}</td><td style={cell}>{row.lessonCount}</td><td style={cell}>{money(row.amount)}</td><td style={cell}>{financial.data ? money(row.financial.paidAmount) : "—"}</td><td style={cell}>{financial.data && row.status!=="cancelled" ? money(row.financial.outstandingAmount) : "—"}</td><td style={cell}>{financial.data ? paymentStatusLabel(row.financial.paymentStatus) : "—"}</td><td style={cell}><StatusBadge status={row.status}/></td><td style={cell}><Button variant="ghost" size="xs" aria-label={`Ver detalhes de ${row.name}`} onClick={() => setSelected(row.id)}><FiEye/> Detalhes</Button></td></tr>)}</tbody></Box></Box>}
     </Box>
     {showSummary && <Text fontSize="11px" color="#607873" role="status">{visible.length} de {rows.length} pacotes</Text>}
     {purchaseOpen && <PrivateLessonPurchaseDialog onClose={()=>setPurchaseOpen(false)} onSaved={saved} onUncertain={()=>{setPurchaseOpen(false);setNotice("Confira se a contratação foi gravada antes de tentar novamente.");setFilters(emptyFilters());reload();}}/>}
-    {selected && <PackageDetails key={selected} id={selected} onClose={() => setSelected(null)}/>}
+    {selected && <PackageDetails key={selected} id={selected} onClose={() => setSelected(null)} onChanged={reload}/>}
   </VStack>;
 }

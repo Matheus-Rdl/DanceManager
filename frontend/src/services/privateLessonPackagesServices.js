@@ -1,3 +1,4 @@
+import { validatePaymentHistory } from "../features/privateLessons/privateLessonFinancialView.js";
 import { validatePaymentSummary, paymentMatches, uuid } from "../features/privateLessons/privateLessonPaymentForm.js";
 
 /* EN: Manage purchases and integrated receipts.
@@ -40,7 +41,7 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
       if (!uuid(id)) throw new Error("Identificador inválido.");
       const row = await request(`/${encodeURIComponent(id)}/payments`, { signal });
       if (row?.packageId !== id || !Array.isArray(row.payments) || row.paymentCount !== row.payments.length) throw new Error("Resposta financeira inválida.");
-      return validatePaymentSummary(row);
+      return validatePaymentHistory(row);
     },
     async receivePayment(id, data) {
       if (!uuid(id)) throw new Error("Identificador inválido.");

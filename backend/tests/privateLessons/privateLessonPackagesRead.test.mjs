@@ -95,3 +95,19 @@ test("purchase date is immutable after receiving money; notes remain editable", 
   assert.equal(calls.writes,0);
   assert.equal((await api().update(first,{version:0,notes:"Pagamento confirmado"})).statusCode,200);
 });
+test("list returns one derived summary per purchase without receipt details or writes", async () => {
+  const {api,rows,calls}=fixture();
+  rows[0].payments=[{id:randomUUID(),requestId:randomUUID(),amount:300,notes:"private"}];
+  const result=await api().list({participantId:a});
+  assert.equal(result.statusCode,200);
+  const row=result.body.find(r=>r.id===first);
+  assert.deepEqual(row.financial,{contractedAmount:760,paidAmount:300,outstandingAmount:460,paymentStatus:"partial",paymentCount:1});
+  assert.equal(Object.hasOwn(row,"payments"),false);
+  assert.equal(result.body.find(r=>r.id===second).financial.paymentStatus,"pending");
+  assert.equal(calls.users,1);assert.equal(calls.writes,0);
+  assert.equal((await api().get(first)).body.payments.length,1);
+});
+test("list rejects inconsistent stored receipts instead of reporting a false balance", async () => {
+  const {api,rows,calls}=fixture(); rows[0].payments=[{id:randomUUID(),requestId:randomUUID(),amount:800}];
+  assert.equal((await api().list({})).statusCode,409);assert.equal(calls.writes,0);
+});
