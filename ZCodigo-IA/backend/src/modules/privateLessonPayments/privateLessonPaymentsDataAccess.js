@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { brazilPaymentDate, paymentCents, paymentError, paymentFields, paymentId, paymentSummary, samePaymentRequest } from "../../models/privateLessonPaymentRules.js";
 import { isValidLessonDate } from "../../models/privateLessonRules.js";
 
-/* EN: No public write route in this commit. A future caller must own a Mongo transaction and write the matching revenue before commit.
-   PT: Sem rota pública de gravação neste commit. O futuro chamador deverá controlar uma transação Mongo e gravar o provento correspondente antes de confirmar. */
+/* EN: The caller must own a Mongo transaction and write the matching revenue before commit.
+   PT: O chamador deve controlar uma transação Mongo e gravar o provento correspondente antes de confirmar. */
 export default class PrivateLessonPaymentsDataAccess {
   constructor({ packageModel, accountModel, resolveSchoolId, makeId = randomUUID, clock = () => new Date() }) {
     Object.assign(this, { packageModel, accountModel, resolveSchoolId, makeId, clock });
@@ -28,7 +28,7 @@ export default class PrivateLessonPaymentsDataAccess {
        PT: Um reenvio com a mesma chave e os mesmos dados retorna o recebimento original, mesmo após desativação da conta. */
     if (existing) {
       if (!samePaymentRequest(existing, fields)) throw paymentError("Identificador da operação já utilizado com outros dados.", 409);
-      return { packageId: id, payment: existing, summary, replayed: true };
+      return { packageId: id, packageName: pkg.name, payment: existing, summary, replayed: true };
     }
     if (!["active", "completed"].includes(pkg.status)) throw paymentError("Pacote não permite novos pagamentos.", 409);
     if (!isValidLessonDate(pkg.contractedOn) || fields.receivedAt < pkg.contractedOn) throw paymentError("Recebimento não pode anteceder a contratação.");
@@ -47,6 +47,6 @@ export default class PrivateLessonPaymentsDataAccess {
       { $push: { payments: payment }, $set: { updatedAt: payment.createdAt }, $inc: { __v: 1 } },
       { new: true, runValidators: true, session }).lean();
     if (!updated) throw paymentError("Pacote alterado por outra operação. Atualize os dados e tente novamente com a mesma chave.", 409);
-    return { packageId: id, payment, summary: paymentSummary(updated), replayed: false };
+    return { packageId: id, packageName: pkg.name, payment, summary: paymentSummary(updated), replayed: false };
   }
 }

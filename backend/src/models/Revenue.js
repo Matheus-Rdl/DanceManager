@@ -15,7 +15,7 @@ const historySchema = new mongoose.Schema({
 const revenueSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   schoolId: { type: String, required: true, index: true },
-  sourceType: { type: String, enum: ["manual", "event", "sale", "service"], required: true, default: "manual" },
+  sourceType: { type: String, enum: ["manual", "event", "sale", "service", "privateLesson"], required: true, default: "manual" },
   sourceId: { type: String, default: null },
   description: { type: String, required: true },
   category: { type: String, required: true },

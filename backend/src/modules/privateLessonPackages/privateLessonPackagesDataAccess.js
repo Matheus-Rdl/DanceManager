@@ -57,6 +57,9 @@ export default class PrivateLessonPackagesDataAccess {
     const current = await this.model.findOne(scope).lean();
     if (!current) throw packageError("Contratação não encontrada.", 404);
     if (current.status !== "active" && Object.hasOwn(fields, "contractedOn")) throw packageError("A data só pode ser alterada em pacotes ativos.", 409);
+    /* EN: Keep the original purchase date after any receipt.
+       PT: Preserva a data de contratação após qualquer recebimento. */
+    if (Object.hasOwn(fields, "contractedOn") && fields.contractedOn !== current.contractedOn && (current.payments?.length ?? 0) > 0) throw packageError("A data de contratação não pode ser alterada após um recebimento.", 409);
     if (current.__v !== version) throw packageError("Pacote alterado por outra operação. Atualize a página.", 409);
     try {
       const updated = await this.model.findOneAndUpdate({ ...scope, __v: version, status: current.status },

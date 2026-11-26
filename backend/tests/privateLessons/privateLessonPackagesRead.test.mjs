@@ -89,3 +89,9 @@ test("foreign or invalid IDs cannot be updated", async () => {
   const {api,calls}=fixture(); const x=api(); assert.equal((await x.update(other,{version:0,notes:"x"})).statusCode,404);
   assert.equal((await x.update("invalid",{version:0,notes:"x"})).statusCode,400); assert.equal(calls.writes,0);
 });
+test("purchase date is immutable after receiving money; notes remain editable", async () => {
+  const {api,rows,calls}=fixture(); rows[0].payments=[{amount:300}];
+  assert.equal((await api().update(first,{version:0,contractedOn:"2026-11-19"})).statusCode,409);
+  assert.equal(calls.writes,0);
+  assert.equal((await api().update(first,{version:0,notes:"Pagamento confirmado"})).statusCode,200);
+});

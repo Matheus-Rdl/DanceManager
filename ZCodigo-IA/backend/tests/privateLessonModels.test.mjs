@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import PrivateLessonPlan from "../src/models/PrivateLessonPlan.js";
 import PrivateLessonPackage from "../src/models/PrivateLessonPackage.js";
 import PrivateLesson from "../src/models/PrivateLesson.js";
+import Revenue from "../src/models/Revenue.js";
+import { privateLessonRevenueFields } from "../src/modules/privateLessonPayments/privateLessonRevenueIntegration.js";
 
 const now = "2026-11-26T15:00:00.000Z";
 const base = { id: "test-id", schoolId: "default", createdAt: now, updatedAt: now };
@@ -56,4 +58,12 @@ test("embedded receipt validates and existing packages default to no payments", 
   for (const invalid of [{ amount: -1 }, { amount: 0.001 }, { accountId: "bad" }, { receivedAt: "2026-02-30" }]) {
     assert.ok(new PrivateLessonPackage({ ...pkg, payments: [{ ...receipt, ...invalid }] }).validateSync());
   }
+});
+
+test("integrated revenue validates against the existing schema and unique source index", () => {
+  const receipt = { id: "00000000-0000-4000-8000-000000000001", amount: 300,
+    accountId: "00000000-0000-4000-8000-000000000003", receivedAt: "2026-11-26", method: "Pix", notes: "", createdAt: now };
+  const fields = privateLessonRevenueFields("default", pkg.id, receipt, pkg.name);
+  assert.equal(new Revenue(fields).validateSync(), undefined);
+  assert.ok(Revenue.schema.indexes().some(([key, opts]) => key.schoolId === 1 && key.sourceType === 1 && key.sourceId === 1 && opts.unique));
 });
