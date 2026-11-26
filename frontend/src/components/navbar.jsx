@@ -14,6 +14,8 @@ import { IoSettingsOutline } from "react-icons/io5";
 import { BiHome } from "react-icons/bi";
 import { LuNewspaper } from "react-icons/lu";
 import { MdCalendarMonth } from "react-icons/md";
+import { FiCalendar } from "react-icons/fi";
+import { TbCalendarUser } from "react-icons/tb";
 
 export default function NavBar({
   isMobileOpen = false,
@@ -57,6 +59,11 @@ export default function NavBar({
       label: "Atividades",
       icon: LiaGraduationCapSolid,
       route: "/ActivityManagement",
+    },
+    {
+      label: "Aulas particulares",
+      icon: TbCalendarUser,
+      route: "/aulas-particulares",
     },
     {
       label: "Mensalidades",

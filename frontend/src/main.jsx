@@ -27,6 +27,7 @@ import FinancialGeneral from "./features/financial/general/FinancialGeneral.jsx"
 
 import UnderConstruction from "./components/underConstruction.jsx";
 import SettingsPage from "./features/settings/SettingsPage.jsx";
+import PrivateLessonsPage from "./features/privateLessons/PrivateLessonsPage.jsx";
 import PeopleManagementActivities from "./features/register/pages/peopleManagementActivities.jsx";
 
 document.documentElement.setAttribute(
@@ -60,6 +61,8 @@ const pages = createHashRouter([
         path: "/PeopleManagementPayments",
         element: <PeopleManagementPayments />,
       },
+
+      { path: "/aulas-particulares", element: <PrivateLessonsPage /> },
 
       { path: "/ActivityAttendance", element: <ActivityAttendance /> },
       { path: "/ActivityMonthlyFees", element: <ActivityMonthlyFees /> },
