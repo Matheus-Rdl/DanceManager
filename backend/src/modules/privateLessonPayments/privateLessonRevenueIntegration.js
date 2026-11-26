@@ -17,7 +17,7 @@ export function privateLessonRevenueFields(schoolId, packageId, payment, package
 
 /* EN: Never repair a missing or inconsistent revenue on replay: fail closed for reconciliation.
    PT: Nunca recria proventos ausentes ou inconsistentes num reenvio: bloqueia para conciliação. */
-function assertMatchingRevenue(revenue, fields) {
+export function assertMatchingRevenue(revenue, fields) {
   const keys = ["id", "schoolId", "sourceType", "sourceId", "category", "status", "amount", "receivedAmount", "receivedAt", "accountId", "method", "reference", "dueDate"];
   if (!revenue || keys.some(key => revenue[key] !== fields[key])) throw paymentError("Recebimento integrado inconsistente. Necessária conciliação financeira.", 409);
 }

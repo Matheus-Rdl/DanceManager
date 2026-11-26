@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import privateLessonRefundSchema from "./PrivateLessonRefund.js";
 import privateLessonPaymentSchema from "./PrivateLessonPayment.js";
 import {
   PRIVATE_PACKAGE_STATUSES, hasValidParticipants, isValidLessonAmount,
@@ -42,6 +43,7 @@ const privateLessonPackageSchema = new mongoose.Schema({
   /* EN: Financial state is derived from receipts, not a duplicated balance.
      PT: A situação financeira é derivada dos recebimentos, sem duplicar saldo. */
   payments: { type: [privateLessonPaymentSchema], default: [] },
+  refunds: { type: [privateLessonRefundSchema], default: [] },
   createdAt: { type: String, required: true },
   updatedAt: { type: String, required: true }
 }, { collection: "privateLessonPackages", optimisticConcurrency: true });

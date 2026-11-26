@@ -1,7 +1,7 @@
 import { todayInBrazil } from "../monthlyFees/monthlyFeeGeneration.js";
 import { initiatorFields } from "../financial/financialInitiators.js";
 
-export const CATEGORIES = ["Professores", "Pró-labore", "Serviços", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros"];
+export const CATEGORIES = ["Professores", "Pró-labore", "Serviços", "Aluguel", "Água", "Energia", "Internet", "Materiais", "Manutenção", "Impostos", "Restaurantes", "Mercados", "Eventos", "Reforma", "Outros", "Devoluções de aulas particulares"];
 /* Até implementar login por escola, o identificador vem exclusivamente da configuração do servidor. */
 export const schoolId = () => process.env.SCHOOL_ID || "default";
 export const monthNow = () => todayInBrazil().slice(0, 7);
@@ -41,7 +41,7 @@ export const amountValue = (value) => {
 export const expenseFields = (body) => {
   const description = cleanText(body.description);
   const category = body.category;
-  if (!CATEGORIES.includes(category)) throw validation("Categoria inválida.");
+  if (!CATEGORIES.includes(category) || category === "Devoluções de aulas particulares") throw validation("Categoria inválida.");
   const amount = amountValue(body.amount);
   if (!isDate(body.dueDate)) throw validation("Informe um vencimento válido.");
   return { description, category, amount, dueDate: body.dueDate, reference: body.dueDate.slice(0, 7), notes: String(body.notes || "").slice(0, 500), ...initiatorFields(body) };

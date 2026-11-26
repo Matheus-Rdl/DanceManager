@@ -40,8 +40,25 @@ export function paymentSummary(pkg) {
     try { paid += paymentCents(item.amount); } catch { fail(); }
     if (!Number.isSafeInteger(paid) || paid > total) fail();
   }
-  return { contractedAmount: total / 100, paidAmount: paid / 100, outstandingAmount: (total - paid) / 100,
-    paymentStatus: paid === 0 ? "pending" : paid === total ? "paid" : "partial", paymentCount: payments.length };
+  /* EN: Refunds are separate cash outflows; keep original receipts intact.
+     PT: Devoluções são saídas separadas; mantém os recebimentos originais. */
+  const refunds = pkg.refunds === undefined ? [] : pkg.refunds;
+  if (!Array.isArray(refunds)) fail();
+  const perPayment = new Map(), refundIds = new Set(), refundRequests = new Set();
+  let refunded = 0;
+  for (const item of refunds) {
+    if (!item || !paymentId(item.id) || !paymentId(item.requestId) || !paymentId(item.paymentId) || refundIds.has(item.id) || refundRequests.has(item.requestId)) fail();
+    const original = payments.find(p => p.id === item.paymentId);
+    if (!original) fail();
+    let value; try { value = paymentCents(item.amount); } catch { fail(); }
+    const sum = (perPayment.get(item.paymentId) || 0) + value;
+    if (!Number.isSafeInteger(sum) || sum > paymentCents(original.amount)) fail();
+    perPayment.set(item.paymentId, sum); refundIds.add(item.id); refundRequests.add(item.requestId); refunded += value;
+  }
+  const net = paid - refunded;
+  return { contractedAmount: total / 100, paidAmount: net / 100, outstandingAmount: (total - net) / 100,
+    paymentStatus: net === 0 ? "pending" : net === total ? "paid" : "partial", paymentCount: payments.length,
+    ...(refunds.length ? { grossPaidAmount: paid / 100, refundedAmount: refunded / 100, refundCount: refunds.length } : {}) };
 }
 export const samePaymentRequest = (item, fields) => ["requestId", "amount", "receivedAt", "method", "accountId", "notes"].every(key => item[key] === fields[key]);
 export const validStoredPaymentDate = isValidLessonDate;

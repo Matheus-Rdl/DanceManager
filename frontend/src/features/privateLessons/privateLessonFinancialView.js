@@ -32,7 +32,15 @@ export function validatePaymentHistory(summary) {
     if(!uuid(p?.id)||!uuid(p.requestId)||!uuid(p.accountId)||ids.has(p.id.toLowerCase())||requests.has(p.requestId.toLowerCase())||!validContractDate(p.receivedAt)||typeof p.method!=="string"||!p.method.trim()||typeof p.notes!=="string"||typeof p.amount!=="number"||!Number.isSafeInteger(cents(p.amount))||p.amount<=0||Math.abs(p.amount*100-cents(p.amount))>=1e-7) throw new Error("Histórico financeiro inválido.");
     ids.add(p.id.toLowerCase());requests.add(p.requestId.toLowerCase());paid=add(paid,cents(p.amount));
   }
-  if(paid!==cents(summary.paidAmount))throw new Error("Histórico financeiro não corresponde ao total recebido.");
+  const refunds=summary.refunds??[];
+  if(!Array.isArray(refunds)||refunds.length!==(summary.refundCount??0))throw new Error("Histórico de devoluções inválido.");
+  const totals=new Map(), refundIds=new Set();let refunded=0;
+  for(const r of refunds){
+    const original=summary.payments.find(p=>p.id===r.paymentId);
+    if(!original||!uuid(r.id)||!uuid(r.requestId)||!uuid(r.accountId)||refundIds.has(r.id)||!validContractDate(r.refundedAt)||r.refundedAt<original.receivedAt||typeof r.method!=="string"||!r.method.trim()||typeof r.reason!=="string"||!r.reason.trim()||typeof r.amount!=="number"||!Number.isSafeInteger(cents(r.amount))||r.amount<=0||Math.abs(r.amount*100-cents(r.amount))>=1e-7)throw new Error("Histórico de devoluções inválido.");
+    refundIds.add(r.id);const sum=add(totals.get(r.paymentId)??0,cents(r.amount));if(sum>cents(original.amount))throw new Error("Devolução excede o recebimento.");totals.set(r.paymentId,sum);refunded=add(refunded,cents(r.amount));
+  }
+  if(paid-refunded!==cents(summary.paidAmount)|| (refunds.length&&(paid!==cents(summary.grossPaidAmount)||refunded!==cents(summary.refundedAmount))))throw new Error("Histórico financeiro não corresponde ao total recebido.");
   return summary;
 }
 export function orderedPayments(summary) {

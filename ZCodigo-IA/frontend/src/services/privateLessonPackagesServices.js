@@ -63,6 +63,13 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
       if (row?.packageId !== id || !Array.isArray(row.payments) || row.paymentCount !== row.payments.length) throw new Error("Resposta financeira inválida.");
       return validatePaymentHistory(row);
     },
+    async refundPayment(id, data) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      const row=await request(`/${encodeURIComponent(id)}/refunds`, {method:"POST",data});
+      if(row?.packageId!==id||!uuid(row.refund?.id)||row.expenseId!==row.refund.id||Object.keys(data).some(k=>row.refund[k]!==data[k]))throw new Error("Devolução não confirmada pelo servidor.");
+      validatePaymentSummary(row.summary);
+      return row;
+    },
     async receivePayment(id, data) {
       if (!uuid(id)) throw new Error("Identificador inválido.");
       const row = await request(`/${encodeURIComponent(id)}/payments`, { method: "POST", data });

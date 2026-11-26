@@ -1,0 +1,16 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {refundableAmount,buildRefundPayload,refundJournal} from "../../src/features/privateLessons/privateLessonRefundForm.js";
+import {validatePaymentHistory,summarizeFinancialPackages} from "../../src/features/privateLessons/privateLessonFinancialView.js";
+import {createPrivateLessonPackagesService} from "../../src/services/privateLessonPackagesServices.js";
+const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
+const day="2026-11-26",pkg={id:id(1),status:"cancelled",amount:760},account={id:id(2),active:true,balanceDate:"2026-06-30"};
+const payment={id:id(3),requestId:id(4),accountId:account.id,amount:300,receivedAt:"2026-11-10",method:"Pix",notes:""};
+const form={paymentId:payment.id,accountId:account.id,amount:"100,00",refundedAt:day,method:"Pix",reason:" Cancelamento "};
+const refund={...form,id:id(5),requestId:id(5),amount:100,reason:"Cancelamento"};
+const summary={contractedAmount:760,paidAmount:200,outstandingAmount:560,paymentStatus:"partial",paymentCount:1,payments:[payment],grossPaidAmount:300,refundedAmount:100,refundCount:1,refunds:[refund]};
+test("refund amount is limited by prior refunds on original receipt",()=>{assert.equal(refundableAmount(summary,payment.id),200);assert.equal(buildRefundPayload(form,pkg,summary,[account],id(6),day).amount,100);assert.throws(()=>buildRefundPayload({...form,amount:"200,01"},pkg,summary,[account],id(6),day));});
+test("requires cancelled package, active account, date and reason",()=>{assert.throws(()=>buildRefundPayload(form,{...pkg,status:"active"},summary,[account],id(6),day));assert.throws(()=>buildRefundPayload(form,pkg,summary,[{...account,active:false}],id(6),day));for(const change of [{reason:""},{refundedAt:"2026-11-27"},{amount:"1.001"}])assert.throws(()=>buildRefundPayload({...form,...change},pkg,summary,[account],id(6),day));});
+test("history validates original and refund totals; cancelled balance not counted",()=>{assert.equal(validatePaymentHistory(summary),summary);assert.deepEqual(summarizeFinancialPackages([{...pkg,financial:summary}]),{received:200,outstanding:0,pendingCount:0});assert.throws(()=>validatePaymentHistory({...summary,refunds:[{...refund,amount:101}]}));});
+test("journal preserves the exact operation for retry",()=>{const map=new Map(),storage={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};const j=refundJournal(storage,pkg.id,"test");const data=buildRefundPayload(form,pkg,summary,[account],id(6),day);j.save(data);assert.deepEqual(j.read(),data);j.clear();assert.equal(j.read(),null);});
+test("service checks linked expense and matching refund response",async()=>{const data=buildRefundPayload(form,pkg,summary,[account],id(6),day);const result={packageId:pkg.id,refund:{...data,id:id(6)},expenseId:id(6),summary};const service=createPrivateLessonPackagesService({base:"http://test",fetcher:async(url,opts)=>{assert.equal(url,`http://test/private-lesson-packages/${pkg.id}/refunds`);assert.equal(opts.method,"POST");assert.deepEqual(JSON.parse(opts.body),data);return {ok:true,json:async()=>({success:true,body:result})};}});assert.deepEqual(await service.refundPayment(pkg.id,data),result);result.expenseId=id(7);await assert.rejects(service.refundPayment(pkg.id,data));});

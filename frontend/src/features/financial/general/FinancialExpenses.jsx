@@ -210,6 +210,7 @@ export default function FinancialExpenses({period, refreshKey=0, onDataChanged, 
     mutate(() => expensesServices.stopRecurrence(item.recurrenceId));
   };
   const actions = item => {
+    if (item.sourceType === "privateLessonRefund") return <Text fontSize="10px" color={gray}>Integrado às aulas particulares</Text>;
     const activeRule = item.recurrenceId && recurrenceById.get(item.recurrenceId)?.active;
     const editable = item.status === "pending" || item.status === "paid";
     const deletable = item.status === "pending" && !item.recurrenceId &&
@@ -298,7 +299,7 @@ export default function FinancialExpenses({period, refreshKey=0, onDataChanged, 
             <FormField label="Descrição"><Input {...inputStyle} value={form.description} onChange={e => changeForm("description", e.target.value)} placeholder="Ex.: Aluguel da escola"/></FormField>
             <SimpleGrid columns={2} gap={3}>
               <FormField label="Responsável"><NativeSelect.Root size="sm"><NativeSelect.Field aria-label="Responsável pela despesa" required value={form.initiatorKey} onChange={e => changeForm("initiatorKey", e.target.value)}><option value="">Selecione...</option>{financialInitiators.map(item => <option key={item.key} value={item.key}>{item.name}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root></FormField>
-              <FormField label="Categoria"><NativeSelect.Root size="sm"><NativeSelect.Field value={form.category} onChange={e => changeForm("category", e.target.value)}>{expenseCategories.map(c => <option key={c}>{c}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root></FormField>
+              <FormField label="Categoria"><NativeSelect.Root size="sm"><NativeSelect.Field value={form.category} onChange={e => changeForm("category", e.target.value)}>{expenseCategories.filter(c => c !== "Devoluções de aulas particulares").map(c => <option key={c}>{c}</option>)}</NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root></FormField>
               <FormField label={form.alreadyPaid && !editing ? "Valor da despesa (R$)" : "Valor previsto (R$)"}><Input {...inputStyle} type="number" min="0.01" step="0.01" value={form.amount} onChange={e => changeForm("amount", e.target.value)}/></FormField>
             </SimpleGrid>
             {!editing && dialog === "expense" && <>

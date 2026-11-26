@@ -1,3 +1,6 @@
+import Expense from "../../models/Expense.js";
+import FinancialAccountsBalanceDataAccess from "../financialAccounts/financialAccountsBalanceDataAccess.js";
+import PrivateLessonRefundIntegration from "../privateLessonPayments/privateLessonRefundIntegration.js";
 import express from "express";
 import PrivateLessonCalendarLock from "../../models/PrivateLessonCalendarLock.js";
 import PrivateLesson from "../../models/PrivateLesson.js";
@@ -23,6 +26,7 @@ const controller = new PrivateLessonPackagesControllers(new PrivateLessonPackage
    PT: Todas as rotas usam o bloqueio de acesso existente; não há exclusão definitiva. */
 const paymentAccess = new PrivateLessonPaymentsDataAccess({ packageModel: PrivateLessonPackage, accountModel: FinancialAccount, resolveSchoolId: schoolId });
 const paymentIntegration = new PrivateLessonRevenueIntegration({ paymentAccess, packageModel: PrivateLessonPackage, accountModel: FinancialAccount, revenueModel: Revenue, resolveSchoolId: schoolId });
+const refundIntegration = new PrivateLessonRefundIntegration({ packageModel: PrivateLessonPackage, accountModel: FinancialAccount, revenueModel: Revenue, expenseModel: Expense, balanceService: new FinancialAccountsBalanceDataAccess(), resolveSchoolId: schoolId });
 const lessonsAccess = new PrivateLessonsDataAccess({ packageModel: PrivateLessonPackage, lessonModel: PrivateLesson, calendarLockModel: PrivateLessonCalendarLock, resolveSchoolId: schoolId });
 const respond = (res, result) => res.status(result.statusCode).send(result);
 router.use(privateLessonPackagesAccessGate);
@@ -32,6 +36,7 @@ router.get("/participants", async (req, res) => respond(res, await controller.li
    PT: A gravação confirma recebimento e provento atomicamente. */
 router.get("/:id/payments", async (req, res) => respond(res, await controller.execute(() => paymentAccess.get(req.params.id))));
 router.post("/:id/payments", async (req, res) => respond(res, await controller.execute(() => paymentIntegration.receive(req.params.id, req.body))));
+router.post("/:id/refunds", async (req, res) => respond(res, await controller.execute(() => refundIntegration.refund(req.params.id, req.body))));
 router.get("/:id/lessons", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.list(req.params.id))));
 router.post("/:id/lessons", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.schedule(req.params.id, req.body))));
 router.post("/:id/lessons/recurring", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.scheduleRecurring(req.params.id, req.body))));

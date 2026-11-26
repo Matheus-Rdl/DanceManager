@@ -67,7 +67,7 @@ function PackageDetails({ id, onClose, onChanged }) {
   </Dialog.Root>;
 }
 
-const headers = ["Pacote", "Participantes", "Contratação", "Aulas contratadas", "Valor contratado", "Recebido", "Em aberto", "Pagamento", "Situação", "Ações"];
+const headers = ["Pacote", "Participantes", "Contratação", "Aulas contratadas", "Valor contratado", "Recebido líquido", "Em aberto", "Pagamento", "Situação", "Ações"];
 const cell = { padding: "12px", verticalAlign: "top", textAlign: "left" };
 export default function PrivateLessonsPage() {
   const [rows, setRows] = useState([]);
@@ -115,7 +115,7 @@ export default function PrivateLessonsPage() {
       <StatCard icon={FiDollarSign} title="Valor contratado" value={showSummary ? money(summary.contractedAmount) : "—"} caption="Ativos e concluídos; não é valor recebido"/>
     </SimpleGrid>
     <SimpleGrid columns={{base:2,xl:3}} gap={3}>
-      <StatCard icon={FiDollarSign} title="Recebido nos pacotes" value={showSummary && financial.data ? money(financial.data.received) : "—"} caption="Recebimentos das contratações filtradas"/>
+      <StatCard icon={FiDollarSign} title="Recebido líquido" value={showSummary && financial.data ? money(financial.data.received) : "—"} caption="Recebimentos menos devoluções nos pacotes filtrados"/>
       <StatCard icon={FiDollarSign} title="Valor em aberto" value={showSummary && financial.data ? money(financial.data.outstanding) : "—"} caption="Pacotes ativos e concluídos"/>
       <StatCard icon={FiLayers} title="Pacotes com pendência" value={showSummary && financial.data ? financial.data.pendingCount : "—"} caption="Ativos e concluídos com saldo"/>
     </SimpleGrid>

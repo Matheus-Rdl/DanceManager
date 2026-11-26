@@ -41,7 +41,7 @@ export default class PrivateLessonPackagesDataAccess {
        PT: Retorna um resumo financeiro calculado por pacote, sem o histórico integral de recebimentos. */
     return this.withParticipants(rows.map(row => {
       const financial = paymentSummary(row);
-      const { payments, ...publicRow } = row;
+      const { payments, refunds, ...publicRow } = row;
       return { ...publicRow, financial };
     }), schoolId);
   }

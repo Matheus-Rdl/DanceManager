@@ -1,0 +1,45 @@
+import mongoose from "mongoose";
+import financialInitiatorSchema from "./FinancialInitiator.js";
+
+const historySchema = new mongoose.Schema({
+  action: { type: String, required: true },
+  at: { type: String, required: true },
+  details: { type: String, default: "" },
+  reason: { type: String, default: "" },
+  before: { type: mongoose.Schema.Types.Mixed, default: null },
+  after: { type: mongoose.Schema.Types.Mixed, default: null }
+}, { _id: false });
+
+const expenseSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  schoolId: { type: String, required: true, index: true },
+  sourceType: { type: String, enum: ["manual", "privateLessonRefund"], default: "manual" },
+  sourceId: { type: String, default: null },
+  recurrenceId: { type: String, default: null, index: true },
+  description: { type: String, required: true },
+  category: { type: String, required: true },
+  initiator: { type: financialInitiatorSchema, default: null },
+  amount: { type: Number, required: true, min: 0 },
+  reference: { type: String, required: true, index: true },
+  dueDate: { type: String, required: true },
+  status: { type: String, enum: ["pending", "paid", "cancelled", "zeroed"], default: "pending" },
+  paidAt: { type: String, default: null },
+  paidAmount: { type: Number, default: null },
+  method: { type: String, default: null },
+  /* EN: The account is assigned when money actually leaves an account, not when an expense is created.
+     PT: A conta é vinculada quando há pagamento, não na criação de uma despesa pendente. */
+  accountId: { type: String, default: null, index: true },
+  notes: { type: String, default: "" },
+  history: { type: [historySchema], default: [] },
+  createdAt: { type: String, required: true },
+  updatedAt: { type: String, required: true }
+}, { collection: "expenses" });
+
+/* Um lançamento por recorrência e competência; lançamentos avulsos não entram no índice. */
+expenseSchema.index({ schoolId: 1, recurrenceId: 1, reference: 1 }, {
+  unique: true, partialFilterExpression: { recurrenceId: { $type: "string" } }
+});
+expenseSchema.index({ schoolId: 1, reference: 1, dueDate: 1 });
+expenseSchema.index({ schoolId: 1, paidAt: 1 });
+
+export default mongoose.model("Expense", expenseSchema);

@@ -50,6 +50,7 @@ const applyUpdate = async (item, changes, action, reason, description) => {
 const findExpense = async (id) => {
   const item = await Expense.findOne({ schoolId: schoolId(), id });
   if (!item) throw validation("Despesa não encontrada.", 404);
+  if (item.sourceType === "privateLessonRefund") throw validation("Devoluções integradas devem ser consultadas no módulo de aulas particulares.", 409);
   return item;
 };
 const findRecurrence = async (id) => {
@@ -59,7 +60,7 @@ const findRecurrence = async (id) => {
 };
 const recurrenceFields = (body) => {
   const description = cleanText(body.description);
-  if (!CATEGORIES.includes(body.category)) throw validation("Categoria inválida.");
+  if (!CATEGORIES.includes(body.category) || body.category === "Devoluções de aulas particulares") throw validation("Categoria inválida.");
   const amount = amountValue(body.amount);
   const dueDay = Number(body.dueDay);
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) throw validation("Dia de vencimento inválido (1 a 31).");
@@ -160,7 +161,7 @@ export default class ExpensesDataAccess {
       requestedAccountId: body.accountId, model: FinancialAccount, schoolId: schoolId()
     });
     const paid = await Expense.findOneAndUpdate(
-      { schoolId: schoolId(), id, status: "pending" },
+      { schoolId: schoolId(), id, status: "pending", sourceType: { $ne: "privateLessonRefund" } },
       { $set: { status: "paid", paidAmount, paidAt, method, notes, accountId, ...responsible, updatedAt: moment() },
         $push: { history: log("paid", `Pagamento de ${paidAmount} em ${paidAt} por ${method}; responsável: ${responsible.initiator?.name || "não informado"}; conta: ${accountId ?? "não atribuída"}`) } },
       { new: true, runValidators: true }

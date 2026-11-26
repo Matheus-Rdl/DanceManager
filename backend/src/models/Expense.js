@@ -13,6 +13,8 @@ const historySchema = new mongoose.Schema({
 const expenseSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   schoolId: { type: String, required: true, index: true },
+  sourceType: { type: String, enum: ["manual", "privateLessonRefund"], default: "manual" },
+  sourceId: { type: String, default: null },
   recurrenceId: { type: String, default: null, index: true },
   description: { type: String, required: true },
   category: { type: String, required: true },

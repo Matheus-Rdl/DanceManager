@@ -1,0 +1,35 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import RefundIntegration,{refundFields} from "../../src/modules/privateLessonPayments/privateLessonRefundIntegration.js";
+import {paymentSummary} from "../../src/models/privateLessonPaymentRules.js";
+import {privateLessonRevenueFields} from "../../src/modules/privateLessonPayments/privateLessonRevenueIntegration.js";
+import {buildFinancialMovements} from "../../src/modules/financial/financialMovements.js";
+import {calculateFinancialAccountBalances} from "../../src/modules/financialAccounts/financialAccountsBalanceRules.js";
+const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
+const day="2026-11-26", clock=()=>new Date(`${day}T18:00:00Z`), packageId=id(1), accountId=id(2), paymentId=id(3);
+const body=(n=20,amount=100,extra={})=>({requestId:id(n),paymentId,accountId,amount,refundedAt:day,method:"Pix",reason:"Cancelamento",...extra});
+function fixture(){
+ const original={id:paymentId,requestId:id(4),accountId,amount:300,receivedAt:"2026-11-10",method:"Pix",notes:"",createdAt:"2026-11-10T16:00:00.000Z"};
+ const pkg={id:packageId,schoolId:"default",name:"4 aulas",status:"cancelled",cancelledAt:`${day}T15:00:00.000Z`,amount:760,__v:1,payments:[original]};
+ let state={pkg,accounts:[{id:accountId,schoolId:"default",active:true,initialBalance:0,balanceDate:"2026-06-30",__v:0}],revenues:[privateLessonRevenueFields("default",packageId,original,pkg.name)],expenses:[]},draft,active=false;
+ const flags={fail:false,retry:false,ended:0};
+ const session={async withTransaction(fn){active=true;try{draft=structuredClone(state);await fn();if(flags.retry){draft=structuredClone(state);await fn();}state=draft;}finally{active=false;}},async endSession(){flags.ended++;}};
+ const get=()=>{assert.ok(active);return draft;};
+ const query=v=>({session(s){assert.equal(s,session);return this;},async lean(){return structuredClone(v);}});
+ const match=(r,q)=>r&&Object.entries(q).every(([k,v])=>k==="refunds.requestId"?!(r.refunds??[]).some(a=>a.requestId===v.$ne):k==="balanceDate"?r[k]<v.$lt:r[k]===v);
+ const packageModel={db:{async startSession(){return session;}},findOne(q){return query(match(get().pkg,q)?get().pkg:null);},findOneAndUpdate(q,u,o){assert.equal(o.session,session);const p=get().pkg;if(!match(p,q))return query(null);(p.refunds??=[]).push(u.$push.refunds);p.__v++;Object.assign(p,u.$set);return query(p);}};
+ const accountModel={findOneAndUpdate(q,u,o){assert.equal(o.session,session);const a=get().accounts.find(r=>match(r,q));if(!a)return query(null);a.__v++;return query(a);}};
+ const revenueModel={findOne(q){return query(get().revenues.find(r=>match(r,q)));}};
+ const expenseModel={findOne(q){return query(get().expenses.find(r=>match(r,q)));},async create(rows,o){assert.equal(o.session,session);if(flags.fail)throw Error("write failed");get().expenses.push(...rows);return rows;}};
+ const balanceService={async getBalances({asOf},o){assert.equal(o.session,session);return calculateFinancialAccountBalances(get(),asOf);}};
+ return {state:()=>state,flags,access:(school="default")=>new RefundIntegration({packageModel,accountModel,revenueModel,expenseModel,balanceService,resolveSchoolId:()=>school,clock})};
+}
+test("partial refund preserves revenue and creates one expense counted in cash and balance",async()=>{const f=fixture();const r=await f.access().refund(packageId,body());const s=f.state();assert.equal(r.summary.paidAmount,200);assert.equal(r.summary.grossPaidAmount,300);assert.equal(r.summary.refundedAmount,100);assert.equal(s.pkg.payments.length,1);assert.equal(s.revenues[0].receivedAmount,300);assert.equal(s.expenses[0].sourceType,"privateLessonRefund");assert.equal(s.expenses[0].paidAmount,100);assert.equal(buildFinancialMovements(s).totals.balance,200);assert.equal(calculateFinancialAccountBalances(s,day).accounts[0].balance,200);assert.equal(f.flags.ended,1);});
+test("multiple refunds settle original receipt without allowing excess",async()=>{const f=fixture(),a=f.access();await a.refund(packageId,body());await assert.rejects(a.refund(packageId,body(21,201)),{statusCode:409});const r=await a.refund(packageId,body(22,200));assert.equal(r.summary.paidAmount,0);assert.equal(r.summary.refundedAmount,300);assert.equal(f.state().expenses.length,2);});
+test("identical replay works even after account deactivation; changed payload rejected",async()=>{const f=fixture(),a=f.access();await a.refund(packageId,body());f.state().accounts[0].active=false;assert.equal((await a.refund(packageId,body())).replayed,true);await assert.rejects(a.refund(packageId,body(20,99)),{statusCode:409});assert.equal(f.state().expenses.length,1);});
+test("active package, foreign school, future or pre-cancellation date rejected",async()=>{const f=fixture();await assert.rejects(f.access("other").refund(packageId,body()),{statusCode:404});await assert.rejects(f.access().refund(packageId,body(20,100,{refundedAt:"2026-11-25"})));await assert.rejects(f.access().refund(packageId,body(20,100,{refundedAt:"2026-11-27"})));f.state().pkg.status="active";await assert.rejects(f.access().refund(packageId,body()),{statusCode:409});assert.equal(f.state().expenses.length,0);});
+test("insufficient balance, inactive account and opening date reject without mutation",async()=>{for(const mutate of [s=>s.accounts[0].initialBalance=-250,s=>s.accounts[0].active=false,s=>s.accounts[0].balanceDate=day]){const f=fixture();mutate(f.state());await assert.rejects(f.access().refund(packageId,body()),{statusCode:409});assert.equal(f.state().expenses.length,0);assert.equal(f.state().accounts[0].__v,0);}});
+test("failure creating expense rolls back refund and account version",async()=>{const f=fixture();f.flags.fail=true;await assert.rejects(f.access().refund(packageId,body()),/write failed/);assert.equal(f.state().pkg.refunds,undefined);assert.equal(f.state().accounts[0].__v,0);assert.equal(f.state().expenses.length,0);});
+test("transaction callback retry creates one refund and expense",async()=>{const f=fixture();f.flags.retry=true;await f.access().refund(packageId,body());assert.equal(f.state().pkg.refunds.length,1);assert.equal(f.state().expenses.length,1);});
+test("missing revenue or inconsistent expense prevents new refund or replay",async()=>{const f=fixture();await f.access().refund(packageId,body());f.state().expenses[0].paidAmount=1;await assert.rejects(f.access().refund(packageId,body()),{statusCode:409});f.state().revenues=[];await assert.rejects(f.access().refund(packageId,body(21)),{statusCode:409});});
+test("invalid fields and corrupt refund ledger fail closed",()=>{for(const extra of [{amount:0},{amount:1.001},{reason:""},{paymentId:"bad"},{status:"paid"}])assert.throws(()=>refundFields(body(20,100,extra),day));const f=fixture();f.state().pkg.refunds=[{...body(20,301),id:id(20)}];assert.throws(()=>paymentSummary(f.state().pkg),{statusCode:409});});

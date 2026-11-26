@@ -12,7 +12,7 @@ export default class PrivateLessonPaymentsDataAccess {
     if (!paymentId(id)) throw paymentError("Identificador da contratação inválido.");
     const pkg = await this.packageModel.findOne({ schoolId: this.resolveSchoolId(), id }).lean();
     if (!pkg) throw paymentError("Contratação não encontrada.", 404);
-    return { packageId: pkg.id, ...paymentSummary(pkg), payments: pkg.payments ?? [] };
+    return { packageId: pkg.id, ...paymentSummary(pkg), payments: pkg.payments ?? [], ...(pkg.refunds?.length ? { refunds: pkg.refunds } : {}) };
   }
   async appendInTransaction(id, body, session) {
     if (!session || typeof session.inTransaction !== "function" || !session.inTransaction()) throw paymentError("Recebimentos exigem uma transação financeira ativa.", 409);
