@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import PrivateLessonPlan from "../../src/models/PrivateLessonPlan.js";
 import PrivateLessonPackage from "../../src/models/PrivateLessonPackage.js";
+import PrivateLessonCalendarLock from "../../src/models/PrivateLessonCalendarLock.js";
 import PrivateLesson from "../../src/models/PrivateLesson.js";
 import Revenue from "../../src/models/Revenue.js";
 import { privateLessonRevenueFields } from "../../src/modules/privateLessonPayments/privateLessonRevenueIntegration.js";
@@ -66,4 +67,15 @@ test("integrated revenue validates against the existing schema and unique source
   const fields = privateLessonRevenueFields("default", pkg.id, receipt, pkg.name);
   assert.equal(new Revenue(fields).validateSync(), undefined);
   assert.ok(Revenue.schema.indexes().some(([key, opts]) => key.schoolId === 1 && key.sourceType === 1 && key.sourceId === 1 && opts.unique));
+});
+
+/* EN: Schema validation only, no connection to MongoDB.
+   PT: Validação de schema apenas, sem conexão ao MongoDB. */
+test("recurring metadata and school calendar lock schema", () => {
+  const recurring = { ...lesson, seriesId: "series-id", seriesIndex: 1, seriesCount: 4 };
+  assert.equal(new PrivateLesson(recurring).validateSync(), undefined);
+  error(PrivateLesson, { ...recurring, seriesCount: 101 }, "seriesCount");
+  error(PrivateLesson, { ...recurring, seriesIndex: 0.5 }, "seriesIndex");
+  assert.equal(PrivateLessonCalendarLock.collection.name, "privateLessonCalendarLocks");
+  assert.equal(new PrivateLessonCalendarLock({ _id: "default", version: 1 }).validateSync(), undefined);
 });

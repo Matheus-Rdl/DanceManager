@@ -29,6 +29,7 @@ import FinancialTransfer from "./models/FinancialTransfer.js";
 import PrivateLessonPlan from "./models/PrivateLessonPlan.js";
 import PrivateLessonPackage from "./models/PrivateLessonPackage.js";
 import PrivateLesson from "./models/PrivateLesson.js";
+import PrivateLessonCalendarLock from "./models/PrivateLessonCalendarLock.js";
 import { ensureAllExpenses } from "./modules/expenses/expenseGeneration.js";
 import MonthlyFee from "./models/MonthlyFee.js";
 import { ensureAllActiveMonthlyFees } from "./modules/monthlyFees/monthlyFeeGeneration.js";
@@ -146,6 +147,7 @@ async function main() {
   await PrivateLessonPlan.init();
   await PrivateLessonPackage.init();
   await PrivateLesson.init();
+  await PrivateLessonCalendarLock.init();
   const runExpenseGeneration = async () => {
     try {
       const count = await ensureAllExpenses();

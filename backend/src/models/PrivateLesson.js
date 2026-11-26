@@ -9,6 +9,11 @@ const privateLessonSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, immutable: true },
   schoolId: { type: String, required: true, immutable: true },
   packageId: { type: String, required: true, immutable: true },
+  /* EN: Optional recurring batch metadata; existing lessons remain valid.
+     PT: Metadados opcionais do lote recorrente; aulas existentes continuam válidas. */
+  seriesId: { type: String, immutable: true },
+  seriesIndex: { type: Number, immutable: true, min: 0, validate: Number.isSafeInteger },
+  seriesCount: { type: Number, immutable: true, min: 2, max: 100, validate: Number.isSafeInteger },
   startsAt: {
     type: String, required: true,
     validate: { validator: isValidLessonTimestamp, message: "Data e hora inicial UTC inválidas." }

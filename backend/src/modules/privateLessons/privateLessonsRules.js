@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isValidLessonTimestamp, isValidLessonInterval, isValidLessonCount, isValidLessonDate, PRIVATE_LESSON_STATUSES } from "../../models/privateLessonRules.js";
 import { validPlanId } from "../privateLessonPlans/privateLessonPlansRules.js";
 import { brazilPaymentDate } from "../../models/privateLessonPaymentRules.js";
@@ -36,3 +37,45 @@ export function lessonSummary(pkg, lessons) {
   return { lessonCount: pkg.lessonCount, scheduledCount: counts.scheduled, completedCount: counts.completed, absentCount: counts.absent, cancelledCount: counts.cancelled, remainingCount: remaining, availableToSchedule: pkg.status === "active" ? available : 0 };
 }
 export const sameScheduleRequest = (lesson, fields) => ["id", "startsAt", "endsAt", "notes"].every(key => lesson[key] === fields[key]);
+
+/* EN: Weekly batches have deterministic IDs and a bounded size; retries cannot add lessons.
+   PT: Lotes semanais têm IDs determinísticos e tamanho limitado; reenvios não adicionam aulas. */
+export const MAX_RECURRING_LESSONS = 100;
+function seriesLessonId(id, index) {
+  if (index === 0) return id;
+  const hash = createHash("sha256").update(`private-lesson:${id}:${index}`).digest("hex");
+  return `${hash.slice(0,8)}-${hash.slice(8,12)}-8${hash.slice(13,16)}-8${hash.slice(17,20)}-${hash.slice(20,32)}`;
+}
+export function scheduleBatchFields(body, recurring = false) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw lessonError("Campos de agendamento inválidos.");
+  const { allowConflicts = false, ...rest } = body;
+  if (typeof allowConflicts !== "boolean") throw lessonError("Confirmação de conflitos inválida.");
+  if (!recurring) return { allowConflicts, rows: [scheduleFields(rest)] };
+  const { count, ...first } = rest;
+  if (!Number.isSafeInteger(count) || count < 2 || count > MAX_RECURRING_LESSONS) throw lessonError(`Informe entre 2 e ${MAX_RECURRING_LESSONS} aulas recorrentes.`);
+  const base = scheduleFields(first);
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const rows = Array.from({ length: count }, (_, index) => {
+    const startsAt = new Date(Date.parse(base.startsAt) + index * week).toISOString();
+    const endsAt = new Date(Date.parse(base.endsAt) + index * week).toISOString();
+    const fields = scheduleFields({ requestId: seriesLessonId(base.id, index), startsAt, endsAt, notes: base.notes });
+    return { ...fields, seriesId: base.id, seriesIndex: index, seriesCount: count };
+  });
+  return { allowConflicts, rows };
+}
+export const sameBatchRequest = (lesson, fields) => sameScheduleRequest(lesson, fields) &&
+  ["seriesId", "seriesIndex", "seriesCount"].every(key => lesson[key] === fields[key]);
+/* EN: Half-open intervals allow back-to-back appointments, including other packages.
+   PT: Intervalos semiabertos permitem aulas consecutivas, inclusive de outros pacotes. */
+export function findScheduleConflicts(rows, existing) {
+  const conflicts = [];
+  for (const [index, row] of rows.entries()) {
+    for (const other of [...existing.filter(l => ["scheduled", "completed"].includes(l.status)), ...rows.slice(0, index)]) {
+      if (row.startsAt < other.endsAt && other.startsAt < row.endsAt) conflicts.push({
+        requestedLessonId: row.id, requestedStartsAt: row.startsAt, requestedEndsAt: row.endsAt,
+        lessonId: other.id, packageId: other.packageId ?? null, startsAt: other.startsAt, endsAt: other.endsAt
+      });
+    }
+  }
+  return conflicts;
+}
