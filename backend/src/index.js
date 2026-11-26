@@ -20,6 +20,7 @@ import financialRouter from "./modules/financial/financialRouter.js";
 import financialAccountsRouter from "./modules/financialAccounts/financialAccountsRouter.js";
 import financialTransfersRouter from "./modules/financialTransfers/financialTransfersRouter.js";
 import dashboardRouter from "./modules/dashboard/dashboardRouter.js";
+import privateLessonPlansRouter from "./modules/privateLessonPlans/privateLessonPlansRouter.js";
 import Expense from "./models/Expense.js";
 import Revenue from "./models/Revenue.js";
 import FinancialAccount from "./models/FinancialAccount.js";
@@ -106,6 +107,7 @@ async function main() {
   app.use("/financial-accounts", financialAccountsRouter);
   app.use("/financial-transfers", financialTransfersRouter);
   app.use("/dashboard", dashboardRouter);
+  app.use("/private-lesson-plans", privateLessonPlansRouter);
 
   app.use((err, req, res, next) => {
     console.error("🚨 Erro Global Capturado:", err.message);
