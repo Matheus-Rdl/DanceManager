@@ -9,6 +9,7 @@ import {
 } from "react-icons/fi";
 import FieldOptionsPanel from "./FieldOptionsPanel.jsx";
 import PlansPanel from "./PlansPanel.jsx";
+import PrivateLessonPlansPanel from "./PrivateLessonPlansPanel.jsx";
 import { useFieldOptions } from "../../utils/userSelectOptions.js";
 
 /* Configurações, etapa 2: consulta e edição das propriedades permitidas.
@@ -372,19 +373,20 @@ export default function SettingsPage() {
         <Flex bg="#e3f3ef" color="#0b6b5b" align="center" justify="center" borderRadius="11px" w="44px" h="44px"><FiSettings size={22}/></Flex>
         <Box>
           <Heading fontSize={{base:"22px",md:"26px"}} color="#062f2b" fontWeight="800">Configurações</Heading>
-          <Text fontSize="12px" color="#607873" mt={1}>Consulta e edição controlada dos campos</Text>
+          <Text fontSize="12px" color="#607873" mt={1}>Gerencie os campos, planos e pacotes da escola</Text>
         </Box>
       </Flex>
       {mainTab === "fields" && <Button onClick={() => setRefresh(current => current + 1)} size="sm" variant="outline"
         color="#0b6b5b" borderColor="#d6e3df" disabled={loading}><FiRefreshCw/> Atualizar</Button>}
     </Flex>
 
-    <Flex gap={1} bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={1} w="fit-content" maxW="100%" mb={4}>
+    <Flex gap={1} wrap="wrap" bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={1} w="fit-content" maxW="100%" mb={4}>
       <TabButton active={mainTab === "fields"} onClick={() => setMainTab("fields")} icon={FiFileText}>Campos</TabButton>
       <TabButton active={mainTab === "plans"} onClick={() => setMainTab("plans")} icon={FiLayers}>Planos</TabButton>
+      <TabButton active={mainTab === "privateLessons"} onClick={() => setMainTab("privateLessons")} icon={FiCalendar}>Aulas particulares</TabButton>
     </Flex>
 
-    {mainTab === "plans" ? <PlansPanel/> : <>
+    {mainTab === "privateLessons" ? <PrivateLessonPlansPanel/> : mainTab === "plans" ? <PlansPanel/> : <>
       <Box bg="white" border="1px solid #dbe6e2" borderRadius="10px" p={3} mb={4}>
         <Flex direction={{base:"column",md:"row"}} justify="space-between" gap={2} align={{base:"stretch",md:"center"}}>
           <Flex gap={1} flexWrap="wrap">
