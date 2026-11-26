@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Dialog, Flex, Heading, HStack, Input, Portal, SimpleGrid, Spinner, Text, VStack } from "@chakra-ui/react";
 import { FiCalendar, FiCheckCircle, FiDollarSign, FiEye, FiLayers, FiPlus, FiRefreshCw, FiSearch, FiUsers } from "react-icons/fi";
+import PrivateLessonPaymentPanel from "./PrivateLessonPaymentPanel.jsx";
 import PrivateLessonPurchaseDialog from "./PrivateLessonPurchaseDialog.jsx";
 import service from "../../services/privateLessonPackagesServices.js";
 import { displayDate, emptyFilters, filterPackages, money, packageStatus, participantsOf, participantName, summarizePackages, validPeriod } from "./privateLessonPackagesView.js";
@@ -33,6 +34,7 @@ function Info({ label, children }) {
    PT: Consulta detalhes atualizados ao abrir e cancela a requisição ao fechar. */
 function PackageDetails({ id, onClose }) {
   const [row, setRow] = useState(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
@@ -40,7 +42,7 @@ function PackageDetails({ id, onClose }) {
       .catch(err => { if (!controller.signal.aborted) setError(err.message || "Não foi possível consultar o pacote."); });
     return () => controller.abort();
   }, [id]);
-  return <Dialog.Root open onOpenChange={e => { if (!e.open) onClose(); }} placement="center" size="md">
+  return <Dialog.Root open onOpenChange={e => { if (!e.open && !paymentBusy) onClose(); }} placement="center" size="lg" closeOnEscape={!paymentBusy} closeOnInteractOutside={!paymentBusy}>
     <Portal><Dialog.Backdrop/><Dialog.Positioner><Dialog.Content mx={3} maxH="90dvh" borderRadius="12px" overflow="hidden">
       <Dialog.Header borderBottom="1px solid #e5ece9"><Dialog.Title color="#103c35" fontSize="17px">Detalhes da contratação</Dialog.Title></Dialog.Header>
       <Dialog.Body overflowY="auto" py={4}>
@@ -49,8 +51,9 @@ function PackageDetails({ id, onClose }) {
           <SimpleGrid columns={2} gap={4}><Info label="Data da contratação">{displayDate(row.contractedOn)}</Info><Info label="Tipo">{row.planId ? "Pacote padrão" : "Personalizado"}</Info><Info label="Aulas contratadas">{row.lessonCount}</Info><Info label="Valor contratado">{money(row.amount)}</Info><Info label="Valor por aula">{money(row.amount / row.lessonCount)}</Info></SimpleGrid>
           <Box borderTop="1px solid #e5ece9" pt={3}><Text fontSize="12px" fontWeight="700" color="#315650" mb={2}>Participantes</Text><Participants row={row}/></Box>
           <Box><Text fontSize="12px" fontWeight="700" color="#315650" mb={1}>Observações</Text><Text fontSize="13px" color="#173c37" whiteSpace="pre-wrap" overflowWrap="anywhere">{row.notes || "Nenhuma observação."}</Text></Box>
+          <PrivateLessonPaymentPanel pkg={row} onBusy={setPaymentBusy}/>
         </VStack>}
-      </Dialog.Body><Dialog.Footer borderTop="1px solid #e5ece9"><Button size="sm" variant="outline" onClick={onClose}>Fechar</Button></Dialog.Footer>
+      </Dialog.Body><Dialog.Footer borderTop="1px solid #e5ece9"><Button size="sm" variant="outline" disabled={paymentBusy} onClick={onClose}>Fechar</Button></Dialog.Footer>
     </Dialog.Content></Dialog.Positioner></Portal>
   </Dialog.Root>;
 }

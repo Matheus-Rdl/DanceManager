@@ -1,5 +1,7 @@
-/* EN: Manage contracted packages without triggering financial or scheduling operations.
-   PT: Gerencia contratações sem disparar operações financeiras ou de agendamento. */
+import { validatePaymentSummary, paymentMatches, uuid } from "../features/privateLessons/privateLessonPaymentForm.js";
+
+/* EN: Manage purchases and integrated receipts.
+   PT: Gerencia contratações e recebimentos integrados. */
 export function createPrivateLessonPackagesService({ base = import.meta.env?.VITE_API_URL ?? "", fetcher = globalThis.fetch } = {}) {
   const root = `${base.replace(/\/+$/, "")}/private-lesson-packages`;
   async function request(path = "", { signal, method = "GET", data } = {}) {
@@ -32,6 +34,19 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
     async create(data) {
       const row = await request("", { method: "POST", data });
       if (!row || typeof row.id !== "string" || !row.id) throw new Error("Resposta da contratação inválida.");
+      return row;
+    },
+    async getPayments(id, { signal } = {}) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      const row = await request(`/${encodeURIComponent(id)}/payments`, { signal });
+      if (row?.packageId !== id || !Array.isArray(row.payments) || row.paymentCount !== row.payments.length) throw new Error("Resposta financeira inválida.");
+      return validatePaymentSummary(row);
+    },
+    async receivePayment(id, data) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      const row = await request(`/${encodeURIComponent(id)}/payments`, { method: "POST", data });
+      if (row?.packageId !== id || !uuid(row.payment?.id) || row.revenueId !== row.payment.id || !paymentMatches(row.payment, data)) throw new Error("Recebimento não confirmado pelo servidor.");
+      validatePaymentSummary(row.summary);
       return row;
     },
     async get(id, { signal } = {}) {
