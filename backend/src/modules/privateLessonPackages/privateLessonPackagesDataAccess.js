@@ -6,8 +6,8 @@ import { createPlanFields, validPlanId } from "../privateLessonPlans/privateLess
 /* EN: One purchase is persisted for all participants; no finance or lesson documents are created here.
    PT: Persiste uma contratação para todos os participantes; não cria documentos financeiros ou aulas aqui. */
 export default class PrivateLessonPackagesDataAccess {
-  constructor({ model, planModel, userModel, resolveSchoolId, makeId = randomUUID, clock = () => new Date().toISOString() }) {
-    Object.assign(this, { model, planModel, userModel, resolveSchoolId, makeId, clock });
+  constructor({ model, lessonModel, planModel, userModel, resolveSchoolId, makeId = randomUUID, clock = () => new Date().toISOString() }) {
+    Object.assign(this, { model, lessonModel, planModel, userModel, resolveSchoolId, makeId, clock });
   }
 
   /* EN: Resolve names in one scoped query and expose only identifiers, names and enrollment numbers.
@@ -67,6 +67,12 @@ export default class PrivateLessonPackagesDataAccess {
     /* EN: Keep the original purchase date after any receipt.
        PT: Preserva a data de contratação após qualquer recebimento. */
     if (Object.hasOwn(fields, "contractedOn") && fields.contractedOn !== current.contractedOn && (current.payments?.length ?? 0) > 0) throw packageError("A data de contratação não pode ser alterada após um recebimento.", 409);
+    /* EN: Do not change the purchase date after any lesson record; the version check also guards concurrent scheduling.
+       PT: Não altera a data da contratação após qualquer registro de aula; a versão também protege contra agendamento simultâneo. */
+    if (Object.hasOwn(fields, "contractedOn") && fields.contractedOn !== current.contractedOn) {
+      const lesson = await this.lessonModel.exists({ schoolId, packageId: id });
+      if (lesson) throw packageError("A data de contratação não pode ser alterada após um agendamento.", 409);
+    }
     if (current.__v !== version) throw packageError("Pacote alterado por outra operação. Atualize a página.", 409);
     try {
       const updated = await this.model.findOneAndUpdate({ ...scope, __v: version, status: current.status },

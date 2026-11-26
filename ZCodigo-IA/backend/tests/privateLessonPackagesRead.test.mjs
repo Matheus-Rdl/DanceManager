@@ -19,6 +19,8 @@ function fixture() {
   ];
   const users = [{ _id: a, user_name: "Aluno A", user_mat: "000001", user_cpf: "secret" }, { _id: b, schoolId: "default", user_name: "Aluno B" }, { _id: c, schoolId: "other", user_name: "Aluno C" }];
   const calls = { users: 0, writes: 0, race: false };
+  const lessons = [];
+  const lessonModel = { async exists(q) { return lessons.find(l => l.schoolId === q.schoolId && l.packageId === q.packageId) ?? null; } };
   const matches = (r, f) => Object.entries(f).every(([key, v]) => {
     if (key === "participantIds") return r[key].includes(v);
     if (key === "contractedOn") return (!v.$gte || r[key] >= v.$gte) && (!v.$lte || r[key] <= v.$lte);
@@ -35,8 +37,8 @@ function fixture() {
     } }; }
   };
   const userModel = { find(f) { calls.users++; return { setOptions(o) { assert.deepEqual(o,{strictQuery:false}); return this; }, select(s) { assert.equal(s,"_id user_name user_mat"); return this; }, async lean() { return clone(users.filter(u => f._id.$in.includes(u._id) && (f.$or ? !Object.hasOwn(u,"schoolId") || u.schoolId === "default" : u.schoolId === f.schoolId))); } }; } };
-  const api = (school = "default") => new Controllers(new DataAccess({ model, userModel, resolveSchoolId: () => school, clock: () => "2026-11-26T12:00:00.000Z" }));
-  return { rows, calls, api };
+  const api = (school = "default") => new Controllers(new DataAccess({ model, lessonModel, userModel, resolveSchoolId: () => school, clock: () => "2026-11-26T12:00:00.000Z" }));
+  return { rows, calls, api, lessons };
 }
 
 test("validates all supported filters and inclusive date range", () => {
@@ -110,4 +112,11 @@ test("list returns one derived summary per purchase without receipt details or w
 test("list rejects inconsistent stored receipts instead of reporting a false balance", async () => {
   const {api,rows,calls}=fixture(); rows[0].payments=[{id:randomUUID(),requestId:randomUUID(),amount:800}];
   assert.equal((await api().list({})).statusCode,409);assert.equal(calls.writes,0);
+});
+
+test("purchase date is immutable after scheduling; notes remain editable", async () => {
+  const {api,lessons,calls}=fixture(); lessons.push({schoolId:"default",packageId:first});
+  assert.equal((await api().update(first,{version:0,contractedOn:"2026-11-19"})).statusCode,409);
+  assert.equal(calls.writes,0);
+  assert.equal((await api().update(first,{version:0,notes:"Agendada"})).statusCode,200);
 });
