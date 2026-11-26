@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scheduleFields, lessonSummary, scheduleBatchFields, findScheduleConflicts } from "../../src/modules/privateLessons/privateLessonsRules.js";
+import { scheduleFields, lessonSummary, scheduleBatchFields, findScheduleConflicts, cancellationFields, cancellationPreview } from "../../src/modules/privateLessons/privateLessonsRules.js";
 import Controllers from "../../src/modules/privateLessonPackages/privateLessonPackagesControllers.js";
 import DataAccess from "../../src/modules/privateLessons/privateLessonsDataAccess.js";
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
@@ -10,7 +10,7 @@ const clone=structuredClone;
 /* EN: Transactional in-memory double: no Mongoose, environment variables or database connections.
    PT: Simulador transacional em memória: sem Mongoose, variáveis de ambiente ou conexões ao banco. */
 function fixture() {
-  let state={pkg:{id:packageId,schoolId:"default",status:"active",contractedOn:"2026-11-26",lessonCount:4,participantIds:["a","b","c"],payments:[],__v:0},lessons:[],calendarVersion:0};
+  let state={pkg:{id:packageId,schoolId:"default",status:"active",contractedOn:"2026-11-26",lessonCount:4,amount:760,participantIds:["a","b","c"],payments:[],__v:0},lessons:[],calendarVersion:0};
   let draft, active=false;
   const calls={ended:0,creates:0,locks:0,failWrite:false,failLock:false,failTransaction:false,retry:false,failCalendarLock:false};
   const session={async withTransaction(fn,opts){assert.deepEqual(opts,{readConcern:{level:"snapshot"},writeConcern:{w:"majority"}});if(calls.failTransaction)throw Error("unsupported");active=true;try{draft=clone(state);await fn();if(calls.retry){draft=clone(state);await fn();}state=draft;}finally{active=false;draft=undefined;}},async endSession(){calls.ended++;}};
@@ -19,7 +19,7 @@ function fixture() {
   const current=()=>active?draft:state;
   const packageModel={db:{async startSession(){return session;}},findOne(q){return query(()=>match(current().pkg,q)?current().pkg:null);},findOneAndUpdate(q,u,o){assert.equal(active,true);assert.equal(o.session,session);return query(()=>{if(calls.failLock||!match(draft.pkg,q))return null;calls.locks++;draft.pkg.__v+=u.$inc.__v;Object.assign(draft.pkg,u.$set);return draft.pkg;});}};
   const calendarLockModel={async updateOne(q,u,o){assert.equal(active,true);assert.equal(o.session,session);assert.equal(o.upsert,true);assert.deepEqual(q,{_id:"default" === q._id ? "default" : "other"});if(calls.failCalendarLock)throw Error("calendar lock failed");draft.calendarVersion+=u.$inc.version;}};
-  const lessonModel={findOneAndUpdate(q,u,o){assert.equal(active,true);assert.equal(o.session,session);return query(()=>{const row=draft.lessons.find(l=>match(l,q));if(!row||calls.failLessonUpdate)return null;Object.assign(row,u.$set);row.__v=(row.__v??0)+u.$inc.__v;return row;});},find(q){return query(()=>{if(q.status)assert.ok(draft.calendarVersion>state.calendarVersion);return current().lessons.filter(l=>match(l,q)).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)||a.id.localeCompare(b.id));});},async create(rows,o){assert.equal(active,true);assert.equal(o.session,session);calls.creates++;if(calls.failWrite)throw Error("write failed");draft.lessons.push(...clone(rows));return rows.map(row=>({toObject:()=>clone(row)}));}};
+  const lessonModel={async updateMany(q,u,o){assert.equal(active,true);assert.equal(o.session,session);if(calls.failLessonUpdate)throw Error("write failed");const rows=draft.lessons.filter(l=>match(l,q));for(const row of rows){Object.assign(row,u.$set);row.__v=(row.__v??0)+u.$inc.__v;}return {matchedCount:rows.length,modifiedCount:rows.length};},findOneAndUpdate(q,u,o){assert.equal(active,true);assert.equal(o.session,session);return query(()=>{const row=draft.lessons.find(l=>match(l,q));if(!row||calls.failLessonUpdate)return null;Object.assign(row,u.$set);row.__v=(row.__v??0)+u.$inc.__v;return row;});},find(q){return query(()=>{if(q.status)assert.ok(draft.calendarVersion>state.calendarVersion);return current().lessons.filter(l=>match(l,q)).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)||a.id.localeCompare(b.id));});},async create(rows,o){assert.equal(active,true);assert.equal(o.session,session);calls.creates++;if(calls.failWrite)throw Error("write failed");draft.lessons.push(...clone(rows));return rows.map(row=>({toObject:()=>clone(row)}));}};
   return {state:()=>state,calls,access:(school="default",now="2026-11-26T15:00:00Z")=>new DataAccess({packageModel,lessonModel,calendarLockModel,resolveSchoolId:()=>school,clock:()=>new Date(now)})};
 }
 const existing=(n,status,extra={})=>({id:id(n),schoolId:"default",packageId,startsAt:start,endsAt:"2026-11-26T18:00:00.000Z",notes:"",status,...extra});
@@ -170,3 +170,24 @@ test("failed replacement rolls back original status and package; failed completi
 test("transaction retry saves only one replacement and status change",async()=>{
   const f=fixture();f.state().lessons.push(existing(2,"scheduled"));f.calls.retry=true;await f.access().reschedule(packageId,id(2),body(10,{startsAt:nextStart}));assert.equal(f.state().lessons.length,2);assert.equal(f.state().pkg.__v,1);assert.equal(f.state().calendarVersion,1);
 });
+
+const cancelBody=(version=0,reason="Solicitação do aluno")=>({requestId:id(99),version,reason});
+test("cancellation preview distinguishes unused value from cash actually refundable",()=>{
+  const f=fixture(),p=f.state().pkg; p.payments=[{id:id(80),requestId:id(81),amount:300}];
+  const result=cancellationPreview(p,[existing(5,"completed"),existing(6,"scheduled")]);
+  assert.equal(result.usedAmount,190);assert.equal(result.unusedAmount,570);assert.equal(result.suggestedRefund,110);assert.equal(result.outstandingAmount,460);
+  p.payments=[];assert.equal(cancellationPreview(p,[existing(5,"completed")]).suggestedRefund,0);
+});
+test("cancellation requires valid version reason and operation key",()=>{
+  assert.equal(cancellationFields(cancelBody(0,"  teste  ")).reason,"teste");
+  for(const x of [{version:-1},{reason:" "},{reason:"x".repeat(1001)},{requestId:"x"},{refund:100}])assert.throws(()=>cancellationFields({...cancelBody(),...x}),{statusCode:400});
+});
+test("cancel package preserves completed absences receipts and other packages",async()=>{
+  const f=fixture(),s=f.state();s.pkg.payments=[{id:id(80),requestId:id(81),amount:300}];s.lessons.push(existing(2,"completed"),existing(3,"absent"),existing(4,"scheduled"),existing(5,"scheduled"),existing(6,"scheduled",{packageId:id(7)}));
+  const a=f.access(),preview=await a.previewCancellation(packageId);assert.equal(preview.scheduledCount,2);
+  const r=await a.cancelPackage(packageId,cancelBody(preview.version));assert.equal(r.packageStatus,"cancelled");assert.equal(r.summary.scheduledCount,0);assert.equal(r.summary.completedCount,1);assert.equal(r.summary.availableToSchedule,0);assert.equal(f.state().pkg.payments[0].amount,300);assert.equal(f.state().lessons.find(x=>x.id===id(6)).status,"scheduled");assert.equal(f.state().lessons.find(x=>x.id===id(3)).status,"absent");assert.equal(f.state().pkg.cancellationReason,"Solicitação do aluno");
+  assert.equal((await a.cancelPackage(packageId,cancelBody())).replayed,true);assert.equal(f.state().pkg.__v,1);await assert.rejects(a.schedule(packageId,body()),{statusCode:409});await assert.rejects(a.cancelPackage(packageId,cancelBody(0,"Outro motivo")),{statusCode:409});
+});
+test("stale preview and completed package are rejected",async()=>{const f=fixture(),a=f.access();await a.schedule(packageId,body());await assert.rejects(a.cancelPackage(packageId,cancelBody()),{statusCode:409});assert.equal(f.state().pkg.status,"active");f.state().pkg.status="completed";await assert.rejects(a.previewCancellation(packageId),{statusCode:409});await assert.rejects(a.cancelPackage(packageId,cancelBody(1)),{statusCode:409});});
+test("cancellation rolls back package if lesson write fails",async()=>{const f=fixture();f.state().lessons.push(existing(2,"scheduled"));f.calls.failLessonUpdate=true;const before=clone(f.state());await assert.rejects(f.access().cancelPackage(packageId,cancelBody()),/write failed/);assert.deepEqual(f.state(),before);assert.equal(f.calls.ended,1);});
+test("cancellation is isolated by school",async()=>{const f=fixture();await assert.rejects(f.access("other").previewCancellation(packageId),{statusCode:404});await assert.rejects(f.access("other").cancelPackage(packageId,cancelBody()),{statusCode:404});assert.equal(f.state().pkg.status,"active");});

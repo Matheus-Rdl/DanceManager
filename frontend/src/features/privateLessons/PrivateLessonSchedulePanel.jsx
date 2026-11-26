@@ -58,7 +58,7 @@ export default function PrivateLessonSchedulePanel({pkg,onBusy,onChanged,onStatu
       <SimpleGrid columns={{base:2,sm:4}} gap={2} bg="#f3f8f6" borderRadius="8px" p={3}>{[["Contratadas",data.lessonCount],["Realizadas",data.completedCount],["Agendadas",data.scheduledCount],["Livres para agendar",data.availableToSchedule]].map(([title,value])=><Box key={title}><Text fontSize="11px" color="#607873">{title}</Text><Heading fontSize="18px" color="#075749">{value}</Heading></Box>)}</SimpleGrid>
       <Box h="7px" bg="#e5ece9" borderRadius="full" overflow="hidden"><Flex h="100%"><Box bg="#09695b" w={`${data.completedCount/data.lessonCount*100}%`}/><Box bg="#397dba" w={`${data.scheduledCount/data.lessonCount*100}%`}/></Flex></Box>
       <Text fontSize="11px" color="#607873">{data.remainingCount} aula(s) não realizadas · {data.absentCount} falta(s) · {data.cancelledCount} cancelamento(s). Horários de São Paulo.</Text>
-      {pkg.financial?.outstandingAmount>0&&<Text color="#795318" fontSize="12px">Existe saldo financeiro em aberto. Isso não impede as aulas.</Text>}
+      {data.packageStatus!=="cancelled"&&pkg.financial?.outstandingAmount>0&&<Text color="#795318" fontSize="12px">Existe saldo financeiro em aberto. Isso não impede as aulas.</Text>}
       {data.packageStatus==="active"&&data.availableToSchedule>0&&!editing&&!confirm&&!pending&&<Button size="sm" alignSelf="start" bg="#0b6b5b" color="white" disabled={locked} onClick={()=>startForm()}><FiCalendar/> Agendar aula</Button>}
       {pending?<Box border="1px solid #e3bc79" borderRadius="8px" p={3}>
         <Text fontSize="12px" fontWeight="700" color="#795318">{conflicts.length?"Conflito de horários":"Operação pendente de confirmação"}</Text>

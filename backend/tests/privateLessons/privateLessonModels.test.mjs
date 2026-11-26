@@ -88,3 +88,11 @@ test("replacement history validates without requiring migration", () => {
   error(PrivateLesson, { ...lesson, rescheduledFromId: "bad" }, "rescheduledFromId");
   error(PrivateLesson, { ...lesson, statusChangedAt: "bad" }, "statusChangedAt");
 });
+
+/* EN: Existing packages do not require cancellation metadata.
+   PT: Pacotes existentes não exigem metadados de cancelamento. */
+test("package cancellation audit fields validate",()=>{
+  assert.equal(new PrivateLessonPackage({...pkg,status:"cancelled",cancelledAt:now,cancellationReason:"Solicitação",cancellationRequestId:"00000000-0000-4000-8000-000000000099"}).validateSync(),undefined);
+  error(PrivateLessonPackage,{...pkg,cancelledAt:"bad"},"cancelledAt");
+  error(PrivateLessonPackage,{...pkg,cancellationRequestId:"bad"},"cancellationRequestId");
+});

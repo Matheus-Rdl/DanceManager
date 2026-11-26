@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import privateLessonPaymentSchema from "./PrivateLessonPayment.js";
 import {
   PRIVATE_PACKAGE_STATUSES, hasValidParticipants, isValidLessonAmount,
-  isValidLessonCount, isValidLessonDate
+  isValidLessonCount, isValidLessonDate, isValidLessonTimestamp
 } from "./privateLessonRules.js";
 
 /* EN: One purchase shared by all participants. The original name, quantity and price are snapshots.
@@ -33,6 +33,11 @@ const privateLessonPackageSchema = new mongoose.Schema({
   /* EN: Package lifecycle is independent of the financial state. No expiry or payment due date.
      PT: A situação do pacote independe da situação financeira. Sem validade ou vencimento. */
   status: { type: String, enum: PRIVATE_PACKAGE_STATUSES, default: "active", required: true },
+  /* EN: Optional cancellation audit metadata; existing purchases need no migration.
+     PT: Metadados opcionais de cancelamento; contratações existentes não precisam de migração. */
+  cancelledAt: { type: String, validate: isValidLessonTimestamp },
+  cancellationReason: { type: String, trim: true, minlength: 1, maxlength: 1000 },
+  cancellationRequestId: { type: String, match: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i },
   notes: { type: String, default: "", trim: true, maxlength: 1000 },
   /* EN: Financial state is derived from receipts, not a duplicated balance.
      PT: A situação financeira é derivada dos recebimentos, sem duplicar saldo. */

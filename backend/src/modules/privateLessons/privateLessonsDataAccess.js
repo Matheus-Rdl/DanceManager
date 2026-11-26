@@ -1,6 +1,6 @@
 import { brazilPaymentDate } from "../../models/privateLessonPaymentRules.js";
 import { isValidLessonDate } from "../../models/privateLessonRules.js";
-import { lessonError, lessonId, lessonSummary, scheduleBatchFields, sameBatchRequest, findScheduleConflicts, statusFields, validateStatusTransition, rescheduleFields } from "./privateLessonsRules.js";
+import { lessonError, lessonId, lessonSummary, scheduleBatchFields, sameBatchRequest, findScheduleConflicts, statusFields, validateStatusTransition, rescheduleFields, cancellationFields, cancellationPreview } from "./privateLessonsRules.js";
 
 /* EN: Calendar lock serializes school-wide bookings; package lock protects credits and financial/lifecycle edits.
    PT: Bloqueio da agenda serializa reservas da escola; bloqueio do pacote protege créditos e alterações financeiras/de situação. */
@@ -143,6 +143,52 @@ export default class PrivateLessonsDataAccess {
     } catch (error) {
       if (error?.code === 11000) throw lessonError("Conflito no identificador ou na agenda. Tente novamente com a mesma chave.", 409);
       if (error?.name === "ValidationError") throw lessonError("Dados da aula inválidos.");
+      throw error;
+    } finally { await session.endSession(); }
+  }
+
+  async previewCancellation(packageId) {
+    const id = lessonId(packageId), schoolId = this.resolveSchoolId();
+    const pkg = await this.packageModel.findOne({ schoolId, id }).lean();
+    if (!pkg) throw lessonError("Contratação não encontrada.", 404);
+    const lessons = await this.lessonModel.find({ schoolId, packageId: id }).lean();
+    return cancellationPreview(pkg, lessons);
+  }
+  /* EN: Cancel only reservations, atomically with the package; never modify receipts or revenues.
+     PT: Cancela somente reservas, atomicamente com o pacote; nunca altera recebimentos ou proventos. */
+  async cancelPackage(packageId, body) {
+    const id = lessonId(packageId), fields = cancellationFields(body), schoolId = this.resolveSchoolId();
+    const scope = { schoolId, id }, lessonScope = { schoolId, packageId: id };
+    const timestamp = this.clock().toISOString();
+    const session = await this.packageModel.db.startSession();
+    try {
+      let result;
+      await session.withTransaction(async () => {
+        await this.calendarLockModel.updateOne({ _id: schoolId }, { $inc: { version: 1 } }, { session, upsert: true, setDefaultsOnInsert: false });
+        const pkg = await this.packageModel.findOne(scope).session(session).lean();
+        if (!pkg) throw lessonError("Contratação não encontrada.", 404);
+        const lessons = await this.lessonModel.find(lessonScope).session(session).lean();
+        const response = (row, history, replayed) => ({ packageId: id, packageStatus: row.status, cancelledAt: row.cancelledAt, reason: row.cancellationReason, requestId: row.cancellationRequestId, summary: lessonSummary(row, history), replayed });
+        if (pkg.status === "cancelled" && pkg.cancellationRequestId === fields.requestId) {
+          if (pkg.cancellationReason !== fields.reason) throw lessonError("Identificador de cancelamento já utilizado com outros dados.", 409);
+          result = response(pkg, lessons, true); return;
+        }
+        cancellationPreview(pkg, lessons);
+        if (pkg.__v !== fields.version) throw lessonError("A contratação mudou. Consulte uma nova prévia antes de cancelar.", 409);
+        const locked = await this.packageModel.findOneAndUpdate({ ...scope, __v: fields.version, status: "active" },
+          { $inc: { __v: 1 }, $set: { status: "cancelled", cancelledAt: timestamp, cancellationReason: fields.reason, cancellationRequestId: fields.requestId, updatedAt: timestamp } }, { session, new: true, runValidators: true }).lean();
+        if (!locked) throw lessonError("Pacote alterado por outra operação. Consulte uma nova prévia.", 409);
+        const scheduled = lessons.filter(row => row.status === "scheduled");
+        if (scheduled.length) {
+          const updated = await this.lessonModel.updateMany({ ...lessonScope, status: "scheduled" }, { $set: { status: "cancelled", statusChangedAt: timestamp, updatedAt: timestamp }, $inc: { __v: 1 } }, { session, runValidators: true });
+          if (updated.matchedCount !== scheduled.length || updated.modifiedCount !== scheduled.length) throw lessonError("Agenda alterada por outra operação. Consulte uma nova prévia.", 409);
+        }
+        result = response(locked, lessons.map(row => row.status === "scheduled" ? { ...row, status: "cancelled" } : row), false);
+      }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+      return result;
+    } catch (error) {
+      if (error?.code === 11000) throw lessonError("Conflito na agenda. Confira o cancelamento antes de repetir.", 409);
+      if (error?.name === "ValidationError") throw lessonError("Dados de cancelamento inválidos.");
       throw error;
     } finally { await session.endSession(); }
   }

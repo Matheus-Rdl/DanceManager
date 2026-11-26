@@ -1,3 +1,4 @@
+import { validateCancellationPreview, validateCancellationResult } from "../features/privateLessons/privateLessonCancellationView.js";
 import { validateLessonList, validateScheduleResult, validOperation } from "../features/privateLessons/privateLessonSchedulingView.js";
 import { validatePaymentHistory } from "../features/privateLessons/privateLessonFinancialView.js";
 import { validatePaymentSummary, paymentMatches, uuid } from "../features/privateLessons/privateLessonPaymentForm.js";
@@ -37,6 +38,14 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
       const row = await request("", { method: "POST", data });
       if (!row || typeof row.id !== "string" || !row.id) throw new Error("Resposta da contratação inválida.");
       return row;
+    },
+    async previewCancellation(id, { signal } = {}) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      return validateCancellationPreview(await request(`/${encodeURIComponent(id)}/cancellation-preview`, { signal }), id);
+    },
+    async cancelPackage(id, data) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      return validateCancellationResult(await request(`/${encodeURIComponent(id)}/cancel`, { method: "POST", data }), id, data);
     },
     async getLessons(id, { signal } = {}) {
       if (!uuid(id)) throw new Error("Identificador inválido.");
