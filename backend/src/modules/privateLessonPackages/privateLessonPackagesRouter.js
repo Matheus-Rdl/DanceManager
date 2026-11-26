@@ -19,8 +19,8 @@ const controller = new PrivateLessonPackagesControllers(new PrivateLessonPackage
   model: PrivateLessonPackage, lessonModel: PrivateLesson, planModel: PrivateLessonPlan, userModel: User, resolveSchoolId: schoolId
 }));
 
-/* EN: All routes use the existing access gate; no hard-delete or lifecycle change is exposed.
-   PT: Todas as rotas usam o bloqueio de acesso existente; não há exclusão definitiva ou mudança de situação. */
+/* EN: All routes use the existing access gate; no hard-delete or package cancellation is exposed.
+   PT: Todas as rotas usam o bloqueio de acesso existente; não há exclusão definitiva ou cancelamento de pacote. */
 const paymentAccess = new PrivateLessonPaymentsDataAccess({ packageModel: PrivateLessonPackage, accountModel: FinancialAccount, resolveSchoolId: schoolId });
 const paymentIntegration = new PrivateLessonRevenueIntegration({ paymentAccess, packageModel: PrivateLessonPackage, accountModel: FinancialAccount, revenueModel: Revenue, resolveSchoolId: schoolId });
 const lessonsAccess = new PrivateLessonsDataAccess({ packageModel: PrivateLessonPackage, lessonModel: PrivateLesson, calendarLockModel: PrivateLessonCalendarLock, resolveSchoolId: schoolId });
@@ -35,6 +35,8 @@ router.post("/:id/payments", async (req, res) => respond(res, await controller.e
 router.get("/:id/lessons", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.list(req.params.id))));
 router.post("/:id/lessons", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.schedule(req.params.id, req.body))));
 router.post("/:id/lessons/recurring", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.scheduleRecurring(req.params.id, req.body))));
+router.patch("/:id/lessons/:lessonId/status", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.changeStatus(req.params.id, req.params.lessonId, req.body))));
+router.post("/:id/lessons/:lessonId/reschedule", async (req, res) => respond(res, await controller.execute(() => lessonsAccess.reschedule(req.params.id, req.params.lessonId, req.body))));
 router.get("/:id", async (req, res) => respond(res, await controller.get(req.params.id)));
 router.post("/", async (req, res) => respond(res, await controller.create(req.body)));
 router.patch("/:id", async (req, res) => respond(res, await controller.update(req.params.id, req.body)));

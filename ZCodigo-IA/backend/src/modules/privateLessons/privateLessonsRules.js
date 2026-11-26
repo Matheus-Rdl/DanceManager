@@ -1,3 +1,4 @@
+import { paymentSummary, paymentCents } from "../../models/privateLessonPaymentRules.js";
 import { createHash } from "node:crypto";
 import { isValidLessonTimestamp, isValidLessonInterval, isValidLessonCount, isValidLessonDate, PRIVATE_LESSON_STATUSES } from "../../models/privateLessonRules.js";
 import { validPlanId } from "../privateLessonPlans/privateLessonPlansRules.js";
@@ -78,4 +79,51 @@ export function findScheduleConflicts(rows, existing) {
     }
   }
   return conflicts;
+}
+
+/* EN: Only scheduled lessons can be finalized; completed lessons are never silently undone.
+   PT: Somente aulas agendadas podem ser finalizadas; aulas realizadas nunca são revertidas silenciosamente. */
+export function statusFields(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => key !== "status") || !["completed", "absent", "cancelled"].includes(body.status)) throw lessonError("Informe uma situação válida: realizada, falta ou cancelada.");
+  return body.status;
+}
+export function validateStatusTransition(lesson, status, timestamp) {
+  if (lesson.status !== "scheduled") throw lessonError("Somente aulas agendadas podem mudar de situação.", 409);
+  if (status !== "cancelled" && (!isValidLessonTimestamp(lesson.endsAt) || lesson.endsAt > timestamp)) throw lessonError("Aguarde o término da aula para registrar realização ou falta.", 409);
+}
+/* EN: Preserve the original duration and notes by default; replacement has a new idempotency key.
+   PT: Preserva duração e observações originais por padrão; reposição tem nova chave de idempotência. */
+export function rescheduleFields(body, original) {
+  const { rows, allowConflicts } = scheduleBatchFields(body, false);
+  let fields = rows[0];
+  if (body.endsAt === undefined) {
+    if (!isValidLessonInterval(original.startsAt, original.endsAt)) throw lessonError("Horário original inconsistente.", 409);
+    const end = new Date(Date.parse(fields.startsAt) + Date.parse(original.endsAt) - Date.parse(original.startsAt));
+    if (!Number.isFinite(end.getTime())) throw lessonError("Horário final inválido.");
+    fields = scheduleFields({ requestId: fields.id, startsAt: fields.startsAt, endsAt: end.toISOString(), notes: body.notes === undefined ? original.notes ?? "" : fields.notes });
+  } else if (body.notes === undefined) {
+    fields = scheduleFields({ requestId: fields.id, startsAt: fields.startsAt, endsAt: fields.endsAt, notes: original.notes ?? "" });
+  }
+  if (fields.id === original.id) throw lessonError("Use um novo identificador para o reagendamento.");
+  return { fields: { ...fields, rescheduledFromId: original.id }, allowConflicts };
+}
+
+/* EN: Require a reason and the version shown in the cancellation preview.
+   PT: Exige motivo e a versão exibida na prévia do cancelamento. */
+export function cancellationFields(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(k => !["requestId", "version", "reason"].includes(k))) throw lessonError("Campos de cancelamento inválidos.");
+  const requestId = lessonId(body.requestId);
+  if (!Number.isSafeInteger(body.version) || body.version < 0 || typeof body.reason !== "string" || !body.reason.trim() || body.reason.trim().length > 1000) throw lessonError("Informe a versão e um motivo de até 1000 caracteres.");
+  return { requestId, version: body.version, reason: body.reason.trim() };
+}
+/* EN: The suggested refund is only a reference; unpaid unused credits are not refundable cash.
+   PT: A devolução sugerida é apenas referência; créditos não pagos não são dinheiro a devolver. */
+export function cancellationPreview(pkg, lessons) {
+  if (pkg.status !== "active") throw lessonError("Somente pacotes ativos podem ser cancelados.", 409);
+  if (!Number.isSafeInteger(pkg.__v) || pkg.__v < 0) throw lessonError("Versão da contratação inválida.", 409);
+  const summary = lessonSummary(pkg, lessons), financial = paymentSummary(pkg);
+  const total = paymentCents(pkg.amount), paid = Math.round(financial.paidAmount * 100);
+  const used = Number((BigInt(total) * BigInt(summary.completedCount) + BigInt(Math.floor(pkg.lessonCount / 2))) / BigInt(pkg.lessonCount));
+  return { packageId: pkg.id, version: pkg.__v, ...summary, ...financial, usedAmount: used / 100,
+    unusedAmount: (total - used) / 100, suggestedRefund: Math.max(0, paid - used) / 100 };
 }

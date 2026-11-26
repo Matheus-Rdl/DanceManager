@@ -1,3 +1,4 @@
+import { validateLessonList, validateScheduleResult, validOperation } from "../features/privateLessons/privateLessonSchedulingView.js";
 import { validatePaymentHistory } from "../features/privateLessons/privateLessonFinancialView.js";
 import { validatePaymentSummary, paymentMatches, uuid } from "../features/privateLessons/privateLessonPaymentForm.js";
 
@@ -17,7 +18,7 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
     }
     if (!response.ok || result?.success === false || result?.ok === false) {
       const message = [result?.body, result?.body?.message, result?.message, result?.serverError].find(v => typeof v === "string" && v);
-      throw Object.assign(new Error(message || `Não foi possível processar a contratação (HTTP ${response.status}).`), { status: response.status });
+      throw Object.assign(new Error(message || `Não foi possível processar a contratação (HTTP ${response.status}).`), { status: response.status, code: result?.code, conflicts: result?.conflicts });
     }
     return result?.body ?? result;
   }
@@ -36,6 +37,16 @@ export function createPrivateLessonPackagesService({ base = import.meta.env?.VIT
       const row = await request("", { method: "POST", data });
       if (!row || typeof row.id !== "string" || !row.id) throw new Error("Resposta da contratação inválida.");
       return row;
+    },
+    async getLessons(id, { signal } = {}) {
+      if (!uuid(id)) throw new Error("Identificador inválido.");
+      return validateLessonList(await request(`/${encodeURIComponent(id)}/lessons`, { signal }), id);
+    },
+    async mutateLesson(id, op) {
+      if (!uuid(id) || !validOperation(op)) throw new Error("Operação de agenda inválida.");
+      const root = `/${encodeURIComponent(id)}/lessons`;
+      const path = op.kind === "single" ? root : op.kind === "recurring" ? `${root}/recurring` : `${root}/${encodeURIComponent(op.lessonId)}/${op.kind === "status" ? "status" : "reschedule"}`;
+      return validateScheduleResult(await request(path, { method: op.kind === "status" ? "PATCH" : "POST", data: op.data }), id, op);
     },
     async getPayments(id, { signal } = {}) {
       if (!uuid(id)) throw new Error("Identificador inválido.");

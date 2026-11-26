@@ -79,3 +79,30 @@ export function findScheduleConflicts(rows, existing) {
   }
   return conflicts;
 }
+
+/* EN: Only scheduled lessons can be finalized; completed lessons are never silently undone.
+   PT: Somente aulas agendadas podem ser finalizadas; aulas realizadas nunca são revertidas silenciosamente. */
+export function statusFields(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => key !== "status") || !["completed", "absent", "cancelled"].includes(body.status)) throw lessonError("Informe uma situação válida: realizada, falta ou cancelada.");
+  return body.status;
+}
+export function validateStatusTransition(lesson, status, timestamp) {
+  if (lesson.status !== "scheduled") throw lessonError("Somente aulas agendadas podem mudar de situação.", 409);
+  if (status !== "cancelled" && (!isValidLessonTimestamp(lesson.endsAt) || lesson.endsAt > timestamp)) throw lessonError("Aguarde o término da aula para registrar realização ou falta.", 409);
+}
+/* EN: Preserve the original duration and notes by default; replacement has a new idempotency key.
+   PT: Preserva duração e observações originais por padrão; reposição tem nova chave de idempotência. */
+export function rescheduleFields(body, original) {
+  const { rows, allowConflicts } = scheduleBatchFields(body, false);
+  let fields = rows[0];
+  if (body.endsAt === undefined) {
+    if (!isValidLessonInterval(original.startsAt, original.endsAt)) throw lessonError("Horário original inconsistente.", 409);
+    const end = new Date(Date.parse(fields.startsAt) + Date.parse(original.endsAt) - Date.parse(original.startsAt));
+    if (!Number.isFinite(end.getTime())) throw lessonError("Horário final inválido.");
+    fields = scheduleFields({ requestId: fields.id, startsAt: fields.startsAt, endsAt: end.toISOString(), notes: body.notes === undefined ? original.notes ?? "" : fields.notes });
+  } else if (body.notes === undefined) {
+    fields = scheduleFields({ requestId: fields.id, startsAt: fields.startsAt, endsAt: fields.endsAt, notes: original.notes ?? "" });
+  }
+  if (fields.id === original.id) throw lessonError("Use um novo identificador para o reagendamento.");
+  return { fields: { ...fields, rescheduledFromId: original.id }, allowConflicts };
+}

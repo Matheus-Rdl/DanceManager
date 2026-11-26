@@ -79,3 +79,20 @@ test("recurring metadata and school calendar lock schema", () => {
   assert.equal(PrivateLessonCalendarLock.collection.name, "privateLessonCalendarLocks");
   assert.equal(new PrivateLessonCalendarLock({ _id: "default", version: 1 }).validateSync(), undefined);
 });
+
+/* EN: Old records remain valid; new history fields are optional and validated.
+   PT: Registros antigos continuam válidos; novos campos de histórico são opcionais e validados. */
+test("replacement history validates without requiring migration", () => {
+  assert.equal(new PrivateLesson(lesson).validateSync(), undefined);
+  assert.equal(new PrivateLesson({ ...lesson, rescheduledFromId: "00000000-0000-4000-8000-000000000001", statusChangedAt: now }).validateSync(), undefined);
+  error(PrivateLesson, { ...lesson, rescheduledFromId: "bad" }, "rescheduledFromId");
+  error(PrivateLesson, { ...lesson, statusChangedAt: "bad" }, "statusChangedAt");
+});
+
+/* EN: Existing packages do not require cancellation metadata.
+   PT: Pacotes existentes não exigem metadados de cancelamento. */
+test("package cancellation audit fields validate",()=>{
+  assert.equal(new PrivateLessonPackage({...pkg,status:"cancelled",cancelledAt:now,cancellationReason:"Solicitação",cancellationRequestId:"00000000-0000-4000-8000-000000000099"}).validateSync(),undefined);
+  error(PrivateLessonPackage,{...pkg,cancelledAt:"bad"},"cancelledAt");
+  error(PrivateLessonPackage,{...pkg,cancellationRequestId:"bad"},"cancellationRequestId");
+});

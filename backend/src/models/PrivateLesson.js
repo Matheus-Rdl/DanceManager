@@ -14,6 +14,10 @@ const privateLessonSchema = new mongoose.Schema({
   seriesId: { type: String, immutable: true },
   seriesIndex: { type: Number, immutable: true, min: 0, validate: Number.isSafeInteger },
   seriesCount: { type: Number, immutable: true, min: 2, max: 100, validate: Number.isSafeInteger },
+  /* EN: A replacement references its original appointment; dates of the original never change.
+     PT: A reposição referencia o agendamento original; suas datas nunca são alteradas. */
+  rescheduledFromId: { type: String, immutable: true, match: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i },
+  statusChangedAt: { type: String, validate: isValidLessonTimestamp },
   startsAt: {
     type: String, required: true,
     validate: { validator: isValidLessonTimestamp, message: "Data e hora inicial UTC inválidas." }
