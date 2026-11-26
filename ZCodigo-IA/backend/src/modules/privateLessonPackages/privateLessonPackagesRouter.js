@@ -12,11 +12,12 @@ const controller = new PrivateLessonPackagesControllers(new PrivateLessonPackage
   model: PrivateLessonPackage, planModel: PrivateLessonPlan, userModel: User, resolveSchoolId: schoolId
 }));
 
-/* EN: Only creation is exposed in this commit; read and edit routes follow separately.
-   PT: Apenas a criação é exposta neste commit; consultas e edição vêm em etapa separada. */
+/* EN: All routes use the existing access gate; no hard-delete or lifecycle change is exposed.
+   PT: Todas as rotas usam o bloqueio de acesso existente; não há exclusão definitiva ou mudança de situação. */
+const respond = (res, result) => res.status(result.statusCode).send(result);
 router.use(privateLessonPackagesAccessGate);
-router.post("/", async (req, res) => {
-  const result = await controller.create(req.body);
-  return res.status(result.statusCode).send(result);
-});
+router.get("/", async (req, res) => respond(res, await controller.list(req.query)));
+router.get("/:id", async (req, res) => respond(res, await controller.get(req.params.id)));
+router.post("/", async (req, res) => respond(res, await controller.create(req.body)));
+router.patch("/:id", async (req, res) => respond(res, await controller.update(req.params.id, req.body)));
 export default router;

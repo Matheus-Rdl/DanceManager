@@ -1,4 +1,4 @@
-import { hasValidParticipants, isValidLessonDate } from "../../models/privateLessonRules.js";
+import { hasValidParticipants, isValidLessonDate, PRIVATE_PACKAGE_STATUSES } from "../../models/privateLessonRules.js";
 import { createPlanFields, validPlanId } from "../privateLessonPlans/privateLessonPlansRules.js";
 
 export const packageError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
@@ -37,4 +37,49 @@ export function participantFilter(schoolId, participantIds) {
   const filter = { _id: { $in: participantIds } };
   if (schoolId === "default") return { ...filter, $or: [{ schoolId }, { schoolId: { $exists: false } }] };
   return { ...filter, schoolId };
+}
+
+/* EN: Whitelist query fields and validate scalar values before constructing Mongo filters.
+   PT: Restringe os campos de consulta e valida valores escalares antes de montar filtros Mongo. */
+export function packageListFilters(query = {}) {
+  const allowed = ["participantId", "status", "from", "to"];
+  if (!query || typeof query !== "object" || Array.isArray(query) ||
+      Object.keys(query).some(key => !allowed.includes(key))) throw packageError("Filtros de contratação inválidos.");
+  const filter = {};
+  if (Object.hasOwn(query, "participantId")) {
+    const id = typeof query.participantId === "string" ? query.participantId.trim().toLowerCase() : query.participantId;
+    if (!hasValidParticipants([id])) throw packageError("Identificador do participante inválido.");
+    filter.participantIds = id;
+  }
+  if (Object.hasOwn(query, "status")) {
+    if (!PRIVATE_PACKAGE_STATUSES.includes(query.status)) throw packageError("Situação do pacote inválida.");
+    filter.status = query.status;
+  }
+  for (const key of ["from", "to"]) {
+    if (Object.hasOwn(query, key) && !isValidLessonDate(query[key])) throw packageError("Data do filtro inválida (AAAA-MM-DD).");
+  }
+  if (query.from && query.to && query.from > query.to) throw packageError("O início do período deve anteceder ou coincidir com o fim.");
+  if (query.from || query.to) filter.contractedOn = {
+    ...(query.from ? { $gte: query.from } : {}), ...(query.to ? { $lte: query.to } : {})
+  };
+  return filter;
+}
+
+/* EN: Keep purchase snapshots and participants unchanged. Lifecycle and financial changes require dedicated actions.
+   PT: Mantém os dados contratados e participantes intactos. Situação e alterações financeiras exigem ações próprias. */
+export function updatePackageFields(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).some(key => !["notes", "contractedOn", "version"].includes(key))) throw packageError("Campos não permitidos na edição.");
+  if (!Number.isSafeInteger(body.version) || body.version < 0) throw packageError("Informe a versão atual do pacote.");
+  const fields = {};
+  if (Object.hasOwn(body, "notes")) {
+    if (typeof body.notes !== "string" || body.notes.trim().length > 1000) throw packageError("Observações devem ter até 1000 caracteres.");
+    fields.notes = body.notes.trim();
+  }
+  if (Object.hasOwn(body, "contractedOn")) {
+    if (!isValidLessonDate(body.contractedOn)) throw packageError("Data de contratação inválida (AAAA-MM-DD).");
+    fields.contractedOn = body.contractedOn;
+  }
+  if (!Object.keys(fields).length) throw packageError("Informe ao menos um campo para atualizar.");
+  return { version: body.version, fields };
 }
