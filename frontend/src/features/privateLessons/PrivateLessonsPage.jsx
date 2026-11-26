@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Dialog, Flex, Heading, HStack, Input, Portal, SimpleGrid, Spinner, Text, VStack } from "@chakra-ui/react";
-import { FiCalendar, FiCheckCircle, FiDollarSign, FiEye, FiLayers, FiRefreshCw, FiSearch, FiUsers } from "react-icons/fi";
+import { FiCalendar, FiCheckCircle, FiDollarSign, FiEye, FiLayers, FiPlus, FiRefreshCw, FiSearch, FiUsers } from "react-icons/fi";
+import PrivateLessonPurchaseDialog from "./PrivateLessonPurchaseDialog.jsx";
 import service from "../../services/privateLessonPackagesServices.js";
 import { displayDate, emptyFilters, filterPackages, money, packageStatus, participantsOf, participantName, summarizePackages, validPeriod } from "./privateLessonPackagesView.js";
 
@@ -60,6 +61,8 @@ export default function PrivateLessonsPage() {
   const [rows, setRows] = useState([]);
   const [filters, setFilters] = useState(emptyFilters);
   const [selected, setSelected] = useState(null);
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -79,12 +82,19 @@ export default function PrivateLessonsPage() {
   const showSummary = !loading && !error && periodOK;
   const change = (key, value) => setFilters(old => ({ ...old, [key]: value }));
   const reload = () => { setLoading(true); setRefresh(n => n + 1); };
+  const saved = (row, preview) => {
+    setPurchaseOpen(false); setFilters(emptyFilters());
+    const changed = preview && (row.amount !== preview.amount || row.lessonCount !== preview.lessonCount);
+    setNotice(changed ? "Pacote contratado com o preço ou quantidade vigente no servidor, diferente da prévia. Confira os detalhes." : "Pacote contratado com sucesso.");
+    reload();
+  };
   return <VStack align="stretch" gap={3} w="100%" minW={0} bg="var(--app-background)" pb={7} pr={4}>
     <Flex justify="space-between" align={{base:"flex-start",md:"center"}} gap={3} wrap="wrap">
       <HStack gap={3}><Flex w="39px" h="39px" flexShrink={0} bg="#064e43" borderRadius="full" align="center" justify="center" color="white"><FiCalendar size={20}/></Flex>
         <Box><Heading fontSize={{base:"18px",md:"22px"}} color="#062f2b">Aulas particulares</Heading><Text fontSize="11px" color="#607873">Acompanhe os pacotes contratados e seus participantes</Text></Box></HStack>
-      <Button size="sm" variant="outline" onClick={reload} disabled={loading}><FiRefreshCw/> Atualizar</Button>
+      <Flex gap={2} wrap="wrap"><Button size="sm" variant="outline" onClick={reload} disabled={loading}><FiRefreshCw/> Atualizar</Button><Button size="sm" bg="#0b6b5b" color="white" disabled={loading || !!error} onClick={()=>{setNotice("");setPurchaseOpen(true);}}><FiPlus/> Novo pacote</Button></Flex>
     </Flex>
+    {notice && <Text role="status" fontSize="12px" color="#315650">{notice}</Text>}
     <SimpleGrid columns={{base:2,xl:4}} gap={3}>
       <StatCard icon={FiLayers} title="Pacotes contratados" value={showSummary ? summary.count : "—"} caption="Todos os pacotes no filtro"/>
       <StatCard icon={FiCheckCircle} title="Pacotes ativos" value={showSummary ? summary.active : "—"} caption="Contratações em andamento"/>
@@ -103,6 +113,7 @@ export default function PrivateLessonsPage() {
       {loading ? <Flex align="center" justify="center" gap={2} p={8}><Spinner color="#075749"/><Text fontSize="12px">Carregando contratações...</Text></Flex> : error ? <VStack align="center" p={6}><Text role="alert" color="#b4232b" fontSize="13px" textAlign="center">{error}</Text><Button size="sm" variant="outline" onClick={reload}>Tentar novamente</Button></VStack> : !periodOK ? null : !visible.length ? <Box p={8} textAlign="center"><Text fontSize="13px" fontWeight="600" color="#315650">{rows.length ? "Nenhum pacote corresponde aos filtros." : "Nenhum pacote contratado."}</Text><Text mt={1} fontSize="12px" color="#607873">{rows.length ? "Altere os filtros para visualizar outras contratações." : "Os pacotes aparecerão aqui após a contratação."}</Text></Box> : <Box overflowX="auto"><Box as="table" w="100%" minW="830px" fontSize="12px" style={{borderCollapse:"collapse"}}><thead><tr>{headers.map(title => <th scope="col" key={title} style={{...cell,background:"#f3f8f6",color:"#315650",fontWeight:700}}>{title}</th>)}</tr></thead><tbody>{visible.map(row => <tr key={row.id} style={{borderTop:"1px solid #e5ece9"}}><td style={cell}><Text color="#075749" fontWeight="700" overflowWrap="anywhere">{row.name}</Text><Text fontSize="10px" color="#607873">{row.planId ? "Padrão" : "Personalizado"}</Text></td><td style={cell}><Participants row={row}/></td><td style={cell}>{displayDate(row.contractedOn)}</td><td style={cell}>{row.lessonCount}</td><td style={cell}>{money(row.amount)}</td><td style={cell}><StatusBadge status={row.status}/></td><td style={cell}><Button variant="ghost" size="xs" aria-label={`Ver detalhes de ${row.name}`} onClick={() => setSelected(row.id)}><FiEye/> Detalhes</Button></td></tr>)}</tbody></Box></Box>}
     </Box>
     {showSummary && <Text fontSize="11px" color="#607873" role="status">{visible.length} de {rows.length} pacotes</Text>}
+    {purchaseOpen && <PrivateLessonPurchaseDialog onClose={()=>setPurchaseOpen(false)} onSaved={saved} onUncertain={()=>{setPurchaseOpen(false);setNotice("Confira se a contratação foi gravada antes de tentar novamente.");setFilters(emptyFilters());reload();}}/>}
     {selected && <PackageDetails key={selected} id={selected} onClose={() => setSelected(null)}/>}
   </VStack>;
 }

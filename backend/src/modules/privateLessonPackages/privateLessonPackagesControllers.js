@@ -14,6 +14,7 @@ export default class PrivateLessonPackagesControllers {
       return { success: false, statusCode, body: statusCode === 500 ? "Erro interno ao processar pacote de aulas particulares." : error.message };
     }
   }
+  listParticipants() { return this.execute(() => this.dataAccess.listParticipants()); }
   list(query) { return this.execute(() => this.dataAccess.list(query)); }
   get(id) { return this.execute(() => this.dataAccess.get(id)); }
   create(body) { return this.execute(() => this.dataAccess.create(body), true); }

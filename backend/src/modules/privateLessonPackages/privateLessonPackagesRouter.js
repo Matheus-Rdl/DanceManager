@@ -17,6 +17,7 @@ const controller = new PrivateLessonPackagesControllers(new PrivateLessonPackage
 const respond = (res, result) => res.status(result.statusCode).send(result);
 router.use(privateLessonPackagesAccessGate);
 router.get("/", async (req, res) => respond(res, await controller.list(req.query)));
+router.get("/participants", async (req, res) => respond(res, await controller.listParticipants()));
 router.get("/:id", async (req, res) => respond(res, await controller.get(req.params.id)));
 router.post("/", async (req, res) => respond(res, await controller.create(req.body)));
 router.patch("/:id", async (req, res) => respond(res, await controller.update(req.params.id, req.body)));

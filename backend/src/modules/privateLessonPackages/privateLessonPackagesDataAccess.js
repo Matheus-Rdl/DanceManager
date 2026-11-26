@@ -22,6 +22,16 @@ export default class PrivateLessonPackagesDataAccess {
     }) }));
   }
 
+  /* EN: Offer only scoped participant identifiers, names and enrollment numbers.
+     PT: Disponibiliza apenas identificadores, nomes e matrículas da escola. */
+  async listParticipants() {
+    const schoolId = this.resolveSchoolId();
+    const { _id, ...scope } = participantFilter(schoolId, []);
+    const users = await this.userModel.find(scope).setOptions({ strictQuery: false })
+      .select("_id user_name user_mat").sort({ user_name: 1, _id: 1 }).lean();
+    return users.map(user => ({ id: String(user._id).toLowerCase(), name: user.user_name ?? null, registration: user.user_mat ?? null }));
+  }
+
   async list(query = {}) {
     const schoolId = this.resolveSchoolId();
     const rows = await this.model.find({ schoolId, ...packageListFilters(query) })
